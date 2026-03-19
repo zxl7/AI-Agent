@@ -17,11 +17,6 @@ const mainMenus = reactive([
         <div class="brand-logo">
           <img src="/vite.svg" alt="logo" />
         </div>
-        <el-button text circle size="small" class="collapse-btn">
-          <el-icon>
-            <Switch />
-          </el-icon>
-        </el-button>
       </div>
 
       <div class="menu-list">
@@ -72,10 +67,13 @@ const mainMenus = reactive([
     <div class="nav-bottom">
       <div class="user-info">
         <el-avatar :size="32" class="user-avatar">
-          <img src="https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png" />
+          <img src="@/assets/avatar.png" alt="avatar" class="info-avatar" />
         </el-avatar>
         <div class="user-detail">
-          <div class="user-name">三人行 <span class="badge-pro">👑</span></div>
+          <div class="user-name">
+            三人行
+            <span class="badge-pro">🛴</span>
+          </div>
           <div class="user-desc">免费</div>
         </div>
       </div>
@@ -94,6 +92,11 @@ const mainMenus = reactive([
   justify-content: space-between;
 }
 
+.info-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+}
 .nav-top {
   padding: 16px;
 }

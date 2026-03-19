@@ -1,34 +1,23 @@
-<script setup lang="ts">
-</script>
+<script setup lang="ts"></script>
 
 <template>
   <el-header class="top-toolbar">
     <div class="toolbar-actions">
-      <el-button text circle>
-        <el-icon :size="20">
-          <Document />
-        </el-icon>
-      </el-button>
-      <el-button text circle>
-        <el-icon :size="20">
-          <Present />
-        </el-icon>
-      </el-button>
-      <el-button text circle>
-        <el-icon :size="20">
-          <Bell />
-        </el-icon>
-      </el-button>
-      <el-button round class="action-btn">
-        <el-icon :size="16">
-          <Download />
-        </el-icon> 下载
-      </el-button>
-      <el-button round class="action-btn coin-btn">
-        <el-icon :size="16">
-          <Coin />
-        </el-icon> 987
-      </el-button>
+      <el-icon :size="20" style="width: 18px">
+        <Document />
+      </el-icon>
+      <el-icon :size="20" style="width: 18px">
+        <Present />
+      </el-icon>
+      <el-icon :size="20" style="width: 18px">
+        <Bell />
+      </el-icon>
+      <el-icon :size="20" style="width: 18px">
+        <Download />
+      </el-icon>
+      <el-icon :size="20" style="width: 18px">
+        <Coin />
+      </el-icon>
     </div>
   </el-header>
 </template>

@@ -39,11 +39,11 @@ const inputText = ref("")
 <template>
   <el-main class="main-content">
     <div class="center-container">
-      <h1 class="main-title">MiniMax Agent, 让你的工作更轻松</h1>
+      <h1 class="main-title">AI Agent, 让你的工作更轻松</h1>
 
       <!-- 核心输入区 -->
       <div class="search-panel">
-        <el-input v-model="inputText" type="textarea" :rows="4" resize="none" placeholder="请输入任务，然后交给 MiniMax Agent" class="custom-textarea" />
+        <el-input v-model="inputText" type="textarea" :rows="4" resize="none" placeholder="请输入任务，然后交给 AI Agent" class="custom-textarea" />
       </div>
 
       <!-- 快捷标签 -->
@@ -122,14 +122,15 @@ const inputText = ref("")
   background: transparent !important;
   min-height: 120px !important;
   padding: 4px;
+  width: 100%;
   resize: none;
   outline: none !important;
 }
 
-:deep(.custom-textarea.el-textarea) {
-  --el-input-focus-border-color: transparent;
-  --el-input-border-color: transparent;
-  --el-input-hover-border-color: transparent;
+:deep(.custom-textarea.ep-textarea) {
+  --ep-input-focus-border-color: transparent;
+  --ep-input-border-color: transparent;
+  --ep-input-hover-border-color: transparent;
 }
 
 /* 快捷标签 */
@@ -190,11 +191,6 @@ const inputText = ref("")
   font-size: 16px;
   font-weight: 600;
   color: #333;
-}
-
-.more-btn {
-  font-size: 14px;
-  color: #999;
 }
 
 .expert-cards {
