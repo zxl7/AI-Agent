@@ -17,6 +17,7 @@ const mainMenus = reactive([
         <div class="brand-logo">
           <img src="/vite.svg" alt="logo" />
         </div>
+        <div class="brand-title">个人助手</div>
       </div>
 
       <div class="menu-list">
@@ -106,6 +107,12 @@ const mainMenus = reactive([
   align-items: center;
   justify-content: space-between;
   margin-bottom: 24px;
+}
+
+.brand-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1a1a1a;
 }
 
 .brand-logo img {
