@@ -286,7 +286,66 @@ process.on("unhandledRejection", (reason) => {
   console.error("[unhandledRejection]", reason)
 })
 
-const PORT = Number(getOptionalEnv("PORT", "3000"))
-server.listen(PORT, () => {
-  console.log(`服务启动成功：http://localhost:${PORT}`)
+const getPort = () => clampNumber(getOptionalEnv("PORT", "3000"), 0, 65535, 3000)
+
+const basePort = getPort()
+const maxPortHops = clampNumber(getOptionalEnv("PORT_FALLBACK_TRIES", "20"), 0, 200, 20)
+let currentPort = basePort
+
+const printListening = () => {
+  const address = server.address()
+  const port =
+    typeof address === "object" && address && typeof address.port === "number"
+      ? address.port
+      : currentPort
+  console.log(`服务启动成功：http://localhost:${port}`)
+  if (basePort !== port) console.log(`端口 ${basePort} 被占用，已切换到 ${port}`)
+}
+
+const listenOnCurrentPort = () => {
+  server.removeListener("listening", printListening)
+  server.once("listening", printListening)
+  server.listen(currentPort)
+}
+
+server.on("error", (err) => {
+  if (err && err.code === "EADDRINUSE") {
+    if (basePort === 0) {
+      console.error(`[server] 端口被占用：${currentPort}`)
+      process.exit(1)
+      return
+    }
+    const hops = currentPort - basePort
+    if (hops >= maxPortHops) {
+      console.error(`[server] 端口 ${basePort}~${currentPort} 均不可用，请设置 PORT 或释放占用进程`)
+      process.exit(1)
+      return
+    }
+    currentPort += 1
+    listenOnCurrentPort()
+    return
+  }
+  console.error("[server error]", err)
+  process.exit(1)
 })
+
+listenOnCurrentPort()
+
+const shutdownServer = (done) => {
+  if (!server.listening) {
+    if (typeof done === "function") done()
+    return
+  }
+  const timer = setTimeout(() => {
+    process.exit(0)
+  }, 2000)
+  timer.unref()
+  server.close(() => {
+    clearTimeout(timer)
+    if (typeof done === "function") done()
+  })
+}
+
+process.on("SIGINT", () => shutdownServer(() => process.exit(0)))
+process.on("SIGTERM", () => shutdownServer(() => process.exit(0)))
+process.once("SIGUSR2", () => shutdownServer(() => process.kill(process.pid, "SIGUSR2")))

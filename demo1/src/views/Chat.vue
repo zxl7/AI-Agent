@@ -1,8 +1,19 @@
 <script setup lang="ts">
-import { reactive, resolveComponent, ref, onMounted } from 'vue'
+import { reactive, resolveComponent, ref, onMounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
+
+type ChatRole = 'user' | 'assistant'
+
+type ChatMessage = {
+  id: number
+  role: ChatRole
+  content: string
+  status?: 'success' | 'streaming' | 'error'
+  thinking?: string
+  thinkTime?: string
+}
 
 // 左侧菜单数据
 const mainMenus = reactive([
@@ -13,7 +24,7 @@ const mainMenus = reactive([
 ])
 
 // 会话数据模拟
-const chatHistory = reactive([
+const chatHistory = reactive<ChatMessage[]>([
   {
     id: 1,
     role: 'user',
@@ -42,6 +53,8 @@ const chatHistory = reactive([
 
 const inputContent = ref('')
 const chatContainer = ref<HTMLElement | null>(null)
+const isSending = ref(false)
+const apiBase = import.meta.env.VITE_API_BASE || 'http://localhost:3001'
 
 // 自动滚动到底部
 const scrollToBottom = () => {
@@ -50,12 +63,120 @@ const scrollToBottom = () => {
   }
 }
 
+const scrollToBottomNextTick = async () => {
+  await nextTick()
+  scrollToBottom()
+}
+
 onMounted(() => {
   scrollToBottom()
 })
 
 const handleNewTask = () => {
   router.push('/')
+}
+
+const buildHistoryPayload = () =>
+  chatHistory
+    .filter((m) => (m.role === 'user' || m.role === 'assistant') && m.status !== 'streaming')
+    .map((m) => ({ role: m.role, content: m.content }))
+
+const extractSseDataLines = (block: string) =>
+  block
+    .split('\n')
+    .map((line) => line.trimEnd())
+    .filter((line) => line.startsWith('data:'))
+    .map((line) => line.slice(5).trimStart())
+    .join('\n')
+
+const handleSend = async () => {
+  if (isSending.value) return
+  const message = inputContent.value.trim()
+  if (!message) return
+
+  const userId = Date.now()
+  chatHistory.push({ id: userId, role: 'user', content: message })
+
+  const assistantId = userId + 1
+  const assistantMsg: ChatMessage = { id: assistantId, role: 'assistant', content: '', status: 'streaming' }
+  chatHistory.push(assistantMsg)
+
+  inputContent.value = ''
+  isSending.value = true
+  await scrollToBottomNextTick()
+
+  try {
+    const response = await fetch(`${apiBase}/api/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message,
+        history: buildHistoryPayload(),
+        temperature: 0.7
+      })
+    })
+
+    if (!response.ok) {
+      const text = await response.text().catch(() => '')
+      assistantMsg.status = 'error'
+      assistantMsg.content = text || `请求失败（HTTP ${response.status}）`
+      await scrollToBottomNextTick()
+      return
+    }
+
+    if (!response.body) {
+      assistantMsg.status = 'error'
+      assistantMsg.content = '响应不支持流式输出'
+      await scrollToBottomNextTick()
+      return
+    }
+
+    const decoder = new TextDecoder('utf-8')
+    const reader = response.body.getReader()
+    let buffer = ''
+
+    while (true) {
+      const { value, done } = await reader.read()
+      if (done) break
+
+      buffer += decoder.decode(value, { stream: true })
+
+      const blocks = buffer.split('\n\n')
+      buffer = blocks.pop() ?? ''
+
+      for (const block of blocks) {
+        const data = extractSseDataLines(block)
+        if (!data) continue
+        if (data === '[DONE]') {
+          assistantMsg.status = 'success'
+          await scrollToBottomNextTick()
+          return
+        }
+
+        let payload: any = null
+        try {
+          payload = JSON.parse(data)
+        } catch (_) {
+          continue
+        }
+
+        const chunk = payload?.choices?.[0]?.delta?.content
+        if (typeof chunk === 'string' && chunk.length > 0) {
+          assistantMsg.content += chunk
+          await scrollToBottomNextTick()
+        }
+      }
+    }
+
+    assistantMsg.status = 'success'
+    await scrollToBottomNextTick()
+  } catch (e: any) {
+    assistantMsg.status = 'error'
+    assistantMsg.content = e?.message || '请求异常'
+    await scrollToBottomNextTick()
+  } finally {
+    isSending.value = false
+  }
 }
 </script>
 
@@ -215,6 +336,7 @@ const handleNewTask = () => {
               resize="none" 
               placeholder="请输入你的需求，按「Enter」发送"
               class="chat-textarea" 
+              @keydown.enter.exact.prevent="handleSend"
             />
             <div class="input-actions">
               <div class="actions-left">
@@ -227,7 +349,7 @@ const handleNewTask = () => {
                   <el-icon class="el-icon--left"><Setting /></el-icon>
                   全能
                 </el-button>
-                <el-button type="info" circle class="send-btn" :disabled="!inputContent">
+                <el-button type="info" circle class="send-btn" :disabled="!inputContent || isSending" @click="handleSend">
                   <el-icon :size="20"><Top /></el-icon>
                 </el-button>
               </div>
