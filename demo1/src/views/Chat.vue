@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { reactive, resolveComponent, ref, onMounted, nextTick } from 'vue'
+import { reactive, resolveComponent, ref, onMounted, nextTick, computed } from 'vue'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
@@ -10,9 +10,18 @@ type ChatMessage = {
   id: number
   role: ChatRole
   content: string
+  rawContent?: string
   status?: 'success' | 'streaming' | 'error'
   thinking?: string
   thinkTime?: string
+}
+
+type ChatHistoryItem = { role: 'user' | 'assistant' | 'system'; content: string }
+
+const systemPrompt: ChatHistoryItem = {
+  role: 'system',
+  content:
+    '你是一个中文 AI 个人助手。目标：高效、可靠、可执行。风格：简洁清晰、先结论后细节；必要时给出步骤与可复制的示例；不确定时先澄清关键前提并给出默认方案。对代码相关问题：优先给出可运行的实现与边界条件。',
 }
 
 // 左侧菜单数据
@@ -23,45 +32,36 @@ const mainMenus = reactive([
   { label: '画廊', icon: 'Picture' },
 ])
 
-// 会话数据模拟
+const nowId = () => Date.now() + Math.floor(Math.random() * 1000)
+const createUserMessage = (content: string): ChatMessage => ({ id: nowId(), role: 'user', content })
+const createAssistantMessage = (status: ChatMessage['status']): ChatMessage => ({
+  id: nowId(),
+  role: 'assistant',
+  content: '',
+  rawContent: '',
+  status,
+})
+
 const chatHistory = reactive<ChatMessage[]>([
   {
-    id: 1,
-    role: 'user',
-    content: '测试'
-  },
-  {
-    id: 2,
+    id: nowId(),
     role: 'assistant',
     status: 'success',
-    thinking: 'The user said "测试" which is Chinese for "test". This seems like they\'re just testing if I\'m working or responding. I should respond politely and let them know I\'m ready to help.',
-    thinkTime: '1.59s',
-    content: `你好！我是 MiniMax Agent，已准备就绪。
-
-有什么我可以帮助你的吗？你可以：
-
-- 提问或咨询问题
-- 请求代码开发或网页制作
-- 进行文件操作和分析
-- 生成图片、视频或音频
-- 研究和信息收集
-- 创建文档和报告
-
-请告诉我你的需求，我会尽力帮你完成。`
-  }
+    content: '你好，我是你的 AI 个人助手。你现在想做什么？',
+  },
 ])
-
 const inputContent = ref('')
 const chatContainer = ref<HTMLElement | null>(null)
 const isSending = ref(false)
 const apiBase = import.meta.env.VITE_API_BASE || 'http://localhost:3001'
-
+const activeController = ref<AbortController | null>(null)
 // 自动滚动到底部
 const scrollToBottom = () => {
   if (chatContainer.value) {
     chatContainer.value.scrollTop = chatContainer.value.scrollHeight
   }
 }
+
 
 const scrollToBottomNextTick = async () => {
   await nextTick()
@@ -76,10 +76,16 @@ const handleNewTask = () => {
   router.push('/')
 }
 
-const buildHistoryPayload = () =>
-  chatHistory
+const visibleHistory = computed(() =>
+  chatHistory.filter((m) => (m.role === 'user' || m.role === 'assistant') && m.status !== 'streaming')
+)
+
+const buildHistoryPayload = (messages: ChatMessage[]): ChatHistoryItem[] => [
+  systemPrompt,
+  ...messages
     .filter((m) => (m.role === 'user' || m.role === 'assistant') && m.status !== 'streaming')
-    .map((m) => ({ role: m.role, content: m.content }))
+    .map((m) => ({ role: m.role, content: m.content })),
+]
 
 const extractSseDataLines = (block: string) =>
   block
@@ -89,16 +95,24 @@ const extractSseDataLines = (block: string) =>
     .map((line) => line.slice(5).trimStart())
     .join('\n')
 
+const stripThinkBlocks = (text: string) => text.replace(/<think>[\s\S]*?<\/think>\s*/g, '')
+
+const stopGenerating = () => {
+  activeController.value?.abort()
+  activeController.value = null
+}
+
 const handleSend = async () => {
   if (isSending.value) return
   const message = inputContent.value.trim()
   if (!message) return
 
-  const userId = Date.now()
-  chatHistory.push({ id: userId, role: 'user', content: message })
+  const historySnapshot = buildHistoryPayload(visibleHistory.value)
 
-  const assistantId = userId + 1
-  const assistantMsg: ChatMessage = { id: assistantId, role: 'assistant', content: '', status: 'streaming' }
+  const userMsg = createUserMessage(message)
+  chatHistory.push(userMsg)
+
+  const assistantMsg = createAssistantMessage('streaming')
   chatHistory.push(assistantMsg)
 
   inputContent.value = ''
@@ -106,14 +120,17 @@ const handleSend = async () => {
   await scrollToBottomNextTick()
 
   try {
+    const controller = new AbortController()
+    activeController.value = controller
     const response = await fetch(`${apiBase}/api/chat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      signal: controller.signal,
       body: JSON.stringify({
         message,
-        history: buildHistoryPayload(),
-        temperature: 0.7
-      })
+        history: historySnapshot,
+        temperature: 0.7,
+      }),
     })
 
     if (!response.ok) {
@@ -160,22 +177,36 @@ const handleSend = async () => {
           continue
         }
 
+        if (payload?.error) {
+          assistantMsg.status = 'error'
+          assistantMsg.content = String(payload.error)
+          await scrollToBottomNextTick()
+          return
+        }
+
         const chunk = payload?.choices?.[0]?.delta?.content
         if (typeof chunk === 'string' && chunk.length > 0) {
-          assistantMsg.content += chunk
+          assistantMsg.rawContent = (assistantMsg.rawContent || '') + chunk
+          assistantMsg.content = stripThinkBlocks(assistantMsg.rawContent || '')
           await scrollToBottomNextTick()
         }
       }
     }
 
-    assistantMsg.status = 'success'
+    assistantMsg.status = assistantMsg.status === 'error' ? 'error' : 'success'
     await scrollToBottomNextTick()
   } catch (e: any) {
-    assistantMsg.status = 'error'
-    assistantMsg.content = e?.message || '请求异常'
+    if (e?.name === 'AbortError') {
+      assistantMsg.status = assistantMsg.content ? 'success' : 'error'
+      if (!assistantMsg.content) assistantMsg.content = '已停止生成'
+    } else {
+      assistantMsg.status = 'error'
+      assistantMsg.content = e?.message || '请求异常'
+    }
     await scrollToBottomNextTick()
   } finally {
     isSending.value = false
+    activeController.value = null
   }
 }
 </script>
@@ -258,7 +289,7 @@ const handleSend = async () => {
     <!-- 右侧主区域 -->
     <el-container class="main-shell">
       <el-header class="chat-header">
-        <div class="header-title">测试</div>
+        <div class="header-title">AI个人助手</div>
         <div class="header-actions">
           <el-button text circle><el-icon :size="20"><Plus /></el-icon></el-button>
           <el-button text class="share-btn">
@@ -294,8 +325,12 @@ const handleSend = async () => {
 
               <!-- AI 消息 -->
               <template v-else>
-                <div class="msg-status">
-                  <span class="status-text">收到您的请求，我正在处理中。</span>
+                <div v-if="msg.status === 'streaming'" class="msg-status">
+                  <span class="status-text">正在生成中…</span>
+                  <el-button text size="small" class="status-stop" @click="stopGenerating">停止</el-button>
+                </div>
+                <div v-else-if="msg.status === 'error'" class="msg-status is-error">
+                  <span class="status-text">生成失败</span>
                 </div>
                 
                 <div v-if="msg.thinking" class="msg-thinking">
@@ -349,8 +384,14 @@ const handleSend = async () => {
                   <el-icon class="el-icon--left"><Setting /></el-icon>
                   全能
                 </el-button>
-                <el-button type="info" circle class="send-btn" :disabled="!inputContent || isSending" @click="handleSend">
-                  <el-icon :size="20"><Top /></el-icon>
+                <el-button
+                  :type="isSending ? 'danger' : 'info'"
+                  circle
+                  class="send-btn"
+                  :disabled="isSending ? false : !inputContent"
+                  @click="isSending ? stopGenerating() : handleSend()"
+                >
+                  <el-icon :size="20"><Close v-if="isSending" /><Top v-else /></el-icon>
                 </el-button>
               </div>
             </div>
@@ -600,10 +641,21 @@ const handleSend = async () => {
 }
 
 .msg-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   font-size: 15px;
   font-weight: 500;
   color: #333;
   margin-bottom: 16px;
+}
+
+.msg-status.is-error {
+  color: #d03050;
+}
+
+.status-stop {
+  padding: 0;
 }
 
 .msg-thinking {
