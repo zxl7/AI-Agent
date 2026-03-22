@@ -1,141 +1,292 @@
-/**
- * Minimax OpenAI 兼容接口对接服务
- * 核心：使用 OpenAI SDK + 读取 .env 配置 + 完全兼容 Vue 前端
- * 文档：https://platform.minimaxi.com/docs/api-reference/text-openai-api
- * 依赖：npm install openai cors dotenv express
- */
-const express = require('express');
-const cors = require('cors');
-const dotenv = require('dotenv');
-// 引入 OpenAI 官方 SDK（核心依赖）
-const { OpenAI } = require('openai');
+const fs = require("node:fs")
+const http = require("node:http")
+const path = require("node:path")
+const { URL } = require("node:url")
 
-// 1. 加载 .env 配置（优先读取环境变量，安全且易部署）
-dotenv.config();
-const app = express();
-const PORT = process.env.PORT || 3000;
-
-// 2. 从 .env 读取 Minimax 配置（所有参数通过环境变量注入）
-const MINIMAX_CONFIG = {
-  API_KEY: process.env.MINIMAX_API_KEY, // 必须从 .env 读取，不设默认值（强制配置）
-  GROUP_ID: process.env.MINIMAX_GROUP_ID, // 可选，部分账号需要
-  MODEL: process.env.MINIMAX_MODEL || 'minimax-3.5', // 兜底默认值
-  BASE_URL: process.env.MINIMAX_BASE_URL || 'https://api.minimax.chat/v1' // Minimax OpenAI 兼容接口前缀
-};
-
-// 3. 校验核心配置（缺少 API Key 直接报错）
-if (!MINIMAX_CONFIG.API_KEY) {
-  console.error('[错误] 请在 .env 文件中配置 MINIMAX_API_KEY！');
-  process.exit(1); // 终止服务启动，避免运行时错误
+const tryLoadDotEnv = (filePath) => {
+  try {
+    if (!fs.existsSync(filePath)) return
+    const raw = fs.readFileSync(filePath, "utf8")
+    const unquote = (value) => {
+      if (value.length >= 2 && value.startsWith('"') && value.endsWith('"')) return value.slice(1, -1)
+      if (value.length >= 2 && value.startsWith("'") && value.endsWith("'")) return value.slice(1, -1)
+      return value
+    }
+    raw
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter((line) => line && !line.startsWith("#"))
+      .forEach((line) => {
+        const idx = line.indexOf("=")
+        if (idx <= 0) return
+        const key = line.slice(0, idx).trim()
+        const value = unquote(line.slice(idx + 1).trim())
+        if (!key) return
+        if (process.env[key] != null) return
+        process.env[key] = value
+      })
+  } catch (_) {
+    return
+  }
 }
 
-// 4. 初始化 OpenAI 客户端（指向 Minimax 兼容接口）
-const openai = new OpenAI({
-  apiKey: MINIMAX_CONFIG.API_KEY, // 用 Minimax 的 API Key
-  baseURL: MINIMAX_CONFIG.BASE_URL, // 指向 Minimax 的 OpenAI 兼容接口地址
-  timeout: 30000 // 超时时间，避免请求挂起
-});
+tryLoadDotEnv(path.join(__dirname, ".env"))
 
-// 5. 全局中间件配置
-app.use(cors()); // 解决前端跨域
-app.use(express.json()); // 解析 JSON 请求体
-app.use(express.urlencoded({ extended: true })); // 解析表单请求
+const getRequiredEnv = (key) => {
+  const value = process.env[key]
+  if (value == null || String(value).trim() === "") throw new Error(`Missing required env: ${key}`)
+  return String(value)
+}
 
-// 6. 健康检查接口（验证配置和服务状态）
-app.get('/api/health', (req, res) => {
-  res.status(200).json({
-    status: 'success',
-    message: 'Minimax OpenAI 兼容服务运行正常',
-    timestamp: new Date().toISOString(),
-    config: {
-      model: MINIMAX_CONFIG.MODEL,
-      baseUrl: MINIMAX_CONFIG.BASE_URL,
-      hasApiKey: !!MINIMAX_CONFIG.API_KEY, // 只返回是否配置，不泄露密钥
-      hasGroupId: !!MINIMAX_CONFIG.GROUP_ID
-    }
-  });
-});
+const getOptionalEnv = (key, fallback) => {
+  const value = process.env[key]
+  if (value == null || String(value).trim() === "") return fallback
+  return String(value)
+}
 
-// 7. 核心聊天接口（使用 OpenAI SDK + 读取 .env 配置）
-app.post('/api/chat', async (req, res) => {
-  try {
-    const {
-      message = '',
-      history = [],
-      temperature = 0.7
-    } = req.body;
+const isRecord = (value) => value != null && typeof value === "object" && !Array.isArray(value)
+const isString = (value) => typeof value === "string"
 
-    // 参数校验
-    if (!message.trim()) {
-      return res.status(400).json({
-        code: 400,
-        error: '消息内容不能为空'
-      });
-    }
+const clampNumber = (value, min, max, fallback) => {
+  const num = typeof value === "number" ? value : Number(value)
+  if (Number.isNaN(num)) return fallback
+  return Math.min(max, Math.max(min, num))
+}
 
-    // 构造 OpenAI 格式的消息（兼容前端传入的 history）
-    const messages = [
-      ...history, // 复用前端的历史消息格式 {role: 'user/bot', content: 'xxx'}
-      { role: 'user', content: message.trim() }
-    ];
+const normalizeRole = (role) => {
+  if (!isString(role)) return null
+  const r = role.trim()
+  if (r === "bot") return "assistant"
+  if (r === "user" || r === "assistant" || r === "system") return r
+  return null
+}
 
-    // 调用 Minimax 接口（通过 OpenAI SDK）
-    const stream = await openai.chat.completions.create({
-      model: MINIMAX_CONFIG.MODEL, // 从 .env 读取模型名
-      messages: messages,
-      stream: true, // 流式输出
-      temperature: Number(temperature),
-      max_tokens: 2048,
-      // 可选：传入 Group ID（部分账号需要）
-      ...(MINIMAX_CONFIG.GROUP_ID && { group_id: MINIMAX_CONFIG.GROUP_ID })
-    });
+const normalizeHistory = (history) => {
+  if (!Array.isArray(history)) return []
+  return history
+    .filter((m) => isRecord(m))
+    .map((m) => {
+      const role = normalizeRole(m.role)
+      const content = isString(m.content) ? m.content : ""
+      if (!role) return null
+      return { role, content }
+    })
+    .filter(Boolean)
+    .slice(-50)
+}
 
-    // 配置流式响应头（适配 Vue 前端）
-    res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache');
-    res.setHeader('Connection', 'keep-alive');
+const sseHeaders = () => ({
+  "Content-Type": "text/event-stream; charset=utf-8",
+  "Cache-Control": "no-cache, no-transform",
+  Connection: "keep-alive",
+  "X-Accel-Buffering": "no",
+})
 
-    // 逐行转发流式数据
-    for await (const chunk of stream) {
-      const content = chunk.choices[0]?.delta?.content || '';
-      if (content) {
-        // 输出 OpenAI 标准格式的流式数据，前端无需修改
-        res.write(`data: ${JSON.stringify({
-          choices: [{ delta: { content: content } }],
-          model: MINIMAX_CONFIG.MODEL
-        })}\n\n`);
-      }
-    }
+const jsonHeaders = () => ({
+  "Content-Type": "application/json; charset=utf-8",
+})
 
-    // 流结束标记
-    res.write('data: [DONE]\n\n');
-    res.end();
-
-  } catch (error) {
-    console.error('[聊天接口异常]', error.message);
-    res.status(500).json({
-      code: 500,
-      error: 'AI 服务调用失败',
-      detail: error.message,
-      tip: '请检查 .env 中的 MINIMAX_API_KEY/MODEL 是否正确'
-    });
+const corsHeaders = () => {
+  const origin = getOptionalEnv("CORS_ORIGIN", "*")
+  const credentials = getOptionalEnv("CORS_CREDENTIALS", "false") === "true"
+  const allowOrigin = credentials && origin === "*" ? "http://localhost:5173" : origin
+  return {
+    "Access-Control-Allow-Origin": allowOrigin,
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type,Authorization",
+    ...(credentials ? { "Access-Control-Allow-Credentials": "true" } : {}),
   }
-});
+}
 
-// 8. 启动服务
-app.listen(PORT, () => {
-  console.log(`====================================`);
-  console.log(`服务启动成功：http://localhost:${PORT}`);
-  console.log(`使用模型：${MINIMAX_CONFIG.MODEL}`);
-  console.log(`接口地址：${MINIMAX_CONFIG.BASE_URL}`);
-  console.log(`健康检查：http://localhost:${PORT}/api/health`);
-  console.log(`====================================`);
-});
+const sendJson = (res, status, payload) => {
+  res.writeHead(status, { ...jsonHeaders(), ...corsHeaders() })
+  res.end(JSON.stringify(payload))
+}
 
-// 9. 全局异常捕获（增强稳定性）
-process.on('uncaughtException', (err) => {
-  console.error('[未捕获异常]', err);
-});
-process.on('unhandledRejection', (reason) => {
-  console.error('[未处理Promise拒绝]', reason);
-});
+const readJsonBody = (req, limitBytes) =>
+  new Promise((resolve, reject) => {
+    const chunks = []
+    let size = 0
+    req.on("data", (chunk) => {
+      size += chunk.length
+      if (size > limitBytes) {
+        reject(new Error("Payload too large"))
+        req.destroy()
+        return
+      }
+      chunks.push(chunk)
+    })
+    req.on("end", () => {
+      if (chunks.length === 0) return resolve({})
+      try {
+        const raw = Buffer.concat(chunks).toString("utf8")
+        resolve(JSON.parse(raw))
+      } catch (e) {
+        reject(e)
+      }
+    })
+    req.on("error", reject)
+  })
+
+const pipeWebStreamToNodeResponse = async ({ readable, res, signal }) => {
+  const reader = readable.getReader()
+  try {
+    while (true) {
+      if (signal.aborted) break
+      const { done, value } = await reader.read()
+      if (done) break
+      res.write(Buffer.from(value))
+    }
+  } finally {
+    try {
+      reader.releaseLock()
+    } catch (_) {
+      return
+    }
+  }
+}
+
+const buildMinimaxUrl = () => {
+  const base = getOptionalEnv("MINIMAX_BASE_URL", "https://api.minimax.chat/v1").replace(/\/+$/, "")
+  return `${base}/chat/completions`
+}
+
+const handleHealth = (req, res) => {
+  const model = getOptionalEnv("MINIMAX_MODEL", "minimax-3.5")
+  const baseUrl = getOptionalEnv("MINIMAX_BASE_URL", "https://api.minimax.chat/v1")
+  const hasApiKey = Boolean(process.env.MINIMAX_API_KEY)
+  const hasGroupId = Boolean(process.env.MINIMAX_GROUP_ID)
+  sendJson(res, 200, {
+    status: "success",
+    message: "Minimax HTTP 接入服务运行正常",
+    timestamp: new Date().toISOString(),
+    config: { model, baseUrl, hasApiKey, hasGroupId },
+  })
+}
+
+const handleChat = async (req, res) => {
+  const jsonLimit = Number(getOptionalEnv("JSON_LIMIT_BYTES", "1048576"))
+  let body
+  try {
+    body = await readJsonBody(req, jsonLimit)
+  } catch (e) {
+    return sendJson(res, 400, { code: 400, error: "请求体不是合法 JSON", detail: e.message })
+  }
+
+  const message = isString(body.message) ? body.message.trim() : ""
+  const temperature = clampNumber(body.temperature, 0, 1, 0.7)
+  const history = normalizeHistory(body.history)
+
+  if (!message) return sendJson(res, 400, { code: 400, error: "消息内容不能为空" })
+  if (message.length > 20000) return sendJson(res, 400, { code: 400, error: "消息内容过长" })
+
+  const apiKey = getRequiredEnv("MINIMAX_API_KEY")
+  const groupId = getOptionalEnv("MINIMAX_GROUP_ID", "")
+  const model = getOptionalEnv("MINIMAX_MODEL", "minimax-3.5")
+  const upstreamUrl = buildMinimaxUrl()
+
+  const payload = {
+    model,
+    messages: [...history, { role: "user", content: message }],
+    stream: true,
+    temperature,
+    max_tokens: clampNumber(body.max_tokens, 1, 8192, 2048),
+    ...(groupId ? { group_id: groupId } : {}),
+  }
+
+  const controller = new AbortController()
+  req.on("close", () => controller.abort())
+
+  let upstreamRes
+  try {
+    const url = new URL(upstreamUrl)
+    if (groupId && getOptionalEnv("MINIMAX_GROUP_ID_IN_QUERY", "false") === "true") {
+      url.searchParams.set("GroupId", groupId)
+    }
+
+    upstreamRes = await fetch(url.toString(), {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    })
+  } catch (e) {
+    if (controller.signal.aborted) return
+    return sendJson(res, 502, { code: 502, error: "上游请求失败", detail: e.message })
+  }
+
+  const contentType = upstreamRes.headers.get("content-type") || ""
+
+  if (!upstreamRes.ok) {
+    const text = await upstreamRes.text().catch(() => "")
+    return sendJson(res, upstreamRes.status || 500, {
+      code: upstreamRes.status || 500,
+      error: "上游返回错误",
+      detail: text.slice(0, 2000),
+    })
+  }
+
+  res.writeHead(200, { ...sseHeaders(), ...corsHeaders() })
+  if (typeof res.flushHeaders === "function") res.flushHeaders()
+
+  if (upstreamRes.body && contentType.includes("text/event-stream")) {
+    await pipeWebStreamToNodeResponse({ readable: upstreamRes.body, res, signal: controller.signal })
+    if (!res.writableEnded) res.end()
+    return
+  }
+
+  const text = await upstreamRes.text().catch(() => "")
+  const json = (() => {
+    try {
+      return JSON.parse(text)
+    } catch (_) {
+      return null
+    }
+  })()
+
+  if (json?.choices?.[0]?.message?.content) {
+    res.write(
+      `data: ${JSON.stringify({
+        choices: [{ delta: { content: String(json.choices[0].message.content) } }],
+        model,
+      })}\n\n`
+    )
+    res.write("data: [DONE]\n\n")
+    res.end()
+    return
+  }
+
+  res.write(`data: ${JSON.stringify({ error: "Unsupported upstream response" })}\n\n`)
+  res.write("data: [DONE]\n\n")
+  res.end()
+}
+
+const server = http.createServer(async (req, res) => {
+  if (!req.url) return sendJson(res, 400, { code: 400, error: "Invalid request" })
+
+  const url = new URL(req.url, "http://localhost")
+  if (req.method === "OPTIONS") {
+    res.writeHead(204, { ...corsHeaders() })
+    return res.end()
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/health") return handleHealth(req, res)
+  if (req.method === "POST" && url.pathname === "/api/chat") return handleChat(req, res)
+
+  return sendJson(res, 404, { code: 404, error: "Not found" })
+})
+
+process.on("uncaughtException", (err) => {
+  console.error("[uncaughtException]", err)
+})
+process.on("unhandledRejection", (reason) => {
+  console.error("[unhandledRejection]", reason)
+})
+
+const PORT = Number(getOptionalEnv("PORT", "3000"))
+server.listen(PORT, () => {
+  console.log(`服务启动成功：http://localhost:${PORT}`)
+})
