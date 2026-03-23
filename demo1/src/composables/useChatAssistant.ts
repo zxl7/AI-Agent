@@ -1,4 +1,6 @@
 import { computed, nextTick, reactive, ref } from "vue"
+import { useChatStore } from "../stores/chat"
+import { saveChatHistory, loadChatHistory } from "../utils/indexeddb"
 
 /** 对话消息角色 */
 export type ChatRole = "user" | "assistant"
@@ -56,10 +58,11 @@ const stripThinkBlocks = (text: string) => text.replace(/<think>[\s\S]*?<\/think
  * - 其余为纯函数或计算属性，符合函数式与单一职责的拆分思路
  */
 export const useChatAssistant = (options: Options) => {
-  /** 输入框内容 */
-  const inputText = ref("")
-  /** 是否正在请求/流式生成中 */
-  const isSending = ref(false)
+  const store = useChatStore()
+  /** 输入框内容（接入 Pinia） */
+  const inputText = store.inputText
+  /** 是否正在请求/流式生成中（接入 Pinia） */
+  const isSending = store.isSending
   /** 用于中止当前请求 */
   const activeController = ref<AbortController | null>(null)
   /** 消息滚动容器引用 */
@@ -70,13 +73,27 @@ export const useChatAssistant = (options: Options) => {
   /** 初始消息列表（纯函数） */
   const initialHistory = (): ChatMessage[] => [{ id: nowId(), role: "assistant", content: initialText, status: "success" }]
 
-  /** 消息列表（响应式） */
-  const chatHistory = reactive<ChatMessage[]>(initialHistory())
+  /** 消息列表：由 Pinia 统一管理 */
+  const chatHistory = store.chatHistory
+  ;(async () => {
+    try {
+      const saved = await loadChatHistory<ChatMessage[]>("history")
+      if (saved && saved.length > 0) {
+        store.resetHistory(saved)
+      } else if (chatHistory.length === 0) {
+        store.resetHistory(initialHistory())
+      }
+    } catch {
+      if (chatHistory.length === 0) {
+        store.resetHistory(initialHistory())
+      }
+    }
+  })()
 
   /** 可作为上下文发送的历史（排除 streaming 占位消息） */
   const visibleHistory = computed(() => chatHistory.filter((m) => m.status !== "streaming"))
   /** 是否进入对话模式（用于布局切换） */
-  const isChatMode = computed(() => isSending.value || chatHistory.some((m) => m.role === "user"))
+  const isChatMode = store.isChatMode
 
   /** 将滚动容器滚动到底部（副作用：读写 DOM） */
   const scrollToBottom = () => {
@@ -125,7 +142,7 @@ export const useChatAssistant = (options: Options) => {
     chatHistory.push(assistantMsg)
 
     inputText.value = ""
-    isSending.value = true
+    store.setSending(true)
     await scrollToBottomNextTick()
 
     try {
@@ -209,8 +226,13 @@ export const useChatAssistant = (options: Options) => {
       }
       await scrollToBottomNextTick()
     } finally {
-      isSending.value = false
+      store.setSending(false)
       activeController.value = null
+      try {
+        await saveChatHistory("history", chatHistory)
+      } catch {
+        /* no-op */
+      }
     }
   }
 

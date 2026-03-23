@@ -58,8 +58,8 @@ const mainMenus = reactive([
             <ArrowRight />
           </el-icon>
         </div>
-        <div class="menu-item sub-item" @click="$router.push('/chat')">
-          <span>测试</span>
+        <div class="menu-item sub-item" @click="$router.push('/')">
+          <span>最近对话</span>
         </div>
         <div class="menu-item sub-item"></div>
       </div>
