@@ -1,6 +1,6 @@
 import { defineStore } from "pinia"
 import { ref, reactive, computed } from "vue"
-import type { ChatMessage } from "../composables/useChatAssistant"
+import type { ChatMessage } from "../types"
 
 export const useChatStore = defineStore("chat", () => {
   const inputText = ref<string>("")

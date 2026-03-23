@@ -1,22 +1,10 @@
-import { computed, nextTick, reactive, ref } from "vue"
+import { computed, nextTick, ref } from "vue"
+import { streamChat, stripThinkBlocks } from "../api/chat"
 import { useChatStore } from "../stores/chat"
+import type { ChatHistoryItem, ChatMessage, ChatMessageStatus, ChatRequestPayload } from "../types"
 import { saveChatHistory, loadChatHistory } from "../utils/indexeddb"
 
-/** 对话消息角色 */
-export type ChatRole = "user" | "assistant"
-/** 对话消息状态 */
-export type ChatMessageStatus = "success" | "streaming" | "error"
-/** UI 层消息模型（用于渲染与流式拼接） */
-export type ChatMessage = {
-  id: number
-  role: ChatRole
-  content: string
-  rawContent?: string
-  status?: ChatMessageStatus
-}
-
-/** 发送给后端的历史消息模型（system/user/assistant） */
-export type ChatHistoryItem = { role: "user" | "assistant" | "system"; content: string }
+export type { ChatHistoryItem, ChatMessage, ChatMessageStatus, ChatRole } from "../types"
 
 type Options = {
   /** 后端基地址，例如 http://localhost:3001 */
@@ -39,18 +27,6 @@ const createAssistantMessage = (status: ChatMessageStatus): ChatMessage => ({
   rawContent: "",
   status,
 })
-
-/** 从 SSE block 中抽取 data: 行（纯函数） */
-const extractSseDataLines = (block: string) =>
-  block
-    .split("\n")
-    .map((line) => line.trimEnd())
-    .filter((line) => line.startsWith("data:"))
-    .map((line) => line.slice(5).trimStart())
-    .join("\n")
-
-/** 过滤模型的 <think>...</think> 思考段落（纯函数） */
-const stripThinkBlocks = (text: string) => text.replace(/<think>[\s\S]*?<\/think>\s*/g, "")
 
 /**
  * 组合式对话助手：集中管理消息状态、SSE 流式接收、终止生成与滚动。
@@ -107,11 +83,12 @@ export const useChatAssistant = (options: Options) => {
     scrollToBottom()
   }
 
-  /** 组装请求所需的 history payload（纯函数） */
-  const buildHistoryPayload = (messages: ChatMessage[]): ChatHistoryItem[] => [
-    options.systemPrompt,
-    ...messages.map((m) => ({ role: m.role, content: m.content })),
-  ]
+  /** 组装请求 payload（纯函数） */
+  const buildRequestPayload = (message: string, messages: ChatMessage[]): ChatRequestPayload => ({
+    message,
+    history: [options.systemPrompt, ...messages.map((m) => ({ role: m.role, content: m.content }))],
+    temperature: 0.7,
+  })
 
   /** 终止当前生成（副作用：AbortController） */
   const stopGenerating = () => {
@@ -135,7 +112,7 @@ export const useChatAssistant = (options: Options) => {
     const message = inputText.value.trim()
     if (!message) return
 
-    const historySnapshot = buildHistoryPayload(visibleHistory.value)
+    const payload = buildRequestPayload(message, visibleHistory.value)
 
     chatHistory.push(createUserMessage(message))
     const assistantMsg = createAssistantMessage("streaming")
@@ -148,69 +125,25 @@ export const useChatAssistant = (options: Options) => {
     try {
       const controller = new AbortController()
       activeController.value = controller
-      const response = await fetch(`${options.apiBase}/api/chat`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        signal: controller.signal,
-        body: JSON.stringify({ message, history: historySnapshot, temperature: 0.7 }),
-      })
+      for await (const event of streamChat({ apiBase: options.apiBase, payload, signal: controller.signal })) {
+        if (event.type === "delta") {
+          assistantMsg.rawContent = (assistantMsg.rawContent || "") + event.content
+          assistantMsg.content = stripThinkBlocks(assistantMsg.rawContent || "")
+          await scrollToBottomNextTick()
+          continue
+        }
 
-      if (!response.ok) {
-        const text = await response.text().catch(() => "")
-        assistantMsg.status = "error"
-        assistantMsg.content = text || `请求失败（HTTP ${response.status}）`
-        await scrollToBottomNextTick()
-        return
-      }
+        if (event.type === "error") {
+          assistantMsg.status = "error"
+          assistantMsg.content = event.error
+          await scrollToBottomNextTick()
+          return
+        }
 
-      if (!response.body) {
-        assistantMsg.status = "error"
-        assistantMsg.content = "响应不支持流式输出"
-        await scrollToBottomNextTick()
-        return
-      }
-
-      const decoder = new TextDecoder("utf-8")
-      const reader = response.body.getReader()
-      let buffer = ""
-
-      while (true) {
-        const { value, done } = await reader.read()
-        if (done) break
-
-        buffer += decoder.decode(value, { stream: true })
-        const blocks = buffer.split("\n\n")
-        buffer = blocks.pop() ?? ""
-
-        for (const block of blocks) {
-          const data = extractSseDataLines(block)
-          if (!data) continue
-          if (data === "[DONE]") {
-            assistantMsg.status = "success"
-            await scrollToBottomNextTick()
-            return
-          }
-
-          let payload: any = null
-          try {
-            payload = JSON.parse(data)
-          } catch (_) {
-            continue
-          }
-
-          if (payload?.error) {
-            assistantMsg.status = "error"
-            assistantMsg.content = String(payload.error)
-            await scrollToBottomNextTick()
-            return
-          }
-
-          const chunk = payload?.choices?.[0]?.delta?.content
-          if (typeof chunk === "string" && chunk.length > 0) {
-            assistantMsg.rawContent = (assistantMsg.rawContent || "") + chunk
-            assistantMsg.content = stripThinkBlocks(assistantMsg.rawContent || "")
-            await scrollToBottomNextTick()
-          }
+        if (event.type === "done") {
+          assistantMsg.status = assistantMsg.status === "error" ? "error" : "success"
+          await scrollToBottomNextTick()
+          return
         }
       }
 

@@ -28,3 +28,4 @@ export type ChatRequestPayload = {
   history: ChatHistoryItem[]
   temperature?: number
 }
+

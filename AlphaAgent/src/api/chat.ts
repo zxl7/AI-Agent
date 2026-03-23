@@ -1,4 +1,4 @@
-import type { ChatHistoryItem, ChatRequestPayload } from "../types"
+import type { ChatRequestPayload } from "../types"
 import { iterateSseData } from "../utils/stream"
 
 export type ChatStreamEvent =
@@ -10,14 +10,6 @@ export type ChatStreamEvent =
  * 过滤模型的 <think>...</think> 思考段落（纯函数）。
  */
 export const stripThinkBlocks = (text: string): string => text.replace(/<think>[\s\S]*?<\/think>\s*/g, "")
-
-/**
- * 构建发送给后端的 payload（纯函数）。
- */
-export const buildChatPayload = (systemPrompt: ChatHistoryItem, messages: Array<{ role: "user" | "assistant"; content: string }>) => {
-  const history: ChatHistoryItem[] = [systemPrompt, ...messages.map((m) => ({ role: m.role, content: m.content }))]
-  return { history }
-}
 
 /**
  * 发起 /api/chat 的流式请求并将 SSE 转为结构化事件。

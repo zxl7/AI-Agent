@@ -13,3 +13,4 @@ export type VectorSearchPayload = {
   query: string
   topK?: number
 }
+

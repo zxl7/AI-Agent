@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import Sidebar from "../components/layout/Sidebar.vue"
 import Header from "../components/layout/Header.vue"
-import MainContent from "../components/layout/MainContent.vue"
 </script>
 
 <template>
@@ -10,7 +9,7 @@ import MainContent from "../components/layout/MainContent.vue"
     <Sidebar />
     <el-container class="main-shell">
       <Header />
-      <MainContent />
+      <router-view />
     </el-container>
   </el-container>
 </template>
