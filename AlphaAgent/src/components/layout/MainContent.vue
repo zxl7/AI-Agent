@@ -47,10 +47,14 @@ const systemPrompt: ChatHistoryItem = {
 const { inputText, chatHistory, chatContainer, isSending, isChatMode, send, stopGenerating, applyQuickTag, resetConversation, scrollToBottom } =
   useChatAssistant({ apiBase, systemPrompt })
 
-onMounted(() => {
-  void chatContainer.value
-  scrollToBottom()
-})
+/**
+ * 更新输入框内容（副作用：写入 ref）。
+ */
+const updateInputText = (v: string) => {
+  inputText.value = v
+}
+
+onMounted(() => scrollToBottom())
 </script>
 
 <template>
@@ -60,10 +64,11 @@ onMounted(() => {
         <h1 class="main-title">Alpha Agent 专业的投资助手</h1>
 
         <ChatInputPanel
-          v-model="inputText"
+          :model-value="inputText"
           :rows="4"
           placeholder="请输入任务，然后交给 Alpha Agent（Enter 发送）"
           :is-sending="isSending"
+          @update:modelValue="updateInputText"
           @send="send"
         />
 
@@ -85,11 +90,12 @@ onMounted(() => {
 
           <div class="composer">
             <ChatInputPanel
-              v-model="inputText"
+              :model-value="inputText"
               :rows="3"
               placeholder="请输入你的需求，按「Enter」发送"
               :is-sending="isSending"
               :can-stop="true"
+              @update:modelValue="updateInputText"
               @send="send"
               @stop="stopGenerating"
             />
@@ -152,6 +158,18 @@ onMounted(() => {
 
 .chat-mode-sub {
   color: #666;
+}
+
+:deep(.chat-mode-sub) {
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: #f3f4f6;
+  color: #374151;
+}
+
+:deep(.chat-mode-sub:hover) {
+  background: #e5e7eb;
 }
 
 .chat-shell {

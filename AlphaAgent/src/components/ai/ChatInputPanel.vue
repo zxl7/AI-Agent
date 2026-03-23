@@ -16,6 +16,13 @@ const emit = defineEmits<{
 }>()
 
 /**
+ * 同步输入框值到父组件（副作用：emit）。
+ */
+const onUpdateModelValue = (v: string) => {
+  emit("update:modelValue", v)
+}
+
+/**
  * 按下 Enter 触发发送（副作用：emit）。
  */
 const onEnterSend = () => {
@@ -43,7 +50,7 @@ const onPrimaryClick = () => {
       resize="none"
       :placeholder="props.placeholder"
       class="custom-textarea"
-      @update:model-value="(v) => emit('update:modelValue', String(v))"
+      @update:modelValue="onUpdateModelValue"
       @keydown.enter.exact.prevent="onEnterSend"
     />
 
@@ -52,7 +59,8 @@ const onPrimaryClick = () => {
         :type="props.canStop && props.isSending ? 'danger' : 'primary'"
         round
         class="send-btn"
-        :disabled="props.canStop && props.isSending ? false : !props.modelValue"
+        :class="{ 'is-stop': props.canStop && props.isSending }"
+        :disabled="props.canStop && props.isSending ? false : !props.modelValue.trim()"
         @click="onPrimaryClick"
       >
         <span v-if="props.canStop && props.isSending">停止</span>
@@ -98,8 +106,48 @@ const onPrimaryClick = () => {
   padding: 0 16px 14px;
 }
 
-.send-btn {
-  min-width: 88px;
+:deep(.send-btn) {
+  height: 38px;
+  min-width: 104px;
+  padding: 0 14px;
+  border-radius: 999px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  border: none;
+  background: linear-gradient(135deg, #111827, #334155);
+  box-shadow: 0 10px 24px rgba(17, 24, 39, 0.18);
+  transition:
+    transform 0.12s ease,
+    box-shadow 0.12s ease,
+    filter 0.12s ease;
+}
+
+:deep(.send-btn:hover) {
+  filter: brightness(1.03);
+  transform: translateY(-1px);
+  box-shadow: 0 14px 30px rgba(17, 24, 39, 0.22);
+}
+
+:deep(.send-btn:active) {
+  transform: translateY(0);
+  box-shadow: 0 10px 24px rgba(17, 24, 39, 0.18);
+}
+
+:deep(.send-btn.is-disabled) {
+  background: #e5e7eb;
+  color: #9ca3af;
+  box-shadow: none;
+}
+
+:deep(.send-btn.is-stop) {
+  background: #fff;
+  color: #d03050;
+  border: 1px solid rgba(208, 48, 80, 0.25);
+  box-shadow: 0 10px 24px rgba(208, 48, 80, 0.12);
+}
+
+:deep(.send-btn.is-stop:hover) {
+  filter: none;
+  box-shadow: 0 14px 30px rgba(208, 48, 80, 0.16);
 }
 </style>
-

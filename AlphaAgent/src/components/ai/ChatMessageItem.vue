@@ -151,8 +151,16 @@ const requestStop = () => {
   color: #d03050;
 }
 
-.status-stop {
-  padding: 0;
+:deep(.status-stop) {
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(208, 48, 80, 0.25);
+  color: #d03050;
+  background: #fff;
+}
+
+:deep(.status-stop:hover) {
+  background: rgba(208, 48, 80, 0.06);
 }
 </style>
-
