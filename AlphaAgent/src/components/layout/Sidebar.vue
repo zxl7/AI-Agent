@@ -1,13 +1,25 @@
 <script setup lang="ts">
-import { reactive, resolveComponent } from "vue"
+import { resolveComponent } from "vue"
+import { useRoute, useRouter } from "vue-router"
 
-// 左侧菜单数据
-const mainMenus = reactive([
-  { label: "新建任务", icon: "Plus", active: true },
-  { label: "搜索", icon: "Search" },
-  { label: "资产", icon: "Folder" },
-  { label: "画廊", icon: "Picture" },
-])
+const route = useRoute()
+const router = useRouter()
+
+const mainMenus = [
+  { label: "聊天", icon: "ChatDotRound", to: "/chat" },
+  { label: "RAG 知识库", icon: "FolderOpened", to: "/rag" },
+  { label: "工作流", icon: "Share", to: "/workflow" },
+] as const
+
+/**
+ * 判断菜单是否为激活态（纯函数）。
+ */
+const isActiveMenu = (to: string): boolean => route.path === to
+
+/**
+ * 执行页面跳转（副作用：路由跳转）。
+ */
+const navigateTo = (to: string) => router.push(to)
 </script>
 
 <template>
@@ -17,11 +29,17 @@ const mainMenus = reactive([
         <div class="brand-logo">
           <img src="/vite.svg" alt="logo" />
         </div>
-        <div class="brand-title">个人助手</div>
+        <div class="brand-title">投研工作台</div>
       </div>
 
       <div class="menu-list">
-        <div v-for="item in mainMenus" :key="item.label" class="menu-item" :class="{ 'is-active': item.active }">
+        <div
+          v-for="item in mainMenus"
+          :key="item.label"
+          class="menu-item"
+          :class="{ 'is-active': isActiveMenu(item.to) }"
+          @click="navigateTo(item.to)"
+        >
           <el-icon :size="18" style="width: 12px">
             <component :is="resolveComponent(item.icon)" />
           </el-icon>
@@ -58,10 +76,9 @@ const mainMenus = reactive([
             <ArrowRight />
           </el-icon>
         </div>
-        <div class="menu-item sub-item" @click="$router.push('/')">
+        <div class="menu-item sub-item" @click="navigateTo('/chat')">
           <span>最近对话</span>
         </div>
-        <div class="menu-item sub-item"></div>
       </div>
     </div>
 
