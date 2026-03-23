@@ -17,19 +17,19 @@ const quickTags = [
 const expertList = [
   {
     name: "办公",
-    bg: "linear-gradient(135deg, #e8f5e9, #fbe9e7)",
+    bg: "#f8fafc",
     textColor: "#333",
     imgClass: "bg-office",
   },
   {
     name: "金融",
-    bg: "linear-gradient(135deg, #e3f2fd, #bbdefb)",
+    bg: "#eff6ff",
     textColor: "#333",
     imgClass: "bg-finance",
   },
   {
     name: "编程",
-    bg: "linear-gradient(135deg, #2b2b2b, #1a1a1a)",
+    bg: "#111827",
     textColor: "#fff",
     imgClass: "bg-code",
   },

@@ -114,23 +114,32 @@ const onPrimaryClick = () => {
   font-weight: 600;
   letter-spacing: 0.2px;
   border: none;
-  background: linear-gradient(135deg, #111827, #334155);
-  box-shadow: 0 10px 24px rgba(17, 24, 39, 0.18);
+  background: #2563eb;
+  color: #fff;
+  box-shadow: 0 10px 22px rgba(37, 99, 235, 0.22);
   transition:
     transform 0.12s ease,
     box-shadow 0.12s ease,
-    filter 0.12s ease;
+    background-color 0.12s ease;
 }
 
 :deep(.send-btn:hover) {
-  filter: brightness(1.03);
+  background: #1d4ed8;
   transform: translateY(-1px);
-  box-shadow: 0 14px 30px rgba(17, 24, 39, 0.22);
+  box-shadow: 0 14px 30px rgba(37, 99, 235, 0.28);
 }
 
 :deep(.send-btn:active) {
+  background: #1e40af;
   transform: translateY(0);
-  box-shadow: 0 10px 24px rgba(17, 24, 39, 0.18);
+  box-shadow: 0 10px 22px rgba(37, 99, 235, 0.22);
+}
+
+:deep(.send-btn:focus-visible) {
+  outline: none;
+  box-shadow:
+    0 0 0 3px rgba(37, 99, 235, 0.28),
+    0 10px 22px rgba(37, 99, 235, 0.22);
 }
 
 :deep(.send-btn.is-disabled) {
