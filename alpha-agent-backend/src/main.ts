@@ -5,10 +5,13 @@ import cors from 'cors';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-  app.use(cors());
+  const corsMiddleware = (
+    cors as unknown as () => import('express').RequestHandler
+  )();
+  app.use(corsMiddleware);
   app.useGlobalPipes(new ValidationPipe());
   app.setGlobalPrefix('api');
   await app.listen(3000);
   console.log('✅ AlphaAgent Backend running on http://localhost:3000');
 }
-bootstrap();
+void bootstrap();
