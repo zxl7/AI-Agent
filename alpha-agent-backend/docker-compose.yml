@@ -1,0 +1,13 @@
+version: '3.9'
+
+services:
+  chromadb:
+    image: chromadb/chroma:latest
+    container_name: alpha_agent_chromadb
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./chroma_docker_data:/chroma/chroma
+    environment:
+      - IS_PERSISTENT=TRUE
+    restart: unless-stopped
