@@ -1,8 +1,11 @@
 import { Controller, Get, Post, Body } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
 import { AppService } from './app.service';
 import { VectorService } from './chroma/vector.service';
 import { LlmService } from './llm/llm.service';
+import { AddVectorDto, ChatDto } from './dto/api.dto';
 
+@ApiTags('Agent RAG')
 @Controller()
 export class AppController {
   constructor(
@@ -12,6 +15,7 @@ export class AppController {
   ) {}
 
   @Get()
+  @ApiOperation({ summary: '测试服务联通性' })
   getHello(): string {
     return this.appService.getHello();
   }
@@ -24,7 +28,13 @@ export class AppController {
    * 示例：向向量数据库中添加知识库文档
    */
   @Post('vector/add')
-  async addData(@Body() body: { texts: string[]; metadatas?: any[] }) {
+  @ApiOperation({
+    summary: '录入知识库',
+    description: '将文本切片添加到 Chroma 向量库中',
+  })
+  @ApiBody({ type: AddVectorDto })
+  @ApiResponse({ status: 201, description: '成功入库' })
+  async addData(@Body() body: AddVectorDto) {
     await this.vectorService.addTexts(body.texts, body.metadatas);
     return { success: true, message: '知识已成功入库' };
   }
@@ -33,7 +43,13 @@ export class AppController {
    * 示例：基于向量检索的大模型对话 (RAG 核心流程)
    */
   @Post('chat')
-  async chatWithRag(@Body() body: { question: string }) {
+  @ApiOperation({
+    summary: 'RAG 问答对话',
+    description: '结合向量库知识的对话问答',
+  })
+  @ApiBody({ type: ChatDto })
+  @ApiResponse({ status: 201, description: '成功返回生成的回答' })
+  async chatWithRag(@Body() body: ChatDto) {
     // 1. 从 Chroma 向量库检索相关上下文 (基于用户提问)
     const docs = await this.vectorService.similaritySearch(body.question, 2);
 

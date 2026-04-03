@@ -36,9 +36,14 @@ export class VectorService implements OnModuleInit {
       // ChromaDB 最新版本规定，如果不传 metadata，应该是不提供该字段，或者提供至少含有一个键值对的对象。
       // 不能传空对象 `{}`，否则会报 Expected metadata to be non-empty。
       const meta = metadatas?.[index];
+      // 避免 LangChain 或 Chroma 内部将 metadata 默认转换为空对象 {} 而报错
+      // 这里强制至少包含一个默认的元数据键值对
+      const finalMeta =
+        meta && Object.keys(meta).length > 0 ? meta : { source: 'api_upload' };
+
       return {
         pageContent: text,
-        ...(meta && Object.keys(meta).length > 0 ? { metadata: meta } : {}),
+        metadata: finalMeta,
       };
     }) as Document[];
 
