@@ -32,10 +32,15 @@ export class VectorService implements OnModuleInit {
       );
     }
 
-    const documents = texts.map((text, index) => ({
-      pageContent: text,
-      metadata: metadatas ? metadatas[index] : {},
-    })) as Document[];
+    const documents = texts.map((text, index) => {
+      // ChromaDB 最新版本规定，如果不传 metadata，应该是不提供该字段，或者提供至少含有一个键值对的对象。
+      // 不能传空对象 `{}`，否则会报 Expected metadata to be non-empty。
+      const meta = metadatas?.[index];
+      return {
+        pageContent: text,
+        ...(meta && Object.keys(meta).length > 0 ? { metadata: meta } : {}),
+      };
+    }) as Document[];
 
     await this.vectorStore.addDocuments(documents);
     this.logger.log(`成功添加 ${documents.length} 条文档到向量库`);

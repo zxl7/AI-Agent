@@ -26,6 +26,7 @@
   "dependencies": {
     "@langchain/community": "^1.1.27",
     "@langchain/core": "^1.1.38",
+    "@langchain/openai": "^1.4.1",
     "@nestjs/common": "^11.0.1",
     "@nestjs/core": "^11.0.1",
     "@nestjs/platform-express": "^11.0.1",
