@@ -7,7 +7,8 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - ./chroma_docker_data:/chroma/chroma
+      # 最新版的 Chroma 默认将数据存在容器的 /data 目录下
+      - ./chroma_docker_data:/data
     environment:
       - IS_PERSISTENT=TRUE
     restart: unless-stopped

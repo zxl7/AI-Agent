@@ -30,15 +30,15 @@ export class VectorService implements OnModuleInit {
       // 独立创建一个 ChromaClient 实例获取数据，避免直接访问 LangChain 私有属性导致报错
       const client = new ChromaClient({ path: 'http://localhost:8000' });
       const collection = await client.getCollection({ name: 'alpha_agent' });
-      
       const data = await collection.get({ limit });
-      this.logger.log(`成功获取向量库中的数据预览，共 ${data?.ids?.length || 0} 条`);
-      
+      this.logger.log(
+        `成功获取向量库中的数据预览，共 ${data?.ids?.length || 0} 条`,
+      );
       // 返回友好的格式
       return {
         ids: data.ids,
         documents: data.documents,
-        metadatas: data.metadatas
+        metadatas: data.metadatas || [],
       };
     } catch (error) {
       this.logger.error('获取向量库数据失败', error);
