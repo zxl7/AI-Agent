@@ -25,6 +25,23 @@ export class AppController {
   // --------------------------------------------------------------------------
 
   /**
+   * 示例：获取向量库中的数据预览
+   */
+  @Get('vector/data')
+  @ApiOperation({
+    summary: '查看知识库数据',
+    description: '获取当前 Chroma 向量库中的文档数据预览（默认前100条）',
+  })
+  @ApiResponse({ status: 200, description: '成功返回向量库数据' })
+  async getVectorData() {
+    const data = await this.vectorService.getAllData(100);
+    return {
+      success: true,
+      data,
+    };
+  }
+
+  /**
    * 示例：向向量数据库中添加知识库文档
    */
   @Post('vector/add')

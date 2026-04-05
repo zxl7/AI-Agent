@@ -2,6 +2,7 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { createVectorStore } from '../config/vector.config';
 import { Chroma } from '@langchain/community/vectorstores/chroma';
 import { Document } from '@langchain/core/documents';
+import { ChromaClient } from 'chromadb';
 
 @Injectable()
 export class VectorService implements OnModuleInit {
@@ -17,6 +18,31 @@ export class VectorService implements OnModuleInit {
       this.logger.log('✅ LangChain VectorStore 初始化成功');
     } catch (error) {
       this.logger.error('❌ LangChain VectorStore 初始化失败', error);
+    }
+  }
+
+  /**
+   * 获取向量库中的所有数据（用于预览和调试）
+   * @param limit 返回的最大数量，默认 100 条
+   */
+  async getAllData(limit: number = 100) {
+    try {
+      // 独立创建一个 ChromaClient 实例获取数据，避免直接访问 LangChain 私有属性导致报错
+      const client = new ChromaClient({ path: 'http://localhost:8000' });
+      const collection = await client.getCollection({ name: 'alpha_agent' });
+      
+      const data = await collection.get({ limit });
+      this.logger.log(`成功获取向量库中的数据预览，共 ${data?.ids?.length || 0} 条`);
+      
+      // 返回友好的格式
+      return {
+        ids: data.ids,
+        documents: data.documents,
+        metadatas: data.metadatas
+      };
+    } catch (error) {
+      this.logger.error('获取向量库数据失败', error);
+      throw new Error('无法连接到 Chroma 数据库获取数据');
     }
   }
 
