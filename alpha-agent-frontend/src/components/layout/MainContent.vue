@@ -36,7 +36,7 @@ const expertList = [
 ] as const
 
 // 输入文本
-const apiBase = import.meta.env.VITE_API_BASE || "http://localhost:3001"
+const apiBase = import.meta.env.VITE_API_BASE || "http://localhost:3000"
 
 const systemPrompt: ChatHistoryItem = {
   role: "system",

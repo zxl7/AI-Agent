@@ -6,7 +6,7 @@ import axios from "axios"
  * - 流式输出（ReadableStream）仍建议用 fetch（更可控）
  */
 export const http = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE || "http://localhost:3001",
+  baseURL: import.meta.env.VITE_API_BASE || "http://localhost:3000",
   timeout: 30000,
 })
 

@@ -17,6 +17,10 @@ export type ChatMessage = {
   content: string
   rawContent?: string
   status?: ChatMessageStatus
+  retrievedContext?: Array<{
+    pageContent: string
+    metadata?: Record<string, any>
+  }>
 }
 
 /** 发送给后端的历史消息模型（system/user/assistant） */

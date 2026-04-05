@@ -32,6 +32,22 @@ const requestStop = () => {
         <span class="status-text">生成失败</span>
       </div>
       <div class="msg-bubble ai-bubble markdown-body" v-html="props.renderMarkdown(props.message.content)"></div>
+      
+      <!-- 知识库命中结果展示 -->
+      <div v-if="props.message.retrievedContext && props.message.retrievedContext.length > 0" class="retrieved-context-box">
+        <div class="context-title">
+          <el-icon><Document /></el-icon>
+          <span>命中本地知识库 ({{ props.message.retrievedContext.length }}条)</span>
+        </div>
+        <div class="context-list">
+          <div v-for="(ctx, idx) in props.message.retrievedContext" :key="idx" class="context-item">
+            <div class="context-text">{{ ctx.pageContent }}</div>
+            <div class="context-meta" v-if="ctx.metadata && Object.keys(ctx.metadata).length > 0">
+              <el-tag size="small" type="info">{{ ctx.metadata.source || '未知来源' }}</el-tag>
+            </div>
+          </div>
+        </div>
+      </div>
     </template>
   </div>
 </template>
@@ -162,5 +178,55 @@ const requestStop = () => {
 
 :deep(.status-stop:hover) {
   background: rgba(208, 48, 80, 0.06);
+}
+
+.retrieved-context-box {
+  margin-top: 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 12px;
+  width: 100%;
+  max-width: 80%;
+  box-sizing: border-box;
+}
+
+.context-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+
+.context-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.context-item {
+  background: #ffffff;
+  border: 1px solid #f1f5f9;
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 13px;
+  color: #475569;
+  line-height: 1.5;
+}
+
+.context-text {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.context-meta {
+  margin-top: 6px;
+  display: flex;
+  justify-content: flex-end;
 }
 </style>

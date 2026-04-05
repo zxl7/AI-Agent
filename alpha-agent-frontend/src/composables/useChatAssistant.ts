@@ -122,6 +122,11 @@ export const useChatAssistant = (options: Options) => {
         if (event.type === "delta") {
           assistantMsg.rawContent = (assistantMsg.rawContent || "") + event.content
           assistantMsg.content = stripThinkBlocks(assistantMsg.rawContent || "")
+          
+          if (event.retrievedContext && event.retrievedContext.length > 0) {
+            assistantMsg.retrievedContext = event.retrievedContext
+          }
+          
           await scrollToBottomNextTick()
           continue
         }
