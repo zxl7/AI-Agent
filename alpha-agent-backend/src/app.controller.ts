@@ -99,7 +99,8 @@ export class AppController {
   @ApiBody({ type: ChatDto })
   @ApiResponse({ status: 201, description: '成功返回流式生成结果' })
   async chatWithRag(@Body() body: ChatDto, @Res() response: Response) {
-    const docs = await this.vectorService.similaritySearch(body.question, 2);
+    // 提升向量检索的命中数量，默认返回最相关的 5 条记录作为上下文
+    const docs = await this.vectorService.similaritySearch(body.question, 50);
     const context = docs.map((doc) => doc.pageContent).join('\n\n');
     const prompt = `你是一个有帮助的 AI 助手。请根据以下提供的参考知识回答用户的问题。如果上下文中没有相关信息，请如实回答不知道。
     
