@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed, ref, watch } from "vue"
 import type { ChatMessage } from "../../types"
 
 const props = defineProps<{
@@ -16,6 +17,72 @@ const emit = defineEmits<{
 const requestStop = () => {
   emit("stop")
 }
+
+const isThinkingExpanded = ref(true)
+
+watch(
+  () => props.message.streamPhase,
+  (phase) => {
+    if (phase === "answering" && (props.message.content || "").trim().length > 0) {
+      isThinkingExpanded.value = false
+    }
+  },
+  { immediate: true }
+)
+
+/**
+ * 切换思考面板展开状态（副作用：更新局部 UI 状态）。
+ */
+const toggleThinkingPanel = () => {
+  isThinkingExpanded.value = !isThinkingExpanded.value
+}
+
+/**
+ * 是否展示答案气泡（纯函数派生）。
+ */
+const shouldShowAnswerBubble = computed(() => props.message.content.trim().length > 0)
+
+/**
+ * 是否展示答案承载区域（纯函数派生）。
+ */
+const shouldShowAnswerShell = computed(() => {
+  if (shouldShowAnswerBubble.value) return true
+  return props.message.status === "streaming" && props.message.streamPhase === "answering"
+})
+
+/**
+ * 流式阶段优先以纯文本渲染，避免不完整 markdown 反复解析导致闪烁。
+ */
+const shouldRenderStreamingPlainText = computed(() => {
+  return props.message.status === "streaming" && shouldShowAnswerBubble.value
+})
+
+/**
+ * 是否展示思考过程面板（纯函数派生）。
+ */
+const shouldShowThinkingPanel = computed(() => {
+  if (props.message.role !== "assistant") return false
+  if ((props.message.thinkingContent || "").trim().length > 0) return true
+  return props.message.status === "streaming" && !shouldShowAnswerBubble.value
+})
+
+/**
+ * 当前流式阶段对应的状态文案（纯函数派生）。
+ */
+const streamingStatusText = computed(() => {
+  if (props.message.streamPhase === "answering") return "正在输出答案…"
+  return "思考中…"
+})
+
+/**
+ * 思考内容摘要（纯函数派生）。
+ */
+const thinkingSummary = computed(() => {
+  const content = (props.message.thinkingContent || "").trim()
+  if (!content) return "正在结合知识库检索并思考中…"
+  if (content.length <= 120) return content
+  return `${content.slice(0, 120)}…`
+})
 </script>
 
 <template>
@@ -25,15 +92,45 @@ const requestStop = () => {
     </template>
     <template v-else>
       <div v-if="props.message.status === 'streaming'" class="msg-status">
-        <span class="status-text">正在生成中…</span>
+        <span class="status-text">{{ streamingStatusText }}</span>
         <el-button text size="small" class="status-stop" @click="requestStop">停止</el-button>
       </div>
       <div v-else-if="props.message.status === 'error'" class="msg-status is-error">
         <span class="status-text">生成失败</span>
       </div>
-      <div class="msg-bubble ai-bubble markdown-body" v-html="props.renderMarkdown(props.message.content)"></div>
-      
-      <!-- 知识库命中结果展示 -->
+
+      <div v-if="shouldShowThinkingPanel" class="thinking-panel">
+        <button type="button" class="thinking-header" @click="toggleThinkingPanel">
+          <div class="thinking-title-wrap">
+            <span class="thinking-dot"></span>
+            <span class="thinking-title">思考过程</span>
+          </div>
+          <span class="thinking-toggle">{{ isThinkingExpanded ? "收起" : "展开" }}</span>
+        </button>
+        <div v-if="isThinkingExpanded" class="thinking-content">
+          {{ props.message.thinkingContent?.trim() || "正在结合知识库检索并思考中…" }}
+        </div>
+        <div v-else class="thinking-summary">
+          {{ thinkingSummary }}
+        </div>
+      </div>
+
+      <div
+        v-if="shouldShowAnswerShell"
+        class="msg-bubble ai-bubble markdown-body"
+        :class="{ 'is-streaming': props.message.status === 'streaming', 'is-placeholder': !shouldShowAnswerBubble }"
+      >
+        <template v-if="!shouldShowAnswerBubble">
+          <p>正在整理答案…</p>
+        </template>
+        <template v-else-if="shouldRenderStreamingPlainText">
+          <div class="streaming-plain-text">{{ props.message.content }}</div>
+        </template>
+        <template v-else>
+          <div v-html="props.renderMarkdown(props.message.content)"></div>
+        </template>
+      </div>
+
       <div v-if="props.message.retrievedContext && props.message.retrievedContext.length > 0" class="retrieved-context-box">
         <div class="context-title">
           <el-icon><Document /></el-icon>
@@ -87,8 +184,17 @@ const requestStop = () => {
   border-bottom-left-radius: 4px;
 }
 
+.ai-bubble.is-placeholder {
+  color: #6b7280;
+}
+
 .markdown-body {
   white-space: normal;
+}
+
+.streaming-plain-text {
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .markdown-body :deep(p) {
@@ -167,6 +273,69 @@ const requestStop = () => {
   color: #d03050;
 }
 
+.thinking-panel {
+  width: 100%;
+  max-width: 80%;
+  margin-bottom: 10px;
+  border-radius: 12px;
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.thinking-header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+.thinking-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.thinking-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #f97316;
+  box-shadow: 0 0 0 4px rgba(249, 115, 22, 0.14);
+}
+
+.thinking-title {
+  color: #c2410c;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.thinking-toggle {
+  color: #9a3412;
+  font-size: 12px;
+}
+
+.thinking-content {
+  padding: 0 12px 12px;
+  color: #9a3412;
+  font-size: 13px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+.thinking-summary {
+  padding: 0 12px 12px;
+  color: #9a3412;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
 :deep(.status-stop) {
   height: 26px;
   padding: 0 10px;
@@ -189,6 +358,26 @@ const requestStop = () => {
   width: 100%;
   max-width: 80%;
   box-sizing: border-box;
+}
+
+.ai-bubble.is-streaming :deep(*:last-child)::after,
+.ai-bubble.is-streaming::after {
+  content: "▍";
+  display: inline-block;
+  margin-left: 2px;
+  color: #2563eb;
+  animation: blink-cursor 1s steps(1) infinite;
+}
+
+@keyframes blink-cursor {
+  0%,
+  50% {
+    opacity: 1;
+  }
+  50.01%,
+  100% {
+    opacity: 0;
+  }
 }
 
 .context-title {

@@ -24,6 +24,8 @@ const createAssistantMessage = (status: ChatMessageStatus): ChatMessage => ({
   role: "assistant",
   content: "",
   rawContent: "",
+  thinkingContent: "",
+  streamPhase: "thinking",
   status,
 })
 
@@ -118,15 +120,33 @@ export const useChatAssistant = (options: Options) => {
     try {
       const controller = new AbortController()
       activeController.value = controller
+
       for await (const event of streamChat({ apiBase: options.apiBase, payload, signal: controller.signal })) {
+        if (event.type === "status") {
+          assistantMsg.streamPhase = event.phase
+          assistantMsg.status = "streaming"
+          await scrollToBottomNextTick()
+          continue
+        }
+
+        if (event.type === "context") {
+          assistantMsg.retrievedContext = event.retrievedContext
+          await scrollToBottomNextTick()
+          continue
+        }
+
+        if (event.type === "reasoning") {
+          assistantMsg.streamPhase = "thinking"
+          assistantMsg.thinkingContent = `${assistantMsg.thinkingContent || ""}${event.content}`
+          await scrollToBottomNextTick()
+          continue
+        }
+
         if (event.type === "delta") {
-          assistantMsg.rawContent = (assistantMsg.rawContent || "") + event.content
+          assistantMsg.streamPhase = "answering"
+          assistantMsg.rawContent = `${assistantMsg.rawContent || ""}${event.content}`
           assistantMsg.content = stripThinkBlocks(assistantMsg.rawContent || "")
-          
-          if (event.retrievedContext && event.retrievedContext.length > 0) {
-            assistantMsg.retrievedContext = event.retrievedContext
-          }
-          
+          assistantMsg.status = "streaming"
           await scrollToBottomNextTick()
           continue
         }
@@ -139,6 +159,10 @@ export const useChatAssistant = (options: Options) => {
         }
 
         if (event.type === "done") {
+          if (!assistantMsg.content.trim() && (assistantMsg.thinkingContent || "").trim()) {
+            assistantMsg.content = assistantMsg.thinkingContent?.trim() || ""
+          }
+          assistantMsg.streamPhase = "answering"
           assistantMsg.status = assistantMsg.status === "error" ? "error" : "success"
           await scrollToBottomNextTick()
           return
@@ -150,10 +174,17 @@ export const useChatAssistant = (options: Options) => {
     } catch (e: any) {
       if (e?.name === "AbortError") {
         assistantMsg.status = assistantMsg.content ? "success" : "error"
-        if (!assistantMsg.content) assistantMsg.content = "已停止生成"
+        assistantMsg.streamPhase = assistantMsg.content ? "answering" : "thinking"
+        if (!assistantMsg.content) {
+          assistantMsg.content = assistantMsg.thinkingContent?.trim() || "已停止生成"
+        }
       } else {
         assistantMsg.status = "error"
-        assistantMsg.content = e?.message || "请求异常"
+        assistantMsg.content =
+          assistantMsg.content ||
+          assistantMsg.thinkingContent?.trim() ||
+          e?.message ||
+          "请求异常"
       }
       await scrollToBottomNextTick()
     } finally {

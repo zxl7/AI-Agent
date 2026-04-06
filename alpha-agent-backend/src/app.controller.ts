@@ -1,8 +1,10 @@
-import { Controller, Get, Post, Body } from '@nestjs/common';
+import { Controller, Get, Post, Body, Res } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
+import type { Response } from 'express';
 import { AppService } from './app.service';
 import { VectorService } from './chroma/vector.service';
 import { LlmService } from './llm/llm.service';
+import type { LlmStreamChunk } from './llm/llm.service';
 import { AddVectorDto, ChatDto } from './dto/api.dto';
 
 @ApiTags('Agent RAG')
@@ -62,18 +64,13 @@ export class AppController {
   @Post('chat')
   @ApiOperation({
     summary: 'RAG 问答对话',
-    description: '结合向量库知识的对话问答',
+    description: '结合向量库知识的流式问答对话（SSE）',
   })
   @ApiBody({ type: ChatDto })
-  @ApiResponse({ status: 201, description: '成功返回生成的回答' })
-  async chatWithRag(@Body() body: ChatDto) {
-    // 1. 从 Chroma 向量库检索相关上下文 (基于用户提问)
+  @ApiResponse({ status: 201, description: '成功返回流式生成结果' })
+  async chatWithRag(@Body() body: ChatDto, @Res() response: Response) {
     const docs = await this.vectorService.similaritySearch(body.question, 2);
-
-    // 2. 提取文本，拼装知识库上下文
     const context = docs.map((doc) => doc.pageContent).join('\n\n');
-
-    // 3. 构建给本地大模型的 Prompt
     const prompt = `你是一个有帮助的 AI 助手。请根据以下提供的参考知识回答用户的问题。如果上下文中没有相关信息，请如实回答不知道。
     
 【参考知识】：
@@ -82,13 +79,56 @@ ${context}
 【用户问题】：
 ${body.question}`;
 
-    // 4. 调用本地大模型 (http://127.0.0.1:1234/v1/responses)
-    const answer = await this.llmService.generateResponse(prompt);
+    response.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+    response.setHeader('Cache-Control', 'no-cache, no-transform');
+    response.setHeader('Connection', 'keep-alive');
+    response.setHeader('X-Accel-Buffering', 'no');
+    response.flushHeaders();
 
-    return {
-      success: true,
-      answer,
-      retrievedContext: docs, // 一并返回命中的知识片段以便调试
+    const writeEvent = (payload: Record<string, unknown>) => {
+      response.write(`data: ${JSON.stringify(payload)}\n\n`);
     };
+
+    try {
+      writeEvent({
+        type: 'context',
+        retrievedContext: docs,
+      });
+
+      writeEvent({
+        type: 'status',
+        phase: 'thinking',
+      });
+
+      const stream = this.llmService.generateResponseStream(
+        prompt,
+      ) as unknown as AsyncGenerator<LlmStreamChunk>;
+      let hasStartedAnswer = false;
+
+      for await (const chunk of stream) {
+        if (chunk.type === 'delta' && !hasStartedAnswer) {
+          hasStartedAnswer = true;
+          writeEvent({
+            type: 'status',
+            phase: 'answering',
+          });
+        }
+
+        writeEvent(chunk as unknown as Record<string, unknown>);
+      }
+
+      response.write('data: [DONE]\n\n');
+      response.end();
+    } catch (error) {
+      writeEvent({
+        type: 'error',
+        error:
+          error instanceof Error
+            ? error.message
+            : 'RAG 流式生成过程中出现未知错误',
+      });
+      response.write('data: [DONE]\n\n');
+      response.end();
+    }
   }
 }

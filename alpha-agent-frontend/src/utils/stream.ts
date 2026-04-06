@@ -40,15 +40,23 @@ export const iterateSseData = async function* (
   let buffer = ""
   while (true) {
     const { value, done } = await reader.read()
-    if (done) break
+    if (value) {
+      buffer += decoder.decode(value, { stream: !done })
+      const { blocks, rest } = splitSseBlocks(buffer)
+      buffer = rest
 
-    buffer += decoder.decode(value, { stream: true })
-    const { blocks, rest } = splitSseBlocks(buffer)
-    buffer = rest
-
-    for (const block of blocks) {
-      const data = extractSseDataLines(block)
-      if (data) yield data
+      for (const block of blocks) {
+        const data = extractSseDataLines(block)
+        if (data) yield data
+      }
+    }
+    if (done) {
+      // 处理最后残留的 buffer
+      if (buffer.trim()) {
+        const data = extractSseDataLines(buffer)
+        if (data) yield data
+      }
+      break
     }
   }
 }

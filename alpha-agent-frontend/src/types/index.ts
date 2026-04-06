@@ -10,17 +10,22 @@ export type ChatRole = "user" | "assistant"
 /** UI 消息状态：streaming 为占位/流式拼接中 */
 export type ChatMessageStatus = "success" | "streaming" | "error"
 
+/** 向量命中的知识片段 */
+export type RetrievedContextItem = {
+  pageContent: string
+  metadata?: Record<string, unknown>
+}
+
 /** UI 层消息模型（用于渲染与流式拼接） */
 export type ChatMessage = {
   id: number
   role: ChatRole
   content: string
   rawContent?: string
+  thinkingContent?: string
+  streamPhase?: "thinking" | "answering"
   status?: ChatMessageStatus
-  retrievedContext?: Array<{
-    pageContent: string
-    metadata?: Record<string, any>
-  }>
+  retrievedContext?: RetrievedContextItem[]
 }
 
 /** 发送给后端的历史消息模型（system/user/assistant） */
@@ -32,4 +37,3 @@ export type ChatRequestPayload = {
   history: ChatHistoryItem[]
   temperature?: number
 }
-
