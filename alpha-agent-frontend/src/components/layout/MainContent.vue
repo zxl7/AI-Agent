@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { onMounted } from "vue"
 import { useChatAssistant, type ChatHistoryItem } from "../../composables/useChatAssistant"
-import { renderMarkdown } from "../../utils/markdown"
 import ChatInputPanel from "../ai/ChatInputPanel.vue"
 import ChatMessageList from "../ai/ChatMessageList.vue"
 import ExpertSuiteList from "../ai/ExpertSuiteList.vue"
@@ -85,7 +84,7 @@ onMounted(() => scrollToBottom())
 
         <div class="chat-shell">
           <div ref="chatContainer" class="chat-scroll">
-            <ChatMessageList :messages="chatHistory" :render-markdown="renderMarkdown" @stop="stopGenerating" />
+            <ChatMessageList :messages="chatHistory" @stop="stopGenerating" />
           </div>
 
           <div class="composer">

@@ -11,7 +11,7 @@ export const http = axios.create({
 })
 
 http.interceptors.response.use(
-  (res) => res,
-  (err) => Promise.reject(err)
+  (res: any) => res,
+  (err: any) => Promise.reject(err)
 )
 

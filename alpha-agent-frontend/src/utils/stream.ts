@@ -5,29 +5,19 @@
  */
 
 /**
- * 从 SSE block 中抽取 data: 行并合并为单个 data 字符串（纯函数）。
+ * 从文本行中提取 data: 后的内容（纯函数）。
  */
-export const extractSseDataLines = (block: string): string =>
-  block
-    .split("\n")
-    .map((line) => line.trimEnd())
-    .filter((line) => line.startsWith("data:"))
-    .map((line) => line.slice(5).trimStart())
-    .join("\n")
-
-/**
- * 按 SSE 事件分隔符切块（纯函数）。
- * SSE 事件之间通常以空行（\\n\\n）分隔。
- */
-export const splitSseBlocks = (buffer: string): { blocks: string[]; rest: string } => {
-  const parts = buffer.split("\n\n")
-  const rest = parts.pop() ?? ""
-  return { blocks: parts, rest }
+export const extractSseData = (line: string): string | null => {
+  const trimmed = line.trim()
+  if (trimmed.startsWith("data:")) {
+    return trimmed.slice(5).trimStart()
+  }
+  return null
 }
 
 /**
  * 迭代 ReadableStream 中的 SSE data 内容（副作用：读取流）。
- * - 每次 yield 的是某个事件的 data 字符串（可能是 JSON，也可能是 [DONE]）
+ * - 每次 yield 的是单个 data 行的内容（可能是 JSON，也可能是 [DONE]）
  * - 不做 JSON 解析，由上层决定如何消费
  */
 export const iterateSseData = async function* (
@@ -42,18 +32,20 @@ export const iterateSseData = async function* (
     const { value, done } = await reader.read()
     if (value) {
       buffer += decoder.decode(value, { stream: !done })
-      const { blocks, rest } = splitSseBlocks(buffer)
-      buffer = rest
+      
+      // 按行分割，保留最后一部分（可能是不完整的行）
+      const lines = buffer.split(/\r?\n/)
+      buffer = lines.pop() ?? ""
 
-      for (const block of blocks) {
-        const data = extractSseDataLines(block)
+      for (const line of lines) {
+        const data = extractSseData(line)
         if (data) yield data
       }
     }
     if (done) {
       // 处理最后残留的 buffer
       if (buffer.trim()) {
-        const data = extractSseDataLines(buffer)
+        const data = extractSseData(buffer)
         if (data) yield data
       }
       break

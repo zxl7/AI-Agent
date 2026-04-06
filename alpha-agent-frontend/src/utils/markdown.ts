@@ -10,7 +10,7 @@ const md = new MarkdownIt({
   html: false,
   linkify: true,
   typographer: true,
-  highlight: (str, lang) => {
+  highlight: (str: string, lang: string) => {
     try {
       if (lang && hljs.getLanguage(lang)) {
         return `<pre><code class="hljs language-${lang}">` + hljs.highlight(str, { language: lang }).value + "</code></pre>"

@@ -4,7 +4,6 @@ import ChatMessageItem from "./ChatMessageItem.vue"
 
 const props = defineProps<{
   messages: ChatMessage[]
-  renderMarkdown: (source: string) => string
 }>()
 
 const emit = defineEmits<{
@@ -18,7 +17,6 @@ const emit = defineEmits<{
       v-for="msg in props.messages"
       :key="msg.id"
       :message="msg"
-      :render-markdown="props.renderMarkdown"
       @stop="emit('stop')"
     />
   </div>

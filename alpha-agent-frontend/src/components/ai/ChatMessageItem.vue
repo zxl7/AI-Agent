@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue"
 import type { ChatMessage } from "../../types"
+import { MdPreview } from "md-editor-v3"
+import "md-editor-v3/lib/preview.css"
 
 const props = defineProps<{
   message: ChatMessage
-  renderMarkdown: (source: string) => string
+  renderMarkdown?: (source: string) => string
 }>()
 
 const emit = defineEmits<{
@@ -48,13 +50,6 @@ const shouldShowAnswerBubble = computed(() => props.message.content.trim().lengt
 const shouldShowAnswerShell = computed(() => {
   if (shouldShowAnswerBubble.value) return true
   return props.message.status === "streaming" && props.message.streamPhase === "answering"
-})
-
-/**
- * 流式阶段优先以纯文本渲染，避免不完整 markdown 反复解析导致闪烁。
- */
-const shouldRenderStreamingPlainText = computed(() => {
-  return props.message.status === "streaming" && shouldShowAnswerBubble.value
 })
 
 /**
@@ -123,11 +118,11 @@ const thinkingSummary = computed(() => {
         <template v-if="!shouldShowAnswerBubble">
           <p>正在整理答案…</p>
         </template>
-        <template v-else-if="shouldRenderStreamingPlainText">
-          <div class="streaming-plain-text">{{ props.message.content }}</div>
-        </template>
         <template v-else>
-          <div v-html="props.renderMarkdown(props.message.content)"></div>
+          <MdPreview 
+            :modelValue="props.message.content" 
+            :editorId="`preview-${props.message.id}`"
+          />
         </template>
       </div>
 
@@ -188,78 +183,6 @@ const thinkingSummary = computed(() => {
   color: #6b7280;
 }
 
-.markdown-body {
-  white-space: normal;
-}
-
-.streaming-plain-text {
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-
-.markdown-body :deep(p) {
-  margin: 8px 0;
-}
-
-.markdown-body :deep(h1),
-.markdown-body :deep(h2),
-.markdown-body :deep(h3),
-.markdown-body :deep(h4),
-.markdown-body :deep(h5),
-.markdown-body :deep(h6) {
-  margin: 12px 0 8px;
-  line-height: 1.25;
-}
-
-.markdown-body :deep(ul),
-.markdown-body :deep(ol) {
-  margin: 8px 0;
-  padding-left: 20px;
-}
-
-.markdown-body :deep(li) {
-  margin: 4px 0;
-}
-
-.markdown-body :deep(blockquote) {
-  margin: 10px 0;
-  padding: 8px 12px;
-  border-left: 3px solid #d7dde8;
-  background: rgba(0, 0, 0, 0.02);
-  color: #334155;
-}
-
-.markdown-body :deep(pre) {
-  margin: 10px 0;
-  padding: 12px 14px;
-  background: #0b1220;
-  color: #e5e7eb;
-  border-radius: 12px;
-  overflow: auto;
-}
-
-.markdown-body :deep(code) {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-  font-size: 0.95em;
-}
-
-.markdown-body :deep(p > code),
-.markdown-body :deep(li > code),
-.markdown-body :deep(blockquote > code) {
-  background: rgba(0, 0, 0, 0.06);
-  padding: 2px 6px;
-  border-radius: 8px;
-}
-
-.markdown-body :deep(a) {
-  color: #2563eb;
-  text-decoration: none;
-}
-
-.markdown-body :deep(a:hover) {
-  text-decoration: underline;
-}
-
 .msg-status {
   display: flex;
   align-items: center;
@@ -267,6 +190,17 @@ const thinkingSummary = computed(() => {
   font-size: 13px;
   color: #666;
   margin: 2px 0 8px;
+}
+
+:deep(.md-editor-preview) {
+  background: transparent !important;
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+:deep(.md-editor-preview p) {
+  margin-top: 8px;
+  margin-bottom: 8px;
 }
 
 .msg-status.is-error {
