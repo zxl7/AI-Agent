@@ -90,6 +90,33 @@ const displayContent = computed(() => {
   const text = props.message.content || ""
   return text.replace(/\n{3,}/g, "\n\n")
 })
+
+/**
+ * 答案生成指标（纯函数派生）。
+ * 当状态为 success 时，计算总耗时和每秒 tokens 数。
+ */
+const generationMetrics = computed(() => {
+  if (props.message.status !== "success") return null
+  if (!props.message.startTime || !props.message.endTime) return null
+  
+  const timeMs = props.message.endTime - props.message.startTime
+  if (timeMs <= 0) return null
+  
+  const timeS = timeMs / 1000
+  let timeStr = ""
+  if (timeS < 60) {
+    timeStr = `${timeS.toFixed(1)}s`
+  } else {
+    const m = Math.floor(timeS / 60)
+    const s = (timeS % 60).toFixed(1)
+    timeStr = `${m}m ${s}s`
+  }
+  
+  const tokens = props.message.tokenCount || 0
+  const speed = timeS > 0 ? (tokens / timeS).toFixed(1) : "0.0"
+  
+  return { timeStr, speed, tokens }
+})
 </script>
 
 <template>
@@ -141,6 +168,14 @@ const displayContent = computed(() => {
             :editorId="`preview-${props.message.id}`"
           />
         </template>
+      </div>
+
+      <div v-if="generationMetrics && props.message.status === 'success'" class="message-metrics">
+        <el-icon><Timer /></el-icon>
+        <span>{{ generationMetrics.timeStr }}</span>
+        <span class="divider">·</span>
+        <el-icon><Lightning /></el-icon>
+        <span>{{ generationMetrics.speed }} tokens/s</span>
       </div>
 
       <div v-if="props.message.retrievedContext && props.message.retrievedContext.length > 0" class="retrieved-context-box">
@@ -225,6 +260,21 @@ const displayContent = computed(() => {
 
 .msg-status.is-error {
   color: #d03050;
+}
+
+.message-metrics {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #94a3b8;
+  margin-top: 4px;
+  padding-left: 6px;
+}
+
+.message-metrics .divider {
+  margin: 0 2px;
+  color: #cbd5e1;
 }
 
 .thinking-panel {

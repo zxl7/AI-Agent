@@ -27,6 +27,7 @@ const createAssistantMessage = (status: ChatMessageStatus): ChatMessage => ({
   thinkingContent: "",
   streamPhase: "thinking",
   status,
+  tokenCount: 0,
 })
 
 /**
@@ -132,6 +133,13 @@ export const useChatAssistant = (options: Options) => {
     try {
       const controller = new AbortController()
       activeController.value = controller
+      
+      // 在 Vue3 中直接通过对象属性赋值可能会偶尔由于 IndexedDB 和初始化的原因丢失响应式。
+      // 为确保视图依赖收集，在这里显式触发变更或使用 Object.assign。
+      Object.assign(assistantMsg, {
+        startTime: Date.now(),
+        tokenCount: 0
+      })
 
       for await (const event of streamChat({ apiBase: options.apiBase, payload, signal: controller.signal })) {
         if (event.type === "status") {
@@ -148,6 +156,7 @@ export const useChatAssistant = (options: Options) => {
         }
 
         if (event.type === "reasoning") {
+          assistantMsg.tokenCount = (assistantMsg.tokenCount || 0) + 1
           assistantMsg.streamPhase = "thinking"
           let newContent = `${assistantMsg.thinkingContent || ""}${event.content}`
           // 如果这是思考阶段的开头，剔除前面的所有空白和换行符
@@ -161,6 +170,7 @@ export const useChatAssistant = (options: Options) => {
         }
 
         if (event.type === "delta") {
+          assistantMsg.tokenCount = (assistantMsg.tokenCount || 0) + 1
           assistantMsg.streamPhase = "answering"
           let newRawContent = `${assistantMsg.rawContent || ""}${event.content}`
           // 如果这是回答阶段的开头，剔除前面的所有空白和换行符
@@ -178,6 +188,7 @@ export const useChatAssistant = (options: Options) => {
         if (event.type === "error") {
           assistantMsg.status = "error"
           assistantMsg.content = event.error
+          Object.assign(assistantMsg, { endTime: Date.now() })
           await scrollToBottomIfNearBottom()
           return
         }
@@ -188,12 +199,14 @@ export const useChatAssistant = (options: Options) => {
           }
           assistantMsg.streamPhase = "answering"
           assistantMsg.status = assistantMsg.status === "error" ? "error" : "success"
+          Object.assign(assistantMsg, { endTime: Date.now() })
           await scrollToBottomIfNearBottom()
           return
         }
       }
 
       assistantMsg.status = assistantMsg.status === "error" ? "error" : "success"
+      Object.assign(assistantMsg, { endTime: Date.now() })
       await scrollToBottomIfNearBottom()
     } catch (e: any) {
       if (e?.name === "AbortError") {
@@ -212,6 +225,9 @@ export const useChatAssistant = (options: Options) => {
       }
       await scrollToBottomIfNearBottom()
     } finally {
+      if (!assistantMsg.endTime) {
+        Object.assign(assistantMsg, { endTime: Date.now() })
+      }
       isSending.value = false
       activeController.value = null
       try {

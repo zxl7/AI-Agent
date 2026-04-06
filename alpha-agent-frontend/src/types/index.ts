@@ -26,6 +26,9 @@ export type ChatMessage = {
   streamPhase?: "thinking" | "answering"
   status?: ChatMessageStatus
   retrievedContext?: RetrievedContextItem[]
+  startTime?: number
+  endTime?: number
+  tokenCount?: number
 }
 
 /** 发送给后端的历史消息模型（system/user/assistant） */
