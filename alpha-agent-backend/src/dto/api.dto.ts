@@ -21,6 +21,27 @@ export class AddVectorDto {
   metadatas?: Record<string, any>[];
 }
 
+export class UpdateVectorDto {
+  @ApiProperty({ description: '向量文档 ID' })
+  @IsString()
+  id: string;
+
+  @ApiProperty({ description: '更新后的文本内容' })
+  @IsString()
+  text: string;
+
+  @ApiPropertyOptional({ description: '更新后的元数据' })
+  @IsOptional()
+  metadata?: Record<string, any>;
+}
+
+export class DeleteVectorDto {
+  @ApiProperty({ description: '向量文档 ID 数组', type: [String] })
+  @IsArray()
+  @IsString({ each: true })
+  ids: string[];
+}
+
 export class ChatDto {
   @ApiProperty({
     description: '用户提出的问题',

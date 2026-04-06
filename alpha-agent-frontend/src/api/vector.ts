@@ -16,3 +16,19 @@ export const addVectorData = async (payload: { texts: string[]; metadatas?: Reco
   return res.data
 }
 
+/**
+ * 更新知识库数据
+ */
+export const updateVectorData = async (payload: { id: string; text: string; metadata?: Record<string, any> }) => {
+  const res = await http.put("/api/vector/update", payload)
+  return res.data
+}
+
+/**
+ * 删除知识库数据
+ */
+export const deleteVectorData = async (payload: { ids: string[] }) => {
+  const res = await http.delete("/api/vector/delete", { data: payload })
+  return res.data
+}
+

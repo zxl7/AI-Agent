@@ -78,6 +78,57 @@ export class VectorService implements OnModuleInit {
   }
 
   /**
+   * 更新文档内容
+   * @param id 文档ID
+   * @param text 新的文本内容
+   * @param metadata 新的元数据
+   */
+  async updateDocument(
+    id: string,
+    text: string,
+    metadata?: Record<string, any>,
+  ) {
+    if (!this.vectorStore) {
+      throw new Error('VectorStore is not initialized yet.');
+    }
+
+    try {
+      const finalMeta =
+        metadata && Object.keys(metadata).length > 0
+          ? metadata
+          : { source: 'api_upload' };
+      // 使用 LangChain 的 addDocuments 并指定 ids 选项。
+      // 由于底层的 Chroma 具有 upsert 特性，这会使用配置好的 Embedding 模型
+      // 为新文本生成新的向量，并覆盖对应 ID 的旧记录。
+      await this.vectorStore.addDocuments(
+        [{ pageContent: text, metadata: finalMeta }],
+        { ids: [id] },
+      );
+      this.logger.log(`成功更新向量库中文档 ID: ${id}`);
+    } catch (error) {
+      this.logger.error(`更新向量库文档 ${id} 失败`, error);
+      throw new Error('更新向量库文档失败');
+    }
+  }
+
+  /**
+   * 删除文档
+   * @param ids 要删除的文档ID数组
+   */
+  async deleteDocuments(ids: string[]) {
+    try {
+      const client = new ChromaClient({ path: 'http://localhost:8000' });
+      const collection = await client.getCollection({ name: 'alpha_agent' });
+
+      await collection.delete({ ids });
+      this.logger.log(`成功从向量库中删除 ${ids.length} 条文档`);
+    } catch (error) {
+      this.logger.error(`删除向量库文档失败`, error);
+      throw new Error('删除向量库文档失败');
+    }
+  }
+
+  /**
    * 使用相似度搜索查询相关文档
    * @param query 查询语句
    * @param k 返回的最大结果数量

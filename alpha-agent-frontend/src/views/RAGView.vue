@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { ElMessage } from 'element-plus'
-import { getVectorData, addVectorData } from '../api/vector'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { getVectorData, addVectorData, updateVectorData, deleteVectorData } from '../api/vector'
 
 const loading = ref(false)
 const vectorData = ref<{ ids: string[], documents: string[], metadatas: any[] }>({
@@ -14,6 +14,15 @@ const vectorData = ref<{ ids: string[], documents: string[], metadatas: any[] }>
 const addDialogVisible = ref(false)
 const newTexts = ref('')
 const adding = ref(false)
+
+// 编辑知识表单
+const editDialogVisible = ref(false)
+const editForm = ref({
+  id: '',
+  text: '',
+  source: ''
+})
+const editing = ref(false)
 
 /**
  * 获取知识库列表（纯函数分离副作用，在 mounted 触发）
@@ -68,6 +77,77 @@ const submitAdd = async () => {
   }
 }
 
+/**
+ * 打开编辑弹窗
+ */
+const openEditDialog = (row: any) => {
+  editForm.value = {
+    id: row.id,
+    text: row.text,
+    source: row.meta?.source || ''
+  }
+  editDialogVisible.value = true
+}
+
+/**
+ * 提交编辑
+ */
+const submitEdit = async () => {
+  if (!editForm.value.text.trim()) {
+    ElMessage.warning('文本内容不能为空')
+    return
+  }
+
+  editing.value = true
+  try {
+    const res = await updateVectorData({
+      id: editForm.value.id,
+      text: editForm.value.text,
+      metadata: editForm.value.source ? { source: editForm.value.source } : {}
+    })
+    if (res.success) {
+      ElMessage.success('更新成功！')
+      editDialogVisible.value = false
+      await fetchVectorData()
+    } else {
+      ElMessage.error(res.message || '更新失败')
+    }
+  } catch (error: any) {
+    ElMessage.error(error.message || '更新失败')
+  } finally {
+    editing.value = false
+  }
+}
+
+/**
+ * 确认并删除
+ */
+const confirmDelete = (row: any) => {
+  ElMessageBox.confirm(
+    '确认删除该条知识片段吗？',
+    '警告',
+    {
+      confirmButtonText: '删除',
+      cancelButtonText: '取消',
+      type: 'warning',
+    }
+  ).then(async () => {
+    try {
+      const res = await deleteVectorData({ ids: [row.id] })
+      if (res.success) {
+        ElMessage.success('删除成功！')
+        await fetchVectorData()
+      } else {
+        ElMessage.error(res.message || '删除失败')
+      }
+    } catch (error: any) {
+      ElMessage.error(error.message || '删除失败')
+    }
+  }).catch(() => {
+    // 取消删除
+  })
+}
+
 onMounted(() => {
   fetchVectorData()
 })
@@ -93,6 +173,12 @@ onMounted(() => {
             <span v-else>-</span>
           </template>
         </el-table-column>
+        <el-table-column label="操作" width="180" fixed="right">
+          <template #default="{ row }">
+            <el-button link type="primary" size="small" @click="openEditDialog(row)">编辑</el-button>
+            <el-button link type="danger" size="small" @click="confirmDelete(row)">删除</el-button>
+          </template>
+        </el-table-column>
       </el-table>
     </el-card>
 
@@ -111,6 +197,25 @@ onMounted(() => {
           <el-button @click="addDialogVisible = false">取消</el-button>
           <el-button type="primary" :loading="adding" @click="submitAdd">
             确认添加
+          </el-button>
+        </span>
+      </template>
+    </el-dialog>
+
+    <el-dialog v-model="editDialogVisible" title="编辑知识片段" width="600px">
+      <el-form :model="editForm" label-width="80px">
+        <el-form-item label="文本内容">
+          <el-input v-model="editForm.text" type="textarea" :rows="6" />
+        </el-form-item>
+        <el-form-item label="数据来源">
+          <el-input v-model="editForm.source" placeholder="输入来源，如 api_upload" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="editDialogVisible = false">取消</el-button>
+          <el-button type="primary" :loading="editing" @click="submitEdit">
+            确认更新
           </el-button>
         </span>
       </template>

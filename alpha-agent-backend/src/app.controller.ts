@@ -1,11 +1,11 @@
-import { Controller, Get, Post, Body, Res } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Res } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { AppService } from './app.service';
 import { VectorService } from './chroma/vector.service';
 import { LlmService } from './llm/llm.service';
 import type { LlmStreamChunk } from './llm/llm.service';
-import { AddVectorDto, ChatDto } from './dto/api.dto';
+import { AddVectorDto, UpdateVectorDto, DeleteVectorDto, ChatDto } from './dto/api.dto';
 
 @ApiTags('Agent RAG')
 @Controller()
@@ -56,6 +56,36 @@ export class AppController {
   async addData(@Body() body: AddVectorDto) {
     await this.vectorService.addTexts(body.texts, body.metadatas);
     return { success: true, message: '知识已成功入库' };
+  }
+
+  /**
+   * 示例：更新知识库文档
+   */
+  @Put('vector/update')
+  @ApiOperation({
+    summary: '更新知识库片段',
+    description: '更新向量库中的指定文档',
+  })
+  @ApiBody({ type: UpdateVectorDto })
+  @ApiResponse({ status: 200, description: '成功更新' })
+  async updateData(@Body() body: UpdateVectorDto) {
+    await this.vectorService.updateDocument(body.id, body.text, body.metadata);
+    return { success: true, message: '知识已成功更新' };
+  }
+
+  /**
+   * 示例：删除知识库文档
+   */
+  @Delete('vector/delete')
+  @ApiOperation({
+    summary: '删除知识库片段',
+    description: '从向量库中删除指定的文档',
+  })
+  @ApiBody({ type: DeleteVectorDto })
+  @ApiResponse({ status: 200, description: '成功删除' })
+  async deleteData(@Body() body: DeleteVectorDto) {
+    await this.vectorService.deleteDocuments(body.ids);
+    return { success: true, message: '知识已成功删除' };
   }
 
   /**

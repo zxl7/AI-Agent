@@ -3,7 +3,5 @@
 </script>
 
 <template>
-  <el-config-provider namespace="ep">
-    <router-view />
-  </el-config-provider>
+  <router-view />
 </template>

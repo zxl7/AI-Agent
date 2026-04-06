@@ -82,7 +82,7 @@ const onPrimaryClick = () => {
   margin-bottom: 24px;
 }
 
-:deep(.custom-textarea .ep-textarea__inner) {
+:deep(.custom-textarea .el-textarea__inner) {
   border: none !important;
   box-shadow: none !important;
   padding: 20px 24px !important;
@@ -94,10 +94,10 @@ const onPrimaryClick = () => {
   outline: none !important;
 }
 
-:deep(.custom-textarea.ep-textarea) {
-  --ep-input-focus-border-color: transparent;
-  --ep-input-border-color: transparent;
-  --ep-input-hover-border-color: transparent;
+:deep(.custom-textarea.el-textarea) {
+  --el-input-focus-border-color: transparent;
+  --el-input-border-color: transparent;
+  --el-input-hover-border-color: transparent;
 }
 
 .composer-actions {
