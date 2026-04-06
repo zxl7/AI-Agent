@@ -21,12 +21,20 @@ const requestStop = () => {
 }
 
 const isThinkingExpanded = ref(true)
+const isContextExpanded = ref(false)
 
 /**
  * 切换思考面板展开状态（副作用：更新局部 UI 状态）。
  */
 const toggleThinkingPanel = () => {
   isThinkingExpanded.value = !isThinkingExpanded.value
+}
+
+/**
+ * 切换知识库面板展开状态
+ */
+const toggleContextPanel = () => {
+  isContextExpanded.value = !isContextExpanded.value
 }
 
 /**
@@ -136,11 +144,14 @@ const displayContent = computed(() => {
       </div>
 
       <div v-if="props.message.retrievedContext && props.message.retrievedContext.length > 0" class="retrieved-context-box">
-        <div class="context-title">
-          <el-icon><Document /></el-icon>
-          <span>命中本地知识库 ({{ props.message.retrievedContext.length }}条)</span>
+        <div class="context-title" @click="toggleContextPanel" style="cursor: pointer; justify-content: space-between;">
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <el-icon><Document /></el-icon>
+            <span>命中本地知识库 ({{ props.message.retrievedContext.length }}条)</span>
+          </div>
+          <span style="font-size: 12px; color: #94a3b8;">{{ isContextExpanded ? "收起" : "展开" }}</span>
         </div>
-        <div class="context-list">
+        <div v-if="isContextExpanded" class="context-list">
           <div v-for="(ctx, idx) in props.message.retrievedContext" :key="idx" class="context-item">
             <div class="context-text">{{ ctx.pageContent }}</div>
             <div class="context-meta" v-if="ctx.metadata && Object.keys(ctx.metadata).length > 0">

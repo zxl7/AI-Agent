@@ -78,6 +78,18 @@ export const useChatAssistant = (options: Options) => {
     scrollToBottom()
   }
 
+  /** 智能滚动：只有当用户停留在底部（或距离底部很近）时，才会自动滚动，防止打断用户向上阅读 */
+  const scrollToBottomIfNearBottom = async () => {
+    if (!chatContainer.value) return
+    const el = chatContainer.value
+    // 在 DOM 更新前判断是否接近底部 (容差 150px)
+    const isNearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 150
+    await nextTick()
+    if (isNearBottom) {
+      el.scrollTop = el.scrollHeight
+    }
+  }
+
   /** 组装请求 payload（纯函数） */
   const buildRequestPayload = (message: string, messages: ChatMessage[]): ChatRequestPayload => ({
     message,
@@ -125,13 +137,13 @@ export const useChatAssistant = (options: Options) => {
         if (event.type === "status") {
           assistantMsg.streamPhase = event.phase
           assistantMsg.status = "streaming"
-          await scrollToBottomNextTick()
+          await scrollToBottomIfNearBottom()
           continue
         }
 
         if (event.type === "context") {
           assistantMsg.retrievedContext = event.retrievedContext
-          await scrollToBottomNextTick()
+          await scrollToBottomIfNearBottom()
           continue
         }
 
@@ -144,7 +156,7 @@ export const useChatAssistant = (options: Options) => {
           }
           if (!newContent) continue
           assistantMsg.thinkingContent = newContent
-          await scrollToBottomNextTick()
+          await scrollToBottomIfNearBottom()
           continue
         }
 
@@ -159,14 +171,14 @@ export const useChatAssistant = (options: Options) => {
           assistantMsg.rawContent = newRawContent
           assistantMsg.content = stripThinkBlocks(assistantMsg.rawContent || "")
           assistantMsg.status = "streaming"
-          await scrollToBottomNextTick()
+          await scrollToBottomIfNearBottom()
           continue
         }
 
         if (event.type === "error") {
           assistantMsg.status = "error"
           assistantMsg.content = event.error
-          await scrollToBottomNextTick()
+          await scrollToBottomIfNearBottom()
           return
         }
 
@@ -176,13 +188,13 @@ export const useChatAssistant = (options: Options) => {
           }
           assistantMsg.streamPhase = "answering"
           assistantMsg.status = assistantMsg.status === "error" ? "error" : "success"
-          await scrollToBottomNextTick()
+          await scrollToBottomIfNearBottom()
           return
         }
       }
 
       assistantMsg.status = assistantMsg.status === "error" ? "error" : "success"
-      await scrollToBottomNextTick()
+      await scrollToBottomIfNearBottom()
     } catch (e: any) {
       if (e?.name === "AbortError") {
         assistantMsg.status = assistantMsg.content ? "success" : "error"
@@ -198,7 +210,7 @@ export const useChatAssistant = (options: Options) => {
           e?.message ||
           "请求异常"
       }
-      await scrollToBottomNextTick()
+      await scrollToBottomIfNearBottom()
     } finally {
       isSending.value = false
       activeController.value = null
