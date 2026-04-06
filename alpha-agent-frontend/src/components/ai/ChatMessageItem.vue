@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from "vue"
+import { computed, ref } from "vue"
 import type { ChatMessage } from "../../types"
 import { MdPreview } from "md-editor-v3"
 import "md-editor-v3/lib/preview.css"
@@ -22,16 +22,6 @@ const requestStop = () => {
 
 const isThinkingExpanded = ref(true)
 
-watch(
-  () => props.message.streamPhase,
-  (phase) => {
-    if (phase === "answering" && (props.message.content || "").trim().length > 0) {
-      isThinkingExpanded.value = false
-    }
-  },
-  { immediate: true }
-)
-
 /**
  * 切换思考面板展开状态（副作用：更新局部 UI 状态）。
  */
@@ -42,7 +32,7 @@ const toggleThinkingPanel = () => {
 /**
  * 是否展示答案气泡（纯函数派生）。
  */
-const shouldShowAnswerBubble = computed(() => props.message.content.trim().length > 0)
+const shouldShowAnswerBubble = computed(() => props.message.content.length > 0)
 
 /**
  * 是否展示答案承载区域（纯函数派生）。
@@ -58,7 +48,8 @@ const shouldShowAnswerShell = computed(() => {
 const shouldShowThinkingPanel = computed(() => {
   if (props.message.role !== "assistant") return false
   if ((props.message.thinkingContent || "").trim().length > 0) return true
-  return props.message.status === "streaming" && !shouldShowAnswerBubble.value
+  // 只有在思考阶段才展示思考中的占位面板
+  return props.message.status === "streaming" && props.message.streamPhase === "thinking"
 })
 
 /**
@@ -94,7 +85,7 @@ const thinkingSummary = computed(() => {
         <span class="status-text">生成失败</span>
       </div>
 
-      <div v-if="shouldShowThinkingPanel" class="thinking-panel">
+      <div v-if="shouldShowThinkingPanel" class="thinking-panel" :class="{ 'is-streaming': props.message.status === 'streaming' && props.message.streamPhase === 'thinking' }">
         <button type="button" class="thinking-header" @click="toggleThinkingPanel">
           <div class="thinking-title-wrap">
             <span class="thinking-dot"></span>
@@ -103,26 +94,20 @@ const thinkingSummary = computed(() => {
           <span class="thinking-toggle">{{ isThinkingExpanded ? "收起" : "展开" }}</span>
         </button>
         <div v-if="isThinkingExpanded" class="thinking-content">
-          {{ props.message.thinkingContent?.trim() || "正在结合知识库检索并思考中…" }}
+          <MdPreview v-if="props.message.thinkingContent" :modelValue="props.message.thinkingContent" :editorId="`think-${props.message.id}`" />
+          <span v-else>正在结合知识库检索并思考中…</span>
         </div>
         <div v-else class="thinking-summary">
           {{ thinkingSummary }}
         </div>
       </div>
 
-      <div
-        v-if="shouldShowAnswerShell"
-        class="msg-bubble ai-bubble markdown-body"
-        :class="{ 'is-streaming': props.message.status === 'streaming', 'is-placeholder': !shouldShowAnswerBubble }"
-      >
+      <div v-if="shouldShowAnswerShell" class="msg-bubble ai-bubble markdown-body" :class="{ 'is-streaming': props.message.status === 'streaming', 'is-placeholder': !shouldShowAnswerBubble }">
         <template v-if="!shouldShowAnswerBubble">
           <p>正在整理答案…</p>
         </template>
         <template v-else>
-          <MdPreview 
-            :modelValue="props.message.content" 
-            :editorId="`preview-${props.message.id}`"
-          />
+          <MdPreview :modelValue="props.message.content" :editorId="`preview-${props.message.id}`" />
         </template>
       </div>
 
@@ -135,7 +120,7 @@ const thinkingSummary = computed(() => {
           <div v-for="(ctx, idx) in props.message.retrievedContext" :key="idx" class="context-item">
             <div class="context-text">{{ ctx.pageContent }}</div>
             <div class="context-meta" v-if="ctx.metadata && Object.keys(ctx.metadata).length > 0">
-              <el-tag size="small" type="info">{{ ctx.metadata.source || '未知来源' }}</el-tag>
+              <el-tag size="small" type="info">{{ ctx.metadata.source || "未知来源" }}</el-tag>
             </div>
           </div>
         </div>
@@ -174,7 +159,7 @@ const thinkingSummary = computed(() => {
 }
 
 .ai-bubble {
-  background: #f6f8fa;
+  border: 1px solid #59a0e8;
   color: #111;
   border-bottom-left-radius: 4px;
 }
@@ -199,8 +184,8 @@ const thinkingSummary = computed(() => {
 }
 
 :deep(.md-editor-preview p) {
-  margin-top: 8px;
-  margin-bottom: 8px;
+  margin-top: 0px;
+  margin-bottom: 0px;
 }
 
 .msg-status.is-error {
@@ -212,10 +197,18 @@ const thinkingSummary = computed(() => {
   max-width: 80%;
   margin-bottom: 10px;
   border-radius: 12px;
-  background: #fff7ed;
   border: 1px solid #fed7aa;
   box-sizing: border-box;
   overflow: hidden;
+}
+
+.thinking-panel :deep(.md-editor-preview),
+.thinking-panel :deep(.md-editor-preview p),
+.thinking-panel :deep(.md-editor-preview span) {
+  color: #9a3412 !important;
+  font-size: 13px !important;
+  background: transparent !important;
+  padding: 0 !important;
 }
 
 .thinking-header {
@@ -294,12 +287,21 @@ const thinkingSummary = computed(() => {
   box-sizing: border-box;
 }
 
-.ai-bubble.is-streaming :deep(*:last-child)::after,
-.ai-bubble.is-streaming::after {
+.ai-bubble.is-streaming > p::after,
+.ai-bubble.is-streaming :deep(.md-editor-preview > *:last-child)::after {
   content: "▍";
   display: inline-block;
   margin-left: 2px;
   color: #2563eb;
+  animation: blink-cursor 1s steps(1) infinite;
+}
+
+.thinking-panel.is-streaming .thinking-content > span::after,
+.thinking-panel.is-streaming .thinking-content :deep(.md-editor-preview > *:last-child)::after {
+  content: "▍";
+  display: inline-block;
+  margin-left: 2px;
+  color: #c2410c;
   animation: blink-cursor 1s steps(1) infinite;
 }
 

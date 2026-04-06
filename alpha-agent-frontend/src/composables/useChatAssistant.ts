@@ -110,7 +110,7 @@ export const useChatAssistant = (options: Options) => {
     const payload = buildRequestPayload(message, visibleHistory.value)
 
     chatHistory.push(createUserMessage(message))
-    const assistantMsg = createAssistantMessage("streaming")
+    const assistantMsg = reactive(createAssistantMessage("streaming")) as ChatMessage
     chatHistory.push(assistantMsg)
 
     inputText.value = ""

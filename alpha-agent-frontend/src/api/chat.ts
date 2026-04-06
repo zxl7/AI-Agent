@@ -11,8 +11,13 @@ export type ChatStreamEvent =
 
 /**
  * 过滤模型的 <think>...</think> 思考段落（纯函数）。
+ * 处理已闭合的 think 标签以及未闭合的流式 think 标签。
  */
-export const stripThinkBlocks = (text: string): string => text.replace(/<think>[\s\S]*?<\/think>\s*/g, "")
+export const stripThinkBlocks = (text: string): string => {
+  let result = text.replace(/<think>[\s\S]*?<\/think>\s*/g, "")
+  result = result.replace(/<think>[\s\S]*$/, "")
+  return result
+}
 
 /**
  * 发起 /api/chat 的流式请求并消费 SSE 事件。
