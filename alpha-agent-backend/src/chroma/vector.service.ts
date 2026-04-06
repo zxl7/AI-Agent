@@ -134,7 +134,7 @@ export class VectorService implements OnModuleInit {
    * @param k 返回的最大结果数量，默认为 5
    * @returns 相似的文档列表
    */
-  async similaritySearch(query: string, k: number = 50): Promise<Document[]> {
+  async similaritySearch(query: string, k: number = 10): Promise<Document[]> {
     if (!this.vectorStore) {
       throw new Error(
         'VectorStore is not initialized yet. Please check your ChromaDB connection.',
