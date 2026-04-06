@@ -17,5 +17,10 @@ export default defineConfig({
     esbuildOptions: {
       target: 'esnext'
     }
+  },
+  server: {
+    allowedHosts: [
+      'autokinetic-yen-cauline.ngrok-free.dev'
+    ]
   }
 })
