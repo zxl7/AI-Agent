@@ -137,14 +137,26 @@ export const useChatAssistant = (options: Options) => {
 
         if (event.type === "reasoning") {
           assistantMsg.streamPhase = "thinking"
-          assistantMsg.thinkingContent = `${assistantMsg.thinkingContent || ""}${event.content}`
+          let newContent = `${assistantMsg.thinkingContent || ""}${event.content}`
+          // 如果这是思考阶段的开头，剔除前面的所有空白和换行符
+          if (!assistantMsg.thinkingContent) {
+            newContent = newContent.trimStart()
+          }
+          if (!newContent) continue
+          assistantMsg.thinkingContent = newContent
           await scrollToBottomNextTick()
           continue
         }
 
         if (event.type === "delta") {
           assistantMsg.streamPhase = "answering"
-          assistantMsg.rawContent = `${assistantMsg.rawContent || ""}${event.content}`
+          let newRawContent = `${assistantMsg.rawContent || ""}${event.content}`
+          // 如果这是回答阶段的开头，剔除前面的所有空白和换行符
+          if (!assistantMsg.rawContent) {
+            newRawContent = newRawContent.trimStart()
+          }
+          if (!newRawContent) continue
+          assistantMsg.rawContent = newRawContent
           assistantMsg.content = stripThinkBlocks(assistantMsg.rawContent || "")
           assistantMsg.status = "streaming"
           await scrollToBottomNextTick()

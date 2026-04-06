@@ -52,19 +52,14 @@ const parseStreamPayload = (
 
   const delta = choices?.[0]?.delta;
   const chunks: LlmStreamChunk[] = [];
+  if (!delta) return chunks;
 
-  if (typeof delta?.reasoning === 'string' && delta.reasoning.length > 0) {
-    chunks.push({ type: 'reasoning', content: delta.reasoning });
+  const reasoning = delta.reasoning_content ?? delta.reasoning;
+  if (typeof reasoning === 'string' && reasoning.length > 0) {
+    chunks.push({ type: 'reasoning', content: reasoning });
   }
 
-  if (
-    typeof delta?.reasoning_content === 'string' &&
-    delta.reasoning_content.length > 0
-  ) {
-    chunks.push({ type: 'reasoning', content: delta.reasoning_content });
-  }
-
-  if (typeof delta?.content === 'string' && delta.content.length > 0) {
+  if (typeof delta.content === 'string' && delta.content.length > 0) {
     chunks.push({ type: 'delta', content: delta.content });
   }
 

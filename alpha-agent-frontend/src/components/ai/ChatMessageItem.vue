@@ -69,6 +69,19 @@ const thinkingSummary = computed(() => {
   if (content.length <= 120) return content
   return `${content.slice(0, 120)}…`
 })
+
+/**
+ * 格式化输出文本，将多余的换行（3个及以上）折叠为标准的段落换行（2个）
+ */
+const displayThinking = computed(() => {
+  const text = props.message.thinkingContent || ""
+  return text.replace(/\n{3,}/g, "\n\n")
+})
+
+const displayContent = computed(() => {
+  const text = props.message.content || ""
+  return text.replace(/\n{3,}/g, "\n\n")
+})
 </script>
 
 <template>
@@ -94,7 +107,11 @@ const thinkingSummary = computed(() => {
           <span class="thinking-toggle">{{ isThinkingExpanded ? "收起" : "展开" }}</span>
         </button>
         <div v-if="isThinkingExpanded" class="thinking-content">
-          <MdPreview v-if="props.message.thinkingContent" :modelValue="props.message.thinkingContent" :editorId="`think-${props.message.id}`" />
+          <MdPreview 
+            v-if="props.message.thinkingContent"
+            :modelValue="displayThinking" 
+            :editorId="`think-${props.message.id}`"
+          />
           <span v-else>正在结合知识库检索并思考中…</span>
         </div>
         <div v-else class="thinking-summary">
@@ -102,12 +119,19 @@ const thinkingSummary = computed(() => {
         </div>
       </div>
 
-      <div v-if="shouldShowAnswerShell" class="msg-bubble ai-bubble markdown-body" :class="{ 'is-streaming': props.message.status === 'streaming', 'is-placeholder': !shouldShowAnswerBubble }">
+      <div
+        v-if="shouldShowAnswerShell"
+        class="msg-bubble ai-bubble markdown-body"
+        :class="{ 'is-streaming': props.message.status === 'streaming', 'is-placeholder': !shouldShowAnswerBubble }"
+      >
         <template v-if="!shouldShowAnswerBubble">
           <p>正在整理答案…</p>
         </template>
         <template v-else>
-          <MdPreview :modelValue="props.message.content" :editorId="`preview-${props.message.id}`" />
+          <MdPreview 
+            :modelValue="displayContent" 
+            :editorId="`preview-${props.message.id}`"
+          />
         </template>
       </div>
 
