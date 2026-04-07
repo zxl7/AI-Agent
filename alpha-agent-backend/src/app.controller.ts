@@ -4,9 +4,9 @@ import type { Response } from 'express';
 import { AppService } from './app.service';
 import { VectorService } from './chroma/vector.service';
 import { LlmService, LlmStreamChunk } from './llm/llm.service';
+import { SearchService } from './search/search.service';
 import { Document } from '@langchain/core/documents';
 import { AddVectorDto, UpdateVectorDto, DeleteVectorDto, ChatDto } from './dto/api.dto';
-import { DuckDuckGoSearch } from '@langchain/community/tools/duckduckgo_search';
 
 @ApiTags('Agent RAG')
 @Controller()
@@ -15,6 +15,7 @@ export class AppController {
     private readonly appService: AppService,
     private readonly vectorService: VectorService,
     private readonly llmService: LlmService,
+    private readonly searchService: SearchService,
   ) {}
 
   @Get()
@@ -143,10 +144,10 @@ export class AppController {
       // ==========================================
       writeEvent({ type: 'reasoning', content: '\n➤ 步骤 3: 尝试调用外挂工具进行联网检索 (Web Search)...\n' });
       try {
-        const searchTool = new DuckDuckGoSearch({ maxResults: 3 });
-        // 调用工具查询互联网，补充时效性数据
-        const webResultStr = await searchTool.invoke(body.question);
-        if (webResultStr && webResultStr.length > 0 && webResultStr !== 'No good result found.') {
+        // 使用封装好的 searchService，它已配置了国内可用的代理
+        const webResultStr = await this.searchService.search(body.question);
+        
+        if (webResultStr && webResultStr.length > 0) {
           allDocs.push(
             new Document({
               pageContent: webResultStr,
