@@ -3,9 +3,10 @@ import { ApiTags, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { AppService } from './app.service';
 import { VectorService } from './chroma/vector.service';
-import { LlmService } from './llm/llm.service';
-import type { LlmStreamChunk } from './llm/llm.service';
+import { LlmService, LlmStreamChunk } from './llm/llm.service';
+import { Document } from '@langchain/core/documents';
 import { AddVectorDto, UpdateVectorDto, DeleteVectorDto, ChatDto } from './dto/api.dto';
+import { DuckDuckGoSearch } from '@langchain/community/tools/duckduckgo_search';
 
 @ApiTags('Agent RAG')
 @Controller()
@@ -89,27 +90,16 @@ export class AppController {
   }
 
   /**
-   * 示例：基于向量检索的大模型对话 (RAG 核心流程)
+   * 示例：基于 Agentic RAG 的高级问答对话
    */
   @Post('chat')
   @ApiOperation({
-    summary: 'RAG 问答对话',
-    description: '结合向量库知识的流式问答对话（SSE）',
+    summary: 'Agentic RAG 问答对话',
+    description: '结合向量库知识的流式问答对话（SSE），带有多路召回与 Rerank 模拟',
   })
   @ApiBody({ type: ChatDto })
   @ApiResponse({ status: 201, description: '成功返回流式生成结果' })
   async chatWithRag(@Body() body: ChatDto, @Res() response: Response) {
-    // 提升向量检索的命中数量，默认返回最相关的 5 条记录作为上下文
-    const docs = await this.vectorService.similaritySearch(body.question, 10);
-    const context = docs.map((doc) => doc.pageContent).join('\n\n');
-    const prompt = `你是一个有帮助的 AI 助手。请根据以下提供的参考知识回答用户的问题。如果上下文中没有相关信息，请如实回答不知道。
-    
-【参考知识】：
-${context}
-
-【用户问题】：
-${body.question}`;
-
     response.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
     response.setHeader('Cache-Control', 'no-cache, no-transform');
     response.setHeader('Connection', 'keep-alive');
@@ -121,15 +111,91 @@ ${body.question}`;
     };
 
     try {
-      writeEvent({
-        type: 'context',
-        retrievedContext: docs,
-      });
+      writeEvent({ type: 'status', phase: 'thinking' });
+      writeEvent({ type: 'reasoning', content: '【系统调度】启动 Agentic RAG 工作流...\n' });
+
+      // ==========================================
+      // 策略 1 & 2: 多路召回 (Query Expansion) 与混合检索模拟
+      // ==========================================
+      writeEvent({ type: 'reasoning', content: '\n➤ 步骤 1: 正在分析用户意图，扩展多维检索词 (Multi-Query)...\n' });
+      const queries = [body.question];
+      try {
+        const expanded = await this.llmService.expandQuery(body.question);
+        if (expanded.length > 0) {
+          queries.push(...expanded);
+          writeEvent({ type: 'reasoning', content: `  ↳ 生成扩展查询：${expanded.join(', ')}\n` });
+        }
+      } catch (e) {
+        writeEvent({ type: 'reasoning', content: `  ↳ 查询扩展失败，降级使用原始查询\n` });
+      }
+
+      writeEvent({ type: 'reasoning', content: '\n➤ 步骤 2: 执行混合检索 (多路向量召回)...\n' });
+      const allDocs: Document[] = [];
+      for (const q of queries) {
+        // 每路召回 5 条
+        const docs = await this.vectorService.similaritySearch(q, 5);
+        allDocs.push(...docs);
+      }
+      writeEvent({ type: 'reasoning', content: `  ↳ 多路召回总计获取 ${allDocs.length} 条初始片段\n` });
+
+      // ==========================================
+      // 策略 3: 补充互联网搜索 (Web Search Tool)
+      // ==========================================
+      writeEvent({ type: 'reasoning', content: '\n➤ 步骤 3: 尝试调用外挂工具进行联网检索 (Web Search)...\n' });
+      try {
+        const searchTool = new DuckDuckGoSearch({ maxResults: 3 });
+        // 调用工具查询互联网，补充时效性数据
+        const webResultStr = await searchTool.invoke(body.question);
+        if (webResultStr && webResultStr.length > 0 && webResultStr !== 'No good result found.') {
+          allDocs.push(
+            new Document({
+              pageContent: webResultStr,
+              metadata: { source: 'DuckDuckGo Web Search' },
+            })
+          );
+          writeEvent({ type: 'reasoning', content: `  ↳ 成功从互联网工具获取实时补充数据\n` });
+        } else {
+          writeEvent({ type: 'reasoning', content: `  ↳ 互联网未匹配到强相关数据，仅使用本地库\n` });
+        }
+      } catch (e) {
+        writeEvent({ type: 'reasoning', content: `  ↳ 互联网搜索服务连接超时，跳过此步骤\n` });
+      }
+
+      // ==========================================
+      // 策略 4: 重排序 (Rerank) 与去重模拟
+      // ==========================================
+      writeEvent({ type: 'reasoning', content: '\n➤ 步骤 4: 启动重排序 (Rerank) 与上下文压缩...\n' });
+      const uniqueDocsMap = new Map<string, Document>();
+      // 简单模拟 Rerank：按内容去重，并保留最先召回（最相关）的记录
+      for (const doc of allDocs) {
+        if (!uniqueDocsMap.has(doc.pageContent)) {
+          uniqueDocsMap.set(doc.pageContent, doc);
+        }
+      }
+      // 提取 Top 10 作为最终上下文
+      const finalDocs = Array.from(uniqueDocsMap.values()).slice(0, 10);
+      writeEvent({ type: 'reasoning', content: `  ↳ Rerank 完毕，筛选出最核心的 ${finalDocs.length} 条高价值片段注入上下文\n` });
 
       writeEvent({
-        type: 'status',
-        phase: 'thinking',
+        type: 'context',
+        retrievedContext: finalDocs,
       });
+
+      // ==========================================
+      // 策略 5: 最终大模型生成
+      // ==========================================
+      writeEvent({ type: 'reasoning', content: '\n➤ 步骤 5: 调用大模型进行深度阅读与逻辑生成...\n' });
+
+      const context = finalDocs.map((doc) => doc.pageContent).join('\n\n');
+      const prompt = `你是一个有帮助的 AI 助手。
+请优先根据以下【参考知识】来回答用户的问题。
+如果【参考知识】中没有提供足够的相关信息，你可以结合你自身的知识库进行补充回答，并在回答中委婉地说明这是你的补充建议，而不是直接说不知道。
+
+【参考知识】：
+${context}
+
+【用户问题】：
+${body.question}`;
 
       const stream = this.llmService.generateResponseStream(
         prompt,

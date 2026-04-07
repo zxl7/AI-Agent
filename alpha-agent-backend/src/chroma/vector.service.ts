@@ -3,6 +3,7 @@ import { createVectorStore } from '../config/vector.config';
 import { Chroma } from '@langchain/community/vectorstores/chroma';
 import { Document } from '@langchain/core/documents';
 import { ChromaClient } from 'chromadb';
+import { RecursiveCharacterTextSplitter } from '@langchain/textsplitters';
 
 @Injectable()
 export class VectorService implements OnModuleInit {
@@ -58,23 +59,28 @@ export class VectorService implements OnModuleInit {
       );
     }
 
-    const documents = texts.map((text, index) => {
-      // ChromaDB 最新版本规定，如果不传 metadata，应该是不提供该字段，或者提供至少含有一个键值对的对象。
-      // 不能传空对象 `{}`，否则会报 Expected metadata to be non-empty。
-      const meta = metadatas?.[index];
-      // 避免 LangChain 或 Chroma 内部将 metadata 默认转换为空对象 {} 而报错
-      // 这里强制至少包含一个默认的元数据键值对
+    const splitter = new RecursiveCharacterTextSplitter({
+      chunkSize: 800,
+      chunkOverlap: 100,
+    });
+
+    const documents: Document[] = [];
+    for (let i = 0; i < texts.length; i++) {
+      const meta = metadatas?.[i];
       const finalMeta =
         meta && Object.keys(meta).length > 0 ? meta : { source: 'api_upload' };
 
-      return {
-        pageContent: text,
-        metadata: finalMeta,
-      };
-    }) as Document[];
+      const chunks = await splitter.splitText(texts[i]);
+      for (const chunk of chunks) {
+        documents.push(new Document({
+          pageContent: chunk,
+          metadata: finalMeta,
+        }));
+      }
+    }
 
     await this.vectorStore.addDocuments(documents);
-    this.logger.log(`成功添加 ${documents.length} 条文档到向量库`);
+    this.logger.log(`成功将文本分块并添加 ${documents.length} 条文档到向量库`);
   }
 
   /**

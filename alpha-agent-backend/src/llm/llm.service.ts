@@ -121,6 +121,27 @@ export class LlmService {
   }
 
   /**
+   * Agent 能力：查询扩展 (Query Expansion)
+   * 用于多路召回，提升检索召回率
+   */
+  async expandQuery(query: string): Promise<string[]> {
+    const prompt = `你是一个专业的搜索词优化专家。请根据用户的原始问题，提取并生成 2 到 3 个相关的搜索短语、核心实体或同义词，用于在知识库中进行向量检索。
+请直接返回关键词，用逗号分隔，不要包含任何解释、序号或多余的标点符号。
+用户问题：${query}`;
+    try {
+      const res = await this.generateResponse(prompt);
+      return res
+        .split(/[,，、\n]/)
+        .map((k) => k.trim())
+        .filter((k) => k.length > 0 && k !== query)
+        .slice(0, 3);
+    } catch (error) {
+      this.logger.warn('查询扩展生成失败，将降级使用原始查询', error);
+      return [];
+    }
+  }
+
+  /**
    * 调用本地 LLM 的流式接口
    * @param prompt 拼接好的 Prompt
    * @returns 按 token / reasoning 产出的异步流
