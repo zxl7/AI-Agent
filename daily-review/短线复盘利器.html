@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>A股收盘简报 | 2026-04-16</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family: -apple-system, "SF Pro Text", "Helvetica Neue", sans-serif; background:#f0f2f5; color:#1a1a2e; line-height:1.6; padding:20px 10px; }
+.container { max-width:820px; margin:0 auto; }
+
+/* Hero Banner */
+.hero { background:linear-gradient(135deg,#1e3a5f 0%,#2563eb 50%,#3b82f6 100%); border-radius:16px; padding:28px 24px; color:#fff; margin-bottom:16px; position:relative; overflow:hidden; }
+.hero::after { content:''; position:absolute; top:-50%; right:-10%; width:300px; height:300px; background:rgba(255,255,255,0.05); border-radius:50%; }
+.hero-top { display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:12px; position:relative; z-index:1; }
+.cycle-tag { display:inline-flex; align-items:center; gap:6px; background:rgba(255,255,255,0.15); backdrop-filter:blur(8px); padding:6px 14px; border-radius:20px; font-size:13px; font-weight:500; }
+.cycle-dot { width:8px; height:8px; border-radius:50%; background:#10b981; animation:pulse 2s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+.hero-date { font-size:22px; font-weight:700; letter-spacing:1px; }
+.hero-subtitle { opacity:.85; font-size:13px; margin-top:4px; }
+
+/* 指数卡片 */
+.index-row { display:flex; gap:10px; margin-top:18px; position:relative; z-index:1; flex-wrap:wrap; }
+.index-card { flex:1; min-width:120px; background:rgba(255,255,255,0.12); border-radius:12px; padding:14px 12px; text-align:center; backdrop-filter:blur(4px); }
+.index-name { font-size:12px; opacity:.85; margin-bottom:4px; }
+.index-val { font-size:20px; font-weight:700; }
+.index-pct { font-size:13px; font-weight:600; margin-top:2px; }
+.up { color:#fca5a5 !important; } .down { color:#86efac !important; } .flat { color:#fde68a !important; }
+
+/* 卡片通用 */
+.card { background:#fff; border-radius:14px; padding:20px; margin-bottom:14px; box-shadow:0 2px 8px rgba(0,0,0,.04); }
+.card-title { display:flex; align-items:center; gap:8px; font-size:17px; font-weight:700; color:#1a1a2e; margin-bottom:16px; }
+.card-icon { width:28px; height:28px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:14px; color:#fff; }
+
+/* 市场全景 - 6格数字 */
+.stats-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:18px; }
+.stat-box { text-align:center; padding:14px 8px; border-radius:12px; background:#f8fafc; transition:transform .2s; }
+.stat-box:hover { transform:translateY(-2px); }
+.stat-num { font-size:26px; font-weight:800; line-height:1.2; }
+.stat-label { font-size:12px; color:#64748b; margin-top:4px; }
+.red-text { color:#ef4444; } .green-text { color:#10b981; } .blue-text { color:#2563eb; } .orange-text { color:#f59e0b; }
+
+/* 量能条 */
+.volume-section { background:#f8fafc; border-radius:12px; padding:16px; margin-bottom:16px; }
+.vol-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
+.vol-label { font-size:13px; color:#64748b; font-weight:600; }
+.vol-value { font-size:18px; font-weight:700; color:#1a1a2e; }
+.vol-detail { font-size:12px; color:#94a3b8; }
+.vol-bar-bg { background:#e2e8f0; border-radius:6px; height:28px; position:relative; overflow:hidden; }
+.vol-bar-fill { height:100%; border-radius:6px; background:linear-gradient(90deg,#2563eb,#60a5fa); transition:width .5s; display:flex; align-items:center; justify-content:flex-end; padding-right:10px; }
+.vol-bar-fill.warm { background:linear-gradient(90deg,#f59e0b,#fbbf24); }
+.vol-bar-text { color:#fff; font-size:11px; font-weight:700; white-space:nowrap; }
+.trend-tag { display:inline-block; font-size:11px; padding:2px 8px; border-radius:10px; font-weight:600; margin-left:8px; }
+.trend-up { background:#fef2f2; color:#ef4444; } .trend-down { background:#ecfdf5; color:#10b981; } .trend-flat { background:#fffbeb; color:#f59e0b; }
+
+/* SVG柱状图 */
+.chart-container { width:100%; overflow-x:auto; margin-bottom:16px; }
+.svg-chart { width:100%; min-width:500px; }
+
+/* 赚钱效应 */
+.effect-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:12px; margin-bottom:14px; }
+.effect-item { padding:14px; border-radius:12px; text-align:center; }
+.effect-item.green-bg { background:linear-gradient(135deg,#ecfdf5,#d1fae5); }
+.effect-item.yellow-bg { background:linear-gradient(135deg,#fffbeb,#fef3c7); }
+.effect-item.red-bg { background:linear-gradient(135deg,#fef2f2,#fee2e2); }
+.effect-item.blue-bg { background:linear-gradient(135deg,#eff6ff,#dbeafe); }
+.effect-val { font-size:24px; font-weight:800; }
+.effect-label { font-size:12px; color:#64748b; margin-top:4px; }
+.verdict-box { border-radius:12px; padding:16px 20px; text-align:center; font-size:15px; font-weight:600; line-height:1.7; }
+.verdict-good { background:linear-gradient(135deg,#ecfdf5,#d1fae5); color:#065f46; border:1px solid #a7f3d0; }
+.verdict-warn { background:linear-gradient(135deg,#fffbeb,#fef3c7); color:#92400e; border:1px solid #fde68a; }
+.verdict-bad { background:linear-gradient(135deg,#fef2f2,#fee2e2); color:#991b1b; border:1px solid #fecaca; }
+
+/* 恐惧指标 */
+.fear-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+.fear-card { background:#f8fafc; border-radius:12px; padding:14px 10px; text-align:center; }
+.fear-val { font-size:20px; font-weight:800; }
+.fear-label { font-size:11px; color:#64748b; margin-top:4px; }
+.fear-note { font-size:10px; color:#94a3b8; margin-top:2px; }
+
+/* 热点解读 */
+.hot-topic { padding:14px 16px; border-radius:12px; margin-bottom:10px; border-left:4px solid; }
+.hot-topic.good { background:#f0fdf4; border-color:#22c55e; }
+.hot-topic.caution { background:#fffbeb; border-color:#f59e0b; }
+.topic-title { font-weight:700; font-size:14px; margin-bottom:6px; display:flex; align-items:center; gap:6px; }
+.topic-desc { font-size:13px; color:#475569; line-height:1.7; }
+.topic-tag { display:inline-block; font-size:10px; padding:2px 8px; border-radius:8px; font-weight:600; }
+.tag-sustained { background:#dcfce7; color:#166534; } .tag-caution { background:#fef3c7; color:#92400e; }
+
+/* 连板天梯 */
+.ladder-table { width:100%; border-collapse:collapse; font-size:13px; }
+.ladder-table th { background:#f1f5f9; padding:10px 8px; text-align:center; font-weight:700; color:#475569; font-size:12px; border-radius:6px; }
+.ladder-table td { padding:10px 8px; border-bottom:1px solid #f1f5f9; text-align:center; vertical-align:middle; }
+.ladder-table tr:last-child td { border:none; }
+.ladder-badge { display:inline-block; padding:2px 10px; border-radius:10px; font-size:12px; font-weight:700; }
+.badge-5 { background:#fef3c7; color:#92400e; }
+.badge-3 { background:#dbeafe; color:#1e40af; }
+.badge-2 { background:#ede9fe; color:#5b21b6; }
+.badge-1 { background:#f1f5f9; color:#475569; }
+.stock-name-cell { font-weight:600; color:#1a1a2e; }
+.dest-good { color:#10b981; font-weight:600; font-size:12px; }
+.dest-break { color:#ef4444; font-weight:600; font-size:12px; }
+.dest-new { color:#2563eb; font-weight:600; font-size:12px; }
+
+/* 板块TOP5 */
+.sector-list { list-style:none; }
+.sector-item { display:flex; align-items:center; justify-content:space-between; padding:12px 0; border-bottom:1px solid #f1f5f9; }
+.sector-item:last-child { border:none; }
+.sector-rank { width:26px; height:26px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:800; color:#fff; flex-shrink:0; }
+.rank-1 { background:linear-gradient(135deg,#f59e0b,#fbbf24); }
+.rank-2 { background:linear-gradient(135deg,#94a3b8,#cbd5e1); }
+.rank-3 { background:linear-gradient(135deg,#d97706,#f59e0b); }
+.rank-n { background:#e2e8f0; color:#64748b; }
+.sector-info { flex:1; margin-left:12px; }
+.sector-name { font-weight:600; font-size:14px; color:#1a1a2e; }
+.sector-detail { font-size:11px; color:#94a3b8; margin-top:2px; }
+.sector-pct { font-size:15px; font-weight:700; min-width:65px; text-align:right; }
+
+/* 明日行动 */
+.action-list { list-style:none; }
+.action-item { display:flex; gap:10px; padding:12px 0; border-bottom:1px solid #f1f5f9; }
+.action-item:last-child { border:none; }
+.action-dot { width:8px; height:8px; border-radius:50%; margin-top:6px; flex-shrink:0; }
+.dot-key { background:#2563eb; } .dot-risk { background:#ef4444; } .dot-watch { background:#f59e0b; }
+.action-text { font-size:13.5px; color:#334155; line-height:1.6; }
+
+/* 页脚 */
+.footer { text-align:center; padding:20px; color:#94a3b8; font-size:11.5px; }
+.footer a { color:#2563eb; text-decoration:none; }
+
+/* 分隔线标题 */
+.section-header { font-size:15px; font-weight:700; color:#1e293b; margin:18px 0 10px; padding-left:12px; border-left:4px solid #2563eb; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="hero">
+    <div class="hero-top">
+      <div>
+        <div class="cycle-tag"><span class="cycle-dot"></span>短线复盘 · 情绪监控</div>
+        <div class="hero-date">2026年04年16日收盘简报</div>
+        <div class="hero-subtitle">数据来源：必盈API | 自动生成报告</div>
+      </div>
+    </div>
+    <div class="index-row">
+        <div class="index-card">
+          <div class="index-name">上证指数</div>
+          <div class="index-val">4055.55</div>
+          <div class="index-pct up">🔼+0.70%</div>
+        </div>
+        <div class="index-card">
+          <div class="index-name">深证成指</div>
+          <div class="index-val">14796.33</div>
+          <div class="index-pct up">🔼+2.05%</div>
+        </div>
+        <div class="index-card">
+          <div class="index-name">创业板指</div>
+          <div class="index-val">3626.27</div>
+          <div class="index-pct up">🔼+3.17%</div>
+        </div>
+        <div class="index-card">
+          <div class="index-name">科创50</div>
+          <div class="index-val">1422.23</div>
+          <div class="index-pct up">🔼+1.13%</div>
+        </div></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><div class="card-icon" style="background:#2563eb;">📊</div>市场全景</div>
+    <div class="stats-grid">
+      <div class="stat-box"><div class="stat-num red-text">79</div><div class="stat-label">涨停家数</div></div>
+      <div class="stat-box"><div class="stat-num orange-text">23</div><div class="stat-label">炸板家数</div></div>
+      <div class="stat-box"><div class="stat-num green-text">1</div><div class="stat-label">跌停家数</div></div>
+      <div class="stat-box"><div class="stat-num blue-text">77.5%</div><div class="stat-label">封板率</div></div>
+      <div class="stat-box"><div class="stat-num red-text">210</div><div class="stat-label">强势股</div></div>
+      <div class="stat-box"><div class="stat-num" style="font-size:18px;">23416.78亿</div><div class="stat-label">两市成交额</div></div>
+    </div>
+    
+    <div class="section-header" style="border-left-color:#6366f1;">情绪趋势跟踪</div>
+    <div class="chart-container">
+    <svg viewBox="0 0 500 240" xmlns="http://www.w3.org/2000/svg">
+      <rect x="50" y="40" width="400" height="160" fill="#fafafa" rx="8"/>
+      
+      <!-- 涨停折线 -->
+      <polyline points="50.0,68.80000000000001 116.66666666666667,143.46666666666667 183.33333333333334,137.06666666666666 250.0,137.06666666666666 316.6666666666667,141.33333333333334 383.33333333333337,139.2 450.0,115.73333333333333" fill="none" stroke="#ef4444" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <!-- 跌停折线 -->
+      <polyline points="50.0,195.73333333333332 116.66666666666667,198.93333333333334 183.33333333333334,191.46666666666667 250.0,195.73333333333332 316.6666666666667,195.73333333333332 383.33333333333337,191.46666666666667 450.0,198.93333333333334" fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4,2"/>
+      <!-- 高度折线 -->
+      <polyline points="50.0,200.0 116.66666666666667,200.0 183.33333333333334,136.0 250.0,120.0 316.6666666666667,104.0 383.33333333333337,120.0 450.0,104.0" fill="none" stroke="#2563eb" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+      
+      <!-- 数据点和标签 -->
+    <circle cx="50.0" cy="68.80000000000001" r="4" fill="#ef4444"/><text x="50.0" y="60.80000000000001" text-anchor="middle" fill="#ef4444" font-size="10" font-weight="700">123</text><circle cx="50.0" cy="200.0" r="4" fill="#2563eb"/><text x="50.0" y="192.0" text-anchor="middle" fill="#2563eb" font-size="10" font-weight="700">0板</text><text x="50.0" y="225" text-anchor="middle" fill="#64748b" font-size="10">04-08</text><circle cx="116.66666666666667" cy="143.46666666666667" r="4" fill="#ef4444"/><text x="116.66666666666667" y="135.46666666666667" text-anchor="middle" fill="#ef4444" font-size="10" font-weight="700">53</text><circle cx="116.66666666666667" cy="200.0" r="4" fill="#2563eb"/><text x="116.66666666666667" y="192.0" text-anchor="middle" fill="#2563eb" font-size="10" font-weight="700">0板</text><text x="116.66666666666667" y="225" text-anchor="middle" fill="#64748b" font-size="10">04-09</text><circle cx="183.33333333333334" cy="137.06666666666666" r="4" fill="#ef4444"/><text x="183.33333333333334" y="129.06666666666666" text-anchor="middle" fill="#ef4444" font-size="10" font-weight="700">59</text><circle cx="183.33333333333334" cy="136.0" r="4" fill="#2563eb"/><text x="183.33333333333334" y="128.0" text-anchor="middle" fill="#2563eb" font-size="10" font-weight="700">4板</text><text x="183.33333333333334" y="225" text-anchor="middle" fill="#64748b" font-size="10">04-10</text><circle cx="250.0" cy="137.06666666666666" r="4" fill="#ef4444"/><text x="250.0" y="129.06666666666666" text-anchor="middle" fill="#ef4444" font-size="10" font-weight="700">59</text><circle cx="250.0" cy="120.0" r="4" fill="#2563eb"/><text x="250.0" y="112.0" text-anchor="middle" fill="#2563eb" font-size="10" font-weight="700">5板</text><text x="250.0" y="225" text-anchor="middle" fill="#64748b" font-size="10">04-13</text><circle cx="316.6666666666667" cy="141.33333333333334" r="4" fill="#ef4444"/><text x="316.6666666666667" y="133.33333333333334" text-anchor="middle" fill="#ef4444" font-size="10" font-weight="700">55</text><circle cx="316.6666666666667" cy="104.0" r="4" fill="#2563eb"/><text x="316.6666666666667" y="96.0" text-anchor="middle" fill="#2563eb" font-size="10" font-weight="700">6板</text><text x="316.6666666666667" y="225" text-anchor="middle" fill="#64748b" font-size="10">04-14</text><circle cx="383.33333333333337" cy="139.2" r="4" fill="#ef4444"/><text x="383.33333333333337" y="131.2" text-anchor="middle" fill="#ef4444" font-size="10" font-weight="700">57</text><circle cx="383.33333333333337" cy="120.0" r="4" fill="#2563eb"/><text x="383.33333333333337" y="112.0" text-anchor="middle" fill="#2563eb" font-size="10" font-weight="700">5板</text><text x="383.33333333333337" y="225" text-anchor="middle" fill="#64748b" font-size="10">04-15</text><circle cx="450.0" cy="115.73333333333333" r="4" fill="#ef4444"/><text x="450.0" y="107.73333333333333" text-anchor="middle" fill="#ef4444" font-size="10" font-weight="700">79</text><circle cx="450.0" cy="104.0" r="4" fill="#2563eb"/><text x="450.0" y="96.0" text-anchor="middle" fill="#2563eb" font-size="10" font-weight="700">6板</text><text x="450.0" y="225" text-anchor="middle" fill="#64748b" font-size="10">04-16</text>
+      <g transform="translate(100, 230)">
+        <line x1="0" y1="0" x2="15" y2="0" stroke="#ef4444" stroke-width="2"/>
+        <text x="20" y="4" fill="#64748b" font-size="10">涨停</text>
+        <line x1="70" y1="0" x2="85" y2="0" stroke="#2563eb" stroke-width="2"/>
+        <text x="90" y="4" fill="#64748b" font-size="10">高度</text>
+        <line x1="140" y1="0" x2="155" y2="0" stroke="#10b981" stroke-width="2" stroke-dasharray="3,1"/>
+        <text x="160" y="4" fill="#64748b" font-size="10">跌停</text>
+      </g>
+    </svg>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><div class="card-icon" style="background:#f59e0b;">🏆</div>连板天梯</div>
+    <table class="ladder-table">
+      <thead><tr><th>高度</th><th>股票名称</th><th>状态</th><th>今日去向</th><th>备注</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><span class="ladder-badge badge-6">6板</span></td>
+          <td class="stock-name-cell">圣阳股份</td>
+          <td>晋级</td>
+          <td class="dest-good">✅ 晋级6板</td>
+          <td style="font-size:11.5px;color:#64748b;">-</td>
+        </tr>
+        <tr>
+          <td><span class="ladder-badge badge-4">4板</span></td>
+          <td class="stock-name-cell">博云新材</td>
+          <td>晋级</td>
+          <td class="dest-good">✅ 晋级4板</td>
+          <td style="font-size:11.5px;color:#64748b;">-</td>
+        </tr>
+        <tr>
+          <td><span class="ladder-badge badge-3">3板</span></td>
+          <td class="stock-name-cell">盛视科技</td>
+          <td>晋级</td>
+          <td class="dest-good">✅ 晋级3板</td>
+          <td style="font-size:11.5px;color:#64748b;">-</td>
+        </tr>
+        <tr>
+          <td><span class="ladder-badge badge-2">2板</span></td>
+          <td class="stock-name-cell">申通快递</td>
+          <td>晋级</td>
+          <td class="dest-good">✅ 晋级2板</td>
+          <td style="font-size:11.5px;color:#64748b;">-</td>
+        </tr>
+        <tr>
+          <td><span class="ladder-badge badge-2">2板</span></td>
+          <td class="stock-name-cell">京投发展</td>
+          <td>晋级</td>
+          <td class="dest-good">✅ 晋级2板</td>
+          <td style="font-size:11.5px;color:#64748b;">-</td>
+        </tr>
+        <tr>
+          <td><span class="ladder-badge badge-2">2板</span></td>
+          <td class="stock-name-cell">大胜达</td>
+          <td>晋级</td>
+          <td class="dest-good">✅ 晋级2板</td>
+          <td style="font-size:11.5px;color:#64748b;">-</td>
+        </tr>
+        <tr>
+          <td><span class="ladder-badge badge-2">2板</span></td>
+          <td class="stock-name-cell">丽江股份</td>
+          <td>晋级</td>
+          <td class="dest-good">✅ 晋级2板</td>
+          <td style="font-size:11.5px;color:#64748b;">-</td>
+        </tr>
+        <tr>
+          <td><span class="ladder-badge badge-2">2板</span></td>
+          <td class="stock-name-cell">均瑶健康</td>
+          <td>晋级</td>
+          <td class="dest-good">✅ 晋级2板</td>
+          <td style="font-size:11.5px;color:#64748b;">-</td>
+        </tr>
+        <tr>
+          <td><span class="ladder-badge badge-1">1板</span></td>
+          <td class="stock-name-cell">华谊兄弟</td>
+          <td>晋级</td>
+          <td class="dest-good">✅ 晋级1板</td>
+          <td style="font-size:11.5px;color:#64748b;">-</td>
+        </tr>
+        <tr>
+          <td><span class="ladder-badge badge-1">1板</span></td>
+          <td class="stock-name-cell">锦鸡股份</td>
+          <td>晋级</td>
+          <td class="dest-good">✅ 晋级1板</td>
+          <td style="font-size:11.5px;color:#64748b;">-</td>
+        </tr>
+        <tr>
+          <td><span class="ladder-badge badge-1">1板</span></td>
+          <td class="stock-name-cell">嘉戎技术</td>
+          <td>晋级</td>
+          <td class="dest-good">✅ 晋级1板</td>
+          <td style="font-size:11.5px;color:#64748b;">-</td>
+        </tr>
+        <tr>
+          <td><span class="ladder-badge badge-1">1板</span></td>
+          <td class="stock-name-cell">品高股份</td>
+          <td>晋级</td>
+          <td class="dest-good">✅ 晋级1板</td>
+          <td style="font-size:11.5px;color:#64748b;">-</td>
+        </tr>
+        <tr>
+          <td><span class="ladder-badge badge-1">1板</span></td>
+          <td class="stock-name-cell">乔锋智能</td>
+          <td>晋级</td>
+          <td class="dest-good">✅ 晋级1板</td>
+          <td style="font-size:11.5px;color:#64748b;">-</td>
+        </tr>
+        <tr>
+          <td><span class="ladder-badge badge-1">1板</span></td>
+          <td class="stock-name-cell">宏景科技</td>
+          <td>晋级</td>
+          <td class="dest-good">✅ 晋级1板</td>
+          <td style="font-size:11.5px;color:#64748b;">-</td>
+        </tr>
+        <tr>
+          <td><span class="ladder-badge badge-1">1板</span></td>
+          <td class="stock-name-cell">鼎通科技</td>
+          <td>晋级</td>
+          <td class="dest-good">✅ 晋级1板</td>
+          <td style="font-size:11.5px;color:#64748b;">-</td>
+        </tr>
+        <tr>
+          <td><span class="ladder-badge badge-1">1板</span></td>
+          <td class="stock-name-cell">宝丽迪</td>
+          <td>晋级</td>
+          <td class="dest-good">✅ 晋级1板</td>
+          <td style="font-size:11.5px;color:#64748b;">-</td>
+        </tr>
+        <tr>
+          <td><span class="ladder-badge badge-1">1板</span></td>
+          <td class="stock-name-cell">百邦科技</td>
+          <td>晋级</td>
+          <td class="dest-good">✅ 晋级1板</td>
+          <td style="font-size:11.5px;color:#64748b;">-</td>
+        </tr>
+        <tr>
+          <td><span class="ladder-badge badge-1">1板</span></td>
+          <td class="stock-name-cell">晶科科技</td>
+          <td>晋级</td>
+          <td class="dest-good">✅ 晋级1板</td>
+          <td style="font-size:11.5px;color:#64748b;">-</td>
+        </tr></tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><div class="card-icon" style="background:#ec4899;">🏅</div>板块强度 TOP5</div>
+    <ul class="sector-list">
+        <li class="sector-item">
+          <span class="sector-rank rank-1">1</span>
+          <div class="sector-info">
+            <div class="sector-name">A股-热门概念-锂电池</div>
+            <div class="sector-detail">20只涨停</div>
+          </div>
+          <div class="sector-pct" style="color:#f59e0b;">—</div>
+        </li>
+        <li class="sector-item">
+          <span class="sector-rank rank-2">2</span>
+          <div class="sector-info">
+            <div class="sector-name">A股-热门概念-机器人概念</div>
+            <div class="sector-detail">17只涨停</div>
+          </div>
+          <div class="sector-pct" style="color:#f59e0b;">—</div>
+        </li>
+        <li class="sector-item">
+          <span class="sector-rank rank-3">3</span>
+          <div class="sector-info">
+            <div class="sector-name">A股-热门概念-基金重仓</div>
+            <div class="sector-detail">17只涨停</div>
+          </div>
+          <div class="sector-pct" style="color:#f59e0b;">—</div>
+        </li>
+        <li class="sector-item">
+          <span class="sector-rank rank-n">4</span>
+          <div class="sector-info">
+            <div class="sector-name">A股-热门概念-华为概念</div>
+            <div class="sector-detail">15只涨停</div>
+          </div>
+          <div class="sector-pct" style="color:#f59e0b;">—</div>
+        </li>
+        <li class="sector-item">
+          <span class="sector-rank rank-n">5</span>
+          <div class="sector-info">
+            <div class="sector-name">A股-热门概念-国资改革</div>
+            <div class="sector-detail">14只涨停</div>
+          </div>
+          <div class="sector-pct" style="color:#f59e0b;">—</div>
+        </li></ul>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><div class="card-icon" style="background:#10b981;">📋</div>核心判断</div>
+    <div class="verdict-box verdict-warn">
+      📌 信号：🔴短线情绪良好<br/>  📊 量能：23416.78亿  较昨日🔽-3.05%<br/>  📋 封板率：77.5%  ✅正常<br/>  🔥 最强题材：【A股-热门概念-锂电池】 20只涨停<br/>  👉 看点：题材明确，A股-热门概念-锂电池为主线，关注龙头梯队完整度
+    </div>
+  </div>
+
+  <div class="footer">
+    <p>📊 生成时间：2026-04-16 21:11</p>
+    <p>本报告由自动化系统生成，仅供参考。</p>
+  </div>
+</div>
+</body>
+</html>

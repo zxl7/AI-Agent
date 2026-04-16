@@ -223,6 +223,13 @@ qs_list = filter_st(parse_pool(qs_raw))
 zt_count, dt_count, zb_count, qs_count = len(zt_list), len(dt_list), len(zb_list), len(qs_list)
 fbl = zt_count / (zt_count + zb_count) * 100 if (zt_count + zb_count) > 0 else 0
 
+# 获取全市场涨跌家数 (通过 api_fin 获取市场宽度)
+up_count, down_count = 0, 0
+breadth = api_fin("index_daily", {"ts_code": "000001.SH", "trade_date": DATE_FMT}, "advance,decline")
+if breadth:
+    up_count = int(breadth.get('advance', 0))
+    down_count = int(breadth.get('decline', 0))
+
 # ── 模块三：连板天梯 ──
 print("[3/9] 连板天梯查询...")
 by_lbc = defaultdict(list)
@@ -339,7 +346,8 @@ if market_amount > 0:
 
 # 二、市场全景
 log(f"\n二、市场全景"); log("-" * 50)
-log(f"  涨停 🔥{zt_count}只  |  炸板 💥{zb_count}只  |  跌停 ⬇️{dt_count}只  |  强势 ⭐{qs_count}只  |  封板率 {fbl:.1f}%")
+breadth_str = f"上涨 {up_count} vs 下跌 {down_count}" if up_count or down_count else ""
+log(f"  {breadth_str}  |  涨停 🔥{zt_count}只  |  炸板 💥{zb_count}只  |  跌停 ⬇️{dt_count}只  |  封板率 {fbl:.1f}%")
 
 # 三、连板天梯
 log(f"\n三、连板天梯"); log("-" * 50)
@@ -440,5 +448,14 @@ try:
     with open(file_path, "w", encoding="utf-8") as f:
         f.write("\n".join(report_lines))
     print(f"\n💾 报告已自动保存至: {file_path}")
+    
+    # ══════════════════════════════════════════════════════
+    # 自动更新 HTML 报告
+    # ══════════════════════════════════════════════════════
+    update_script = os.path.join(os.path.dirname(__file__), "update_report_html.py")
+    if os.path.exists(update_script):
+        print("\n🎨 正在同步更新 HTML 可视化报告...")
+        os.system(f'python3 "{update_script}"')
+        
 except Exception as e:
-    print(f"\n❌ 保存文件失败: {e}")
+    print(f"\n❌ 处理报告失败: {e}")
