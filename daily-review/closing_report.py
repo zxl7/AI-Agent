@@ -9,6 +9,7 @@ import json
 import ssl
 import datetime
 import sys
+import os
 from collections import Counter, defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -24,6 +25,16 @@ ctx.verify_mode = ssl.CERT_NONE
 
 # 日期参数：命令行指定 或 自动取今天
 DATE = sys.argv[1] if len(sys.argv) > 1 else datetime.date.today().strftime("%Y-%m-%d")
+
+# 报告收集器
+report_lines = []
+
+def log(msg=""):
+    """
+    打印消息并收集到报告列表中
+    """
+    print(msg)
+    report_lines.append(msg)
 
 EXCLUDE_PREFIXES = (
     'A股-分类', 'A股-指数成分', 'A股-证监会行业',
@@ -171,21 +182,34 @@ print(f"📅 目标日期: {DATE}")
 print("-" * 50)
 
 # ── 模块一：四大指数 ──
-print("[1/9] 四大指数...")
+print("[1/9] 四大指数查询...")
 indices = []; market_amount = 0
+DATE_FMT = DATE.replace("-", "")
 for name, code, mkt in INDEX_CODES:
-    raw = api(f"hsindex/latest/{code}.{mkt}/d")
-    klines = raw if isinstance(raw, list) else []
-    if klines:
-        latest = klines[0]
-        c, pc = float(latest.get('c', 0)), float(latest.get('pc', 0))
-        amt = float(latest.get('a', 0))
+    ts_code = f"{code}.{mkt}"
+    # 使用 finance-data 接口获取指定日期的指数数据
+    data = api_fin("index_daily", {"ts_code": ts_code, "trade_date": DATE_FMT})
+    if data:
+        c = float(data.get('close', 0))
+        pc = float(data.get('pre_close', 0))
+        amt = float(data.get('amount', 0)) * 1000
         indices.append((name, c, pct_chg(c, pc)))
         if code in ("000001", "399001"):
             market_amount += amt
+    else:
+        # 如果 finance-data 没查到，降级使用最新数据接口
+        raw = api(f"hsindex/latest/{code}.{mkt}/d")
+        klines = raw if isinstance(raw, list) else []
+        if klines:
+            latest = klines[0]
+            c, pc = float(latest.get('c', 0)), float(latest.get('pc', 0))
+            amt = float(latest.get('a', 0))
+            indices.append((name, c, pct_chg(c, pc)))
+            if code in ("000001", "399001"):
+                market_amount += amt
 
 # ── 模块二：市场全景 ──
-print("[2/9] 市场全景...")
+print("[2/9] 市场全景查询...")
 zt_raw = api(f"hslt/ztgc/{DATE}")
 dt_raw = api(f"hslt/dtgc/{DATE}")
 zb_raw = api(f"hslt/zbgc/{DATE}")
@@ -200,7 +224,7 @@ zt_count, dt_count, zb_count, qs_count = len(zt_list), len(dt_list), len(zb_list
 fbl = zt_count / (zt_count + zb_count) * 100 if (zt_count + zb_count) > 0 else 0
 
 # ── 模块三：连板天梯 ──
-print("[3/9] 连板天梯...")
+print("[3/9] 连板天梯查询...")
 by_lbc = defaultdict(list)
 for s in zt_list:
     by_lbc[s.get('lbc', 1)].append(s)
@@ -224,12 +248,12 @@ for lbc in sorted(by_lbc.keys(), reverse=True):
     lines.append((lbc, tag, names, p_str, b_str))
 
 # ── 模块六：核按钮 ──
-print("[4/9] 核按钮/大面股...")
+print("[4/9] 核按钮/大面股查询...")
 dt_sorted = sorted(dt_list, key=lambda x: -float(x.get('zj', 0)))
 zb_sorted = sorted(zb_list, key=lambda x: -float(x.get('zbc', 0)))
 
 # ── 昨日涨停今表现数据准备 ──
-print("[5/9] 昨日涨停表现...")
+print("[5/9] 昨日涨停表现查询...")
 qs_codes = {s['dm'] for s in qs_list}
 
 # ── 题材分析 ──
@@ -255,7 +279,7 @@ with ThreadPoolExecutor(max_workers=20) as pool:
 top_themes = theme_counter.most_common(5)
 
 # ── 近5日连板高度 & 量能 & 7日趋势 ──
-print("[7/9] 历史趋势数据...")
+print("[7/9] 历史趋势数据查询...")
 trading_5 = get_trading_days(DATE, 5)
 trading_7 = get_trading_days(DATE, 7)
 
@@ -291,108 +315,130 @@ for day in trading_7:
     dt_r  = api(f"hslt/dtgc/{ds}", allow_404=True)
     trend_days.append((ds, len(filter_st(parse_pool(raw_t))), len(filter_st(parse_pool(dt_r)))))
 
-print("[8/9] 数据就绪...")
+# 统一反转顺序，使报告输出为从旧到新的时间线
+height_days.reverse()
+volume_days.reverse()
+trend_days.reverse()
+
+log("[8/9] 数据就绪整理...")
 
 # ══════════════════════════════════════════════════════
 # 输出报告
 # ══════════════════════════════════════════════════════
-print("\n")
-print("=" * 70)
-print(f"  📊 A股短线情绪收盘简报  {DATE}  |  短线复盘版本一")
-print("=" * 70)
+log("\n")
+log("=" * 70)
+log(f"  📊 A股短线情绪收盘简报  {DATE}  |  短线复盘版本一")
+log("=" * 70)
 
 # 一、四大指数
-print("\n一、四大指数"); print("-" * 50)
+log("\n一、四大指数"); log("-" * 50)
 for name, close, chg in indices:
-    print(f"  {name:<8s} {close:>10.2f}  {color_pct(chg)}")
+    log(f"  {name:<8s} {close:>10.2f}  {color_pct(chg)}")
 if market_amount > 0:
-    print(f"\n  两市总成交额  {yi(market_amount)}")
+    log(f"\n  两市总成交额  {yi(market_amount)}")
 
 # 二、市场全景
-print(f"\n二、市场全景"); print("-" * 50)
-print(f"  涨停 🔥{zt_count}只  |  炸板 💥{zb_count}只  |  跌停 ⬇️{dt_count}只  |  强势 ⭐{qs_count}只  |  封板率 {fbl:.1f}%")
+log(f"\n二、市场全景"); log("-" * 50)
+log(f"  涨停 🔥{zt_count}只  |  炸板 💥{zb_count}只  |  跌停 ⬇️{dt_count}只  |  强势 ⭐{qs_count}只  |  封板率 {fbl:.1f}%")
 
 # 三、连板天梯
-print(f"\n三、连板天梯"); print("-" * 50)
+log(f"\n三、连板天梯"); log("-" * 50)
 for lbc, tag, names, p_str, b_str in lines:
     indent = "  " + ("│ " * (max_lbc - lbc))
     ns = " / ".join(names[:10]) + (f" ...(+{len(names)-10}只)" if len(names)>10 else "")
-    print(f"{indent}┌─{tag} {ns}")
+    log(f"{indent}┌─{tag} {ns}")
     if p_str or b_str:
-        print(f"{indent}│  {p_str} {b_str}".strip())
+        log(f"{indent}│  {p_str} {b_str}".strip())
 
 # 四、近5日连板高度
-print(f"\n四、近5日连板高度"); print("-" * 50)
-print(f"  {'日期':<12s} {'全市场高度':>12s} {'创业板':>8s} {'涨停数':>6s}")
+log(f"\n四、近5日连板高度"); log("-" * 50)
+log(f"  {'日期':<12s} {'全市场高度':>12s} {'创业板':>8s} {'涨停数':>6s}")
 for ds, mh, gm, zn in height_days:
     m = " ◀今日" if ds == DATE else ""
-    print(f"  {ds:<12s} {'🔴'*min(mh,6):>10s}({mh}板) {'🔺'*min(gm,6):>6s}({gm}板) {zn:>4d}{m}")
+    log(f"  {ds:<12s} {'🔴'*min(mh,6):>10s}({mh}板) {'🔺'*min(gm,6):>6s}({gm}板) {zn:>4d}{m}")
 
 # 五、近5日量能
-print(f"\n五、近5日两市成交额"); print("-" * 50)
-print(f"  {'日期':<12s} {'成交额':>12s} {'日环比':>10s} {'涨停数':>6s}")
+log(f"\n五、近5日两市成交额"); log("-" * 50)
+log(f"  {'日期':<12s} {'成交额':>12s} {'日环比':>10s} {'涨停数':>6s}")
 for i, (ds, amt, zn) in enumerate(volume_days):
     if i == 0:
         chg_s = "—"
     else:
         chg_s = color_pct((amt - volume_days[i-1][1]) / volume_days[i-1][1] * 100)
     m = " ◀今日" if ds == DATE else ""
-    print(f"  {ds:<12s} {yi(amt):>12s} {chg_s:>10s} {zn:>4d}{m}")
+    log(f"  {ds:<12s} {yi(amt):>12s} {chg_s:>10s} {zn:>4d}{m}")
 
 # 六、核按钮
-print(f"\n六、核按钮 / 大面股"); print("-" * 50)
+log(f"\n六、核按钮 / 大面股"); log("-" * 50)
 if top_dt := dt_sorted[:5]:
     for s in top_dt:
-        print(f"  ⬇️ {s['mc']:<10s} 封单 {yi(s.get('zj',0))}")
+        log(f"  ⬇️ {s['mc']:<10s} 封单 {yi(s.get('zj',0))}")
 if zb_top := zb_sorted[:3]:
     for s in zb_top:
-        print(f"  ⚠️ {s['mc']:<10s} 炸板{s.get('zbc',0)}次  成交{yi(s.get('fba','0'))}")
+        log(f"  ⚠️ {s['mc']:<10s} 炸板{s.get('zbc',0)}次  成交{yi(s.get('fba','0'))}")
 
 # 七、7日趋势
-print(f"\n七、近7日情绪趋势"); print("-" * 50)
-print(f"  {'日期':<12s} {'涨停':>6s} {'跌停':>6s} {'信号':>8s}")
+log(f"\n七、近7日情绪趋势"); log("-" * 50)
+log(f"  {'日期':<12s} {'涨停':>6s} {'跌停':>6s} {'信号':>8s}")
 for ds, zc, dc in trend_days:
     sig = "🔥升温" if zc>=60 else ("❄️降温" if zc<=30 else "➡️平稳")
     m = " ◀今日" if ds==DATE else ""
-    print(f"  {ds:<12s} {zc:>6d} {dc:>6d} {sig:>8s}{m}")
+    log(f"  {ds:<12s} {zc:>6d} {dc:>6d} {sig:>8s}{m}")
 
 # 八、昨日涨停今表现（简化）
-print(f"\n八、昨日涨停今日表现"); print("-" * 50)
+log(f"\n八、昨日涨停今日表现"); log("-" * 50)
 yzt_qs = len([s for s in zt_y if s['dm'] in qs_codes])
-print(f"  昨日涨停{len(zt_y)}只 → 今日仍在强势池 {yzt_qs}只 ({yzt_qs/max(len(zt_y),1)*100:.0f}%)")
+log(f"  昨日涨停{len(zt_y)}只 → 今日仍在强势池 {yzt_qs}只 ({yzt_qs/max(len(zt_y),1)*100:.0f}%)")
 if yzt_in := [s for s in zt_y if s['dm'] in qs_codes]:
     yzt_sorted = sorted(yzt_in, key=lambda x: -float(x.get('zf',0)))
     top3 = yzt_sorted[:3]
     names = " / ".join([f"{s['mc']}({color_pct(float(s.get('zf',0))).strip()})" for s in top3])
-    print(f"  表现最好TOP3: {names}")
+    log(f"  表现最好TOP3: {names}")
 
 # 九、最强题材TOP5
-print(f"\n九、最强题材TOP5"); print("-" * 50)
+log(f"\n九、最强题材TOP5"); log("-" * 50)
 for rank, (theme, cnt) in enumerate(top_themes, 1):
     stks = theme_stocks.get(theme, [])
     boards = [f"{s['mc']}({s['lbc']}板)" for s in zt_list if s['mc'] in stks and s.get('lbc',1)>1]
     bs = " │ "+"/".join(boards[:4]) if boards else ""
-    print(f"  {rank}. 【{theme}】 {cnt}只{bs}")
+    log(f"  {rank}. 【{theme}】 {cnt}只{bs}")
 
 # 十一、核心判断
-print(f"\n十一、核心判断"); print("-" * 50)
+log(f"\n十一、核心判断"); log("-" * 50)
 today_v = volume_days[-1][1]
 prev_v  = volume_days[-2][1] if len(volume_days)>1 else today_v
 vd = (today_v - prev_v)/prev_v*100 if prev_v else 0
 tt_name = top_themes[0][0] if top_themes else "未知"
 tt_cnt  = top_themes[0][1] if top_themes else 0
 sig = "🔴短线情绪良好" if zt_count>=60 and fbl>=75 else ("🟡情绪分化" if zt_count>=40 else "🔵情绪低迷")
-print(f"  📌 信号：{sig}")
-print(f"  📊 量能：{yi(today_v)}  较昨日{color_pct(vd)}")
-print(f"  📋 封板率：{fbl:.1f}%  {'✅正常' if 65<=fbl<=80 else ('⚠️偏高' if fbl>80 else '⚠️偏低')}")
-print(f"  🔥 最强题材：【{tt_name}】 {tt_cnt}只涨停")
+log(f"  📌 信号：{sig}")
+log(f"  📊 量能：{yi(today_v)}  较昨日{color_pct(vd)}")
+log(f"  📋 封板率：{fbl:.1f}%  {'✅正常' if 65<=fbl<=80 else ('⚠️偏高' if fbl>80 else '⚠️偏低')}")
+log(f"  🔥 最强题材：【{tt_name}】 {tt_cnt}只涨停")
 if tt_cnt >= 15:
-    print(f"  👉 看点：题材明确，{tt_name}为主线，关注龙头梯队完整度")
+    log(f"  👉 看点：题材明确，{tt_name}为主线，关注龙头梯队完整度")
 elif tt_cnt >= 8:
-    print(f"  👉 看点：题材有所表现，跟随强势标的为主")
+    log(f"  👉 看点：题材有所表现，跟随强势标的为主")
 else:
-    print(f"  👉 看点：题材散乱，缺乏明确主线，谨慎追高")
+    log(f"  👉 看点：题材散乱，缺乏明确主线，谨慎追高")
 
-print("\n" + "=" * 70)
-print(f"  ✅ 完成  |  {datetime.datetime.now().strftime('%H:%M:%S')}")
-print("=" * 70)
+log("\n" + "=" * 70)
+log(f"  ✅ 完成  |  {datetime.datetime.now().strftime('%H:%M:%S')}")
+log("=" * 70)
+
+# ══════════════════════════════════════════════════════
+# 保存到文件
+# ══════════════════════════════════════════════════════
+file_name = f"每日复盘{DATE}.txt"
+# 统一保存在 text 目录下
+text_dir = os.path.join(os.path.dirname(__file__), "text")
+if not os.path.exists(text_dir):
+    os.makedirs(text_dir)
+
+file_path = os.path.join(text_dir, file_name)
+try:
+    with open(file_path, "w", encoding="utf-8") as f:
+        f.write("\n".join(report_lines))
+    print(f"\n💾 报告已自动保存至: {file_path}")
+except Exception as e:
+    print(f"\n❌ 保存文件失败: {e}")
