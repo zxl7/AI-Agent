@@ -415,12 +415,13 @@ for rank, (theme, cnt) in enumerate(top_themes, 1):
 log(f"\n十一、核心判断"); log("-" * 50)
 today_v = volume_days[-1][1]
 prev_v  = volume_days[-2][1] if len(volume_days)>1 else today_v
-vd = (today_v - prev_v)/prev_v*100 if prev_v else 0
+v_diff = today_v - prev_v
+vd = (v_diff)/prev_v*100 if prev_v else 0
 tt_name = top_themes[0][0] if top_themes else "未知"
 tt_cnt  = top_themes[0][1] if top_themes else 0
 sig = "🔴短线情绪良好" if zt_count>=60 and fbl>=75 else ("🟡情绪分化" if zt_count>=40 else "🔵情绪低迷")
 log(f"  📌 信号：{sig}")
-log(f"  📊 量能：{yi(today_v)}  较昨日{color_pct(vd)}")
+log(f"  📊 量能：{yi(today_v)}  较昨日{color_pct(vd)} (增量 {yi(abs(v_diff))})")
 log(f"  📋 封板率：{fbl:.1f}%  {'✅正常' if 65<=fbl<=80 else ('⚠️偏高' if fbl>80 else '⚠️偏低')}")
 log(f"  🔥 最强题材：【{tt_name}】 {tt_cnt}只涨停")
 if tt_cnt >= 15:

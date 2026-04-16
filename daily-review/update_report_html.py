@@ -37,14 +37,38 @@ def parse_report(file_path):
                 indices.append({'name': name, 'val': val, 'pct': pct, 'up': '🔼' in pct})
     data['indices'] = indices
 
-    # 提取两市成交额
-    vol_match = re.search(r'两市总成交额\s+([\d.]+亿)', content)
+    # 提取量能信息 (包含环比和增量)
+    vol_match = re.search(r'📊 量能：([\d.]+亿)\s+较昨日(.*?)\s+\(增量 (.*?)\)', content)
     if vol_match:
         data['total_volume'] = vol_match.group(1)
+        data['vol_change_pct'] = vol_match.group(2).strip()
+        data['vol_increment'] = vol_match.group(3).strip()
     else:
         vol_match = re.search(r'📊 量能：([\d.]+亿)', content)
         if vol_match:
             data['total_volume'] = vol_match.group(1)
+            data['vol_change_pct'] = "—"
+            data['vol_increment'] = "—"
+
+    # 提取成交额历史 (用于量能折线图)
+    volume_history = []
+    vol_history_section = re.search(r'五、近5日两市成交额\n-+\n.*?\n(.*?)\n\n', content, re.S)
+    if vol_history_section:
+        for line in vol_history_section.group(1).strip().split('\n'):
+            m = re.search(r'(\d{4}-\d{2}-\d{2})\s+([\d.]+)亿\s+(.*?)\s+(\d+)', line)
+            if m:
+                change_str = m.group(3).strip()
+                # 提取纯百分比数字用于绘图
+                pct_m = re.search(r'([+-][\d.]+)%', change_str)
+                pct_val = float(pct_m.group(1)) if pct_m else 0.0
+                volume_history.append({
+                    'date': m.group(1),
+                    'amount': float(m.group(2)),
+                    'change': change_str,
+                    'pct_val': pct_val,
+                    'date_short': m.group(1)[5:]
+                })
+    data['volume_history'] = volume_history
 
     # 提取市场全景 (适配新模板)
     stats_match = re.search(r'上涨 (\d+) vs 下跌 (\d+)  \|  涨停 🔥(\d+)只\s+\|\s+炸板 💥(\d+)只\s+\|\s+跌停 ⬇️(\d+)只\s+\|\s+封板率 ([\d.]+)%', content)
@@ -220,18 +244,61 @@ def generate_trend_svg(data):
     """
     return svg
 
-def generate_volume_trend_svg(history):
+def generate_volume_chart_svg(history):
     """
-    生成量能趋势折线图 SVG
+    生成成交额环比趋势折线图 SVG
     """
     if not history: return ""
     width, height = 500, 140
-    px, py = 40, 30
+    px, py = 50, 30
     
-    # 获取量能数值 (假设成交额已经是格式化好的，需要转为数字)
-    # 这里简单起见，如果 history 里没有量能数据，就返回空
-    # 实际上 history 目前只存了 zt/dt，我们需要从 content 再次提取量能历史
-    return ""
+    # 使用百分比变化作为 Y 轴
+    # 为保证 0 轴在中间，我们取最大绝对值
+    max_abs_pct = max([abs(h['pct_val']) for h in history] + [3.0])
+    y_range = max_abs_pct * 1.2
+    
+    x_step = (width - 2 * px) / (len(history) - 1) if len(history) > 1 else 0
+    y_scale = (height - 2 * py) / (2 * y_range)
+    y_zero = height / 2
+    
+    points = []
+    for i, h in enumerate(history):
+        x = px + i * x_step
+        y = y_zero - h['pct_val'] * y_scale
+        points.append(f"{x},{y}")
+    
+    polyline = f'<polyline points="{" ".join(points)}" fill="none" stroke="#f59e0b" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>'
+    
+    nodes = ""
+    labels = ""
+    x_axis = ""
+    for i, h in enumerate(history):
+        x = px + i * x_step
+        y = y_zero - h['pct_val'] * y_scale
+        nodes += f'<circle cx="{x}" cy="{y}" r="4" fill="#f59e0b" stroke="#fff" stroke-width="2"/>'
+        # 只有最后一个点显示“今”
+        label_text = "今" if i == len(history)-1 else ""
+        if label_text:
+            labels += f'<text x="{x}" y="{y-10}" text-anchor="middle" fill="#f59e0b" font-size="12" font-weight="700">{label_text}</text>'
+        x_axis += f'<text x="{x}" y="{height-5}" text-anchor="middle" fill="#94a3b8" font-size="10">{h["date_short"]}</text>'
+
+    # Y 轴刻度
+    y_ticks = ""
+    for p in [-3, 0, 3]:
+        if abs(p) > y_range: continue
+        y = y_zero - p * y_scale
+        y_ticks += f'<line x1="{px}" y1="{y}" x2="{width-px}" y2="{y}" stroke="#e2e8f0" stroke-dasharray="4,4"/>'
+        y_ticks += f'<text x="{px-5}" y="{y+4}" text-anchor="end" fill="#94a3b8" font-size="9">{p:+}%%</text>'
+
+    return f"""
+    <svg viewBox="0 0 {width} {height}" xmlns="http://www.w3.org/2000/svg">
+      {y_ticks}
+      {polyline}
+      {nodes}
+      {labels}
+      {x_axis}
+    </svg>
+    """
 
 def generate_html(data, template_path, output_path):
     """
@@ -287,6 +354,7 @@ def generate_html(data, template_path, output_path):
 
     # 4. 趋势图
     trend_svg = generate_trend_svg(data)
+    vol_chart_svg = generate_volume_chart_svg(data['volume_history'])
     
     # 组装最终 HTML
     final_html = f"""<!DOCTYPE html>
@@ -298,14 +366,20 @@ def generate_html(data, template_path, output_path):
 <style>{css}</style>
 <style>
   .market-vol-box {{ background:#f8fafc; border-radius:16px; padding:20px; margin-bottom:16px; border:1px solid #e2e8f0; }}
-  .vol-header-row {{ display:flex; align-items:center; gap:12px; margin-bottom:16px; }}
-  .vol-icon {{ font-size:24px; }}
+  .vol-header-row {{ display:flex; align-items:center; gap:12px; margin-bottom:12px; }}
+  .vol-icon {{ font-size:24px; color:#1e293b; opacity:0.7; }}
   .vol-main-info {{ display:flex; flex-direction:column; }}
   .vol-label-top {{ font-size:12px; color:#94a3b8; margin-bottom:2px; }}
   .vol-value-row {{ display:flex; align-items:baseline; gap:12px; }}
   .vol-total {{ font-size:24px; font-weight:800; color:#1e293b; }}
   .vol-change {{ font-size:16px; font-weight:700; color:#ef4444; }}
-  .market-summary-box {{ background:#f8fafc; border-radius:12px; padding:16px; border-left:4px solid #f59e0b; font-size:14px; line-height:1.6; color:#334155; }}
+  .market-summary-box {{ background:#f8fafc; border-radius:12px; padding:16px; border-left:4px solid #f59e0b; font-size:14px; line-height:1.6; color:#334155; margin-bottom:20px; }}
+  
+  /* 市场全景四格卡片 */
+  .overview-grid {{ display:grid; grid-template-columns:repeat(4, 1fr); gap:12px; margin-bottom:20px; }}
+  .overview-card {{ background:#f8fafc; border-radius:12px; padding:16px 8px; text-align:center; }}
+  .overview-num {{ font-size:28px; font-weight:800; margin-bottom:4px; }}
+  .overview-label {{ font-size:12px; color:#94a3b8; }}
 </style>
 </head>
 <body>
@@ -331,20 +405,43 @@ def generate_html(data, template_path, output_path):
           <div class="vol-label-top">沪深 | 实际量能 较昨日</div>
           <div class="vol-value-row">
             <span class="vol-total">{data['total_volume']}</span>
-            <span class="vol-change">暂无环比数据</span>
+            <span class="vol-change">{data['vol_change_pct']} · 增量 {data['vol_increment']}</span>
           </div>
         </div>
       </div>
-      <div class="chart-container" style="height:140px;">
-        {trend_svg}
+      <div class="chart-container" style="height:140px; margin-bottom:0;">
+        {vol_chart_svg}
       </div>
     </div>
 
     <div class="market-summary-box">
       📊 {'涨多跌少' if int(data['up_count']) > int(data['down_count']) else '涨少跌多'} ({data['up_count']} vs {data['down_count']})，
       但涨停{data['zt_count']}家、封板率{data['fbl']}%显示短线情绪{'良好' if float(data['fbl']) > 70 else '一般'}。
-      量能{data['total_volume']}，资金仍在博弈。
+      <strong style="color:#ef4444;">量能增量{data['vol_increment']}({data['vol_change_pct']})</strong>，资金仍在博弈。
     </div>
+
+    <div class="card-title" style="margin-top:20px;"><div class="card-icon" style="background:#3b82f6;">📊</div>市场全景</div>
+    <div class="overview-grid">
+      <div class="overview-card">
+        <div class="overview-num" style="color:#ef4444;">{data['zt_count']}</div>
+        <div class="overview-label">涨停(非ST)</div>
+      </div>
+      <div class="overview-card">
+        <div class="overview-num" style="color:#f59e0b;">{data['zb_count']}</div>
+        <div class="overview-label">炸板</div>
+      </div>
+      <div class="overview-card">
+        <div class="overview-num" style="color:#10b981;">{data['dt_count']}</div>
+        <div class="overview-label">跌停(非ST)</div>
+      </div>
+      <div class="overview-card">
+        <div class="overview-num" style="color:#f59e0b;">{data['fbl']}%</div>
+        <div class="overview-label">封板率</div>
+      </div>
+    </div>
+    
+    <div class="section-header" style="border-left-color:#6366f1;">情绪趋势跟踪</div>
+    <div class="chart-container">{trend_svg}</div>
   </div>
 
   <div class="card">
