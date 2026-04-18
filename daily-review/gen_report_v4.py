@@ -1239,7 +1239,7 @@ html = f'''<!doctype html>
         <div class="hero-top">
           <div class="cycle-tag"><span class="cycle-dot"></span>短线复盘 · 情绪监控</div>
           <div class="hero-date">{DATE.replace('-', '年', 1).replace('-', '月', 1)}收盘简报</div>
-          <div class="hero-subtitle">数据来源：必盈API | 自动生成报告</div>
+          <div class="hero-subtitle">数据来源：实时API | 自动生成报告</div>
         </div>
         <div class="index-row">
 {idx_cards_html}
@@ -1367,7 +1367,7 @@ html = f'''<!doctype html>
 
       <div class="footer">
         <p>📊 生成时间：{DATE} 收盘</p>
-        <p>数据来源：biyingapi 实时查询 | Claw Daily v11</p>
+        <p>数据来源：实时查询 | Claw Daily v11</p>
         <p>K线为王 · 数据即事实 · 零ST · 不编造不猜测</p>
       </div>
     </div>
