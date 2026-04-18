@@ -577,7 +577,7 @@
           <div class="cycle-tag"><span class="cycle-dot"></span>短线复盘 · 情绪监控</div>
           <div class="hero-date">2026年04月17收盘简报</div>
           <div class="hero-subtitle">数据来源：实时API | 自动生成报告</div>
-          <div class="hero-note">⚠️ 请求日期 2026-04-18 为周六，已自动切换到最近交易日 2026-04-17</div>
+          
         </div>
         <div class="index-row">
           <div v-for="(idx, i) in marketData.indices" :key="i" :class="idx.highlight ? 'index-card highlight' : 'index-card'">
@@ -612,21 +612,48 @@
 
         <div class="insight-banner">
           <div class="insight-score">
-            <span class="insight-score-num">56</span>
-            <span class="insight-score-unit">分</span>
+            <span class="insight-score-num">73</span>
+            <span class="insight-score-unit">热度</span>
           </div>
           <div class="insight-main">
-            <div class="insight-title">情绪温度 · 分歧</div>
-            <div class="insight-desc">封板率 78.0% 、连板晋级率 62% 、大面股 4 只，当前情绪定位偏分歧。</div>
+            <div class="insight-title">情绪温度 · 强修复</div>
+            <div class="insight-desc">热度 73 / 风险 17；封板率 78.0% 、晋级率 62% 、炸板率 22.0% 、跌停 3 只。</div>
           </div>
           <div class="insight-side">
-            <div class="insight-chip">高度集中</div>
-            <div class="insight-side-note">主线集中度</div>
+            <div class="insight-chip">风险 17</div>
+            <div class="insight-side-note">高度集中 · 主线集中度</div>
           </div>
           <div style="grid-column: 1 / -1;">
-            <div class="insight-meter">
-              <div class="insight-meter-fill" style="width: 56%;"></div>
+            <div style="display:grid; gap:8px;">
+              <div>
+                <div style="display:flex; justify-content:space-between; font-size:12px; color:var(--text-muted); margin-bottom:4px;">
+                  <span>热度</span><span>73</span>
+                </div>
+                <div class="insight-meter">
+                  <div class="insight-meter-fill" style="width: 73%;"></div>
+                </div>
+              </div>
+              <div>
+                <div style="display:flex; justify-content:space-between; font-size:12px; color:var(--text-muted); margin-bottom:4px;">
+                  <span>风险</span><span>17</span>
+                </div>
+                <div class="insight-meter" style="background: rgba(239, 68, 68, 0.12);">
+                  <div class="insight-meter-fill" style="width: 17%; background: linear-gradient(90deg, rgba(34,197,94,0.6) 0%, rgba(249,115,22,0.85) 45%, rgba(239,68,68,0.95) 100%);"></div>
+                </div>
+              </div>
             </div>
+          </div>
+        </div>
+        <div class="section-header">情绪生态指标</div>
+        <div class="verdict-box" :class="'verdict-' + marketData.moodStage.type" style="margin-bottom: 14px;">
+          <strong>🧭 情绪阶段：{{ marketData.moodStage.title }}</strong>
+          {{ marketData.moodStage.detail }}
+        </div>
+        <div class="fear-grid">
+          <div class="fear-card" v-for="(card, idx) in marketData.moodCards" :key="'mood-'+idx">
+            <div class="fear-val" :class="card.valueClass">{{ card.value }}</div>
+            <div class="fear-label">{{ card.label }}</div>
+            <div class="fear-note">{{ card.note }}</div>
           </div>
         </div>
       </div>
@@ -740,7 +767,7 @@
         <div class="fear-grid">
 
           <div class="fear-card">
-            <div class="fear-val blue-text">5.9%</div>
+            <div class="fear-val blue-text">1.5%</div>
             <div class="fear-label">TOP10 成交集中度</div>
             <div class="fear-note">成交额前十占两市总成交比例</div>
           </div>
@@ -752,7 +779,7 @@
           <div class="fear-card">
             <div class="fear-val purple-text">分散轮动</div>
             <div class="fear-label">资金风格</div>
-            <div class="fear-note">成交额 TOP10 占两市 5.9% ，涨停池吸金占比 3.5% 。</div>
+            <div class="fear-note">成交额 TOP10 占两市 1.5% ，涨停池吸金占比 3.5% 。</div>
           </div>
         </div>
 
@@ -767,7 +794,7 @@
         <div class="card-title">赚钱效应综合判断</div>
         <div class="verdict-box verdict-good" id="effectVerdict">
           <strong>📋 综合判断：大涨高潮日，赚钱效应极好。</strong>
-          四大指数全红，封板率78%创近期高点，晋级率62%。当前是出手时机，但注意高潮次日分化风险。
+          四大指数 3红1绿，封板率78%创近期高点，晋级率62%。当前是出手时机，但注意高潮次日分化风险。
         </div>
         <div class="section-header">接力承接质量</div>
         <div class="fear-grid">
@@ -783,26 +810,26 @@
             <div class="fear-note">昨日首板 71 只，今日晋级 8 只</div>
           </div>
           <div class="fear-card">
-            <div class="fear-val red-text">+4.22%</div>
+            <div class="fear-val blue-text">+0.00%</div>
             <div class="fear-label">昨日强势反馈</div>
-            <div class="fear-note">接力质量判断：顺畅</div>
+            <div class="fear-note">接力质量判断：一般</div>
           </div>
         </div>
         <div class="section-header">昨日强势股反馈</div>
         <div class="fear-grid">
 
           <div class="fear-card">
-            <div class="fear-val red-text">+4.22%</div>
+            <div class="fear-val blue-text">+0.00%</div>
             <div class="fear-label">强势股均涨</div>
             <div class="fear-note">昨日涨停 / 强势股的次日整体反馈</div>
           </div>
           <div class="fear-card">
-            <div class="fear-val red-text">优利德 +20.01%</div>
+            <div class="fear-val red-text">暂无</div>
             <div class="fear-label">最佳反馈</div>
             <div class="fear-note">最强延续样本</div>
           </div>
           <div class="fear-card">
-            <div class="fear-val green-text">华新科技 -4.08%</div>
+            <div class="fear-val green-text">暂无</div>
             <div class="fear-label">最弱反馈</div>
             <div class="fear-note">次日负反馈样本</div>
           </div>
@@ -811,22 +838,22 @@
         <div class="fear-grid">
 
           <div class="fear-card">
-            <div class="fear-val red-text">114只</div>
+            <div class="fear-val red-text">0只</div>
             <div class="fear-label">强延续</div>
             <div class="fear-note">昨日强势股中今日涨幅 >= 5%</div>
           </div>
           <div class="fear-card">
-            <div class="fear-val orange-text">133只</div>
+            <div class="fear-val orange-text">0只</div>
             <div class="fear-label">温和盈利</div>
             <div class="fear-note">昨日强势股中今日收红但未大涨</div>
           </div>
           <div class="fear-card">
-            <div class="fear-val blue-text">47只</div>
+            <div class="fear-val blue-text">0只</div>
             <div class="fear-label">小幅负反馈</div>
             <div class="fear-note">昨日强势股中今日小幅回落</div>
           </div>
           <div class="fear-card">
-            <div class="fear-val green-text">1只</div>
+            <div class="fear-val green-text">0只</div>
             <div class="fear-label">大面 / 核按钮</div>
             <div class="fear-note">昨日强势股中今日跌幅 <= -5%</div>
           </div>
@@ -835,10 +862,10 @@
         <div class="heatmap-shell">
           <div class="heatmap-grid">
 
-        <div class="heatmap-cell level-4">
-          <div class="heatmap-rank">热度 L4</div>
+        <div class="heatmap-cell level-1">
+          <div class="heatmap-rank">热度 L1</div>
           <div class="heatmap-title">接力热区</div>
-          <div class="heatmap-value">247只</div>
+          <div class="heatmap-value">0只</div>
           <div class="heatmap-note">昨日强势股中继续给到正反馈的样本数量。</div>
         </div>
         <div class="heatmap-cell level-4">
@@ -850,7 +877,7 @@
         <div class="heatmap-cell level-2">
           <div class="heatmap-rank">热度 L2</div>
           <div class="heatmap-title">亏钱扩散</div>
-          <div class="heatmap-value">7只</div>
+          <div class="heatmap-value">6只</div>
           <div class="heatmap-note">大面股与跌停数量越多，亏钱效应越容易扩散。</div>
         </div>
         <div class="heatmap-cell level-2">
@@ -876,7 +903,7 @@
         <div class="fear-grid">
 
           <div class="fear-card">
-            <div class="fear-val red-text" id="fearBigFace">4只</div>
+            <div class="fear-val red-text" id="fearBigFace">3只</div>
             <div class="fear-label">大面股(-5%↓)</div>
             <div class="fear-note" id="fearBigFaceNote">GQY视讯, 网达软件, 实达集团</div>
           </div>
@@ -906,9 +933,9 @@
             <div class="fear-note">封板质量尚可</div>
           </div>
           <div class="fear-card">
-            <div class="fear-val blue-text" id="fearYesterday">良好</div>
+            <div class="fear-val blue-text" id="fearYesterday">未计算</div>
             <div class="fear-label">昨涨停今表现</div>
-            <div class="fear-note">昨日涨停多数盈利</div>
+            <div class="fear-note">强势股池已关闭（减少接口），如需昨日反馈可再开启或改为“昨日涨停票今日涨幅分布”方案</div>
           </div>
         </div>
         <div class="section-header">炸板结构拆解</div>
@@ -1009,7 +1036,7 @@
         <div class="tier-card">
           <div class="tier-label">光伏玻璃 · 16只</div>
           <div class="tier-title">龙头：圣阳股份(7板)</div>
-          <div class="tier-desc">中军：晶科科技(77亿) / 云南锗业(62亿)</div>
+          <div class="tier-desc">中军：云南锗业(62亿) / 三安光电(56亿)</div>
           <div class="tier-desc">弹性：优利德(+20.0%)</div>
         </div>
         <div class="tier-card">
@@ -1031,13 +1058,13 @@
         <div class="tier-card">
           <div class="tier-label">近5日持续性 · 04-13 ~ 04-17</div>
           <div class="tier-title">光伏玻璃</div>
-          <div class="tier-desc">涨停家数：11 → 4 → 6 → 13 → 16</div>
+          <div class="tier-desc">涨停家数：11 → 5 → 6 → 13 → 16</div>
           <div class="tier-desc red-text">最新变化：+3 只</div>
         </div>
         <div class="tier-card">
           <div class="tier-label">近5日持续性 · 04-13 ~ 04-17</div>
           <div class="tier-title">光通信</div>
-          <div class="tier-desc">涨停家数：8 → 4 → 1 → 4 → 15</div>
+          <div class="tier-desc">涨停家数：9 → 4 → 1 → 4 → 15</div>
           <div class="tier-desc red-text">最新变化：+11 只</div>
         </div>
         </div>
@@ -1224,6 +1251,67 @@
         </ul>
       </div>
 
+      <!-- 题材归因（涨停/炸板/强势 三视角） -->
+      <div class="card">
+        <div class="card-title">题材归因</div>
+        <div class="tier-grid">
+          <div class="tier-card">
+            <div class="tier-label">涨停主线 TOP3</div>
+            <div v-for="(t, i) in marketData.themePanels.ztTop" :key="'zt-'+i" style="margin-top:8px;">
+              <div class="tier-title">{{ t.name }} <span style="color:var(--text-muted);font-size:12px;">({{ t.count }}只)</span></div>
+              <div class="tier-desc">{{ t.examples }}</div>
+            </div>
+          </div>
+          <div class="tier-card">
+            <div class="tier-label">炸板主杀 TOP3</div>
+            <div v-for="(t, i) in marketData.themePanels.zbTop" :key="'zb-'+i" style="margin-top:8px;">
+              <div class="tier-title">{{ t.name }} <span style="color:var(--text-muted);font-size:12px;">({{ t.count }}只)</span></div>
+              <div class="tier-desc">{{ t.examples }}</div>
+            </div>
+          </div>
+          <div class="tier-card">
+            <div class="tier-label">跌停风险 TOP3</div>
+            <div v-for="(t, i) in marketData.themePanels.dtTop" :key="'dt-'+i" style="margin-top:8px;">
+              <div class="tier-title">{{ t.name }} <span style="color:var(--text-muted);font-size:12px;">({{ t.count }}只)</span></div>
+              <div class="tier-desc">{{ t.examples }}</div>
+            </div>
+          </div>
+        </div>
+        <div style="margin-top:12px;">
+          <div style="font-weight:800; margin-bottom:8px;">题材强度（涨停/炸板/跌停 + 净强度）</div>
+          <table class="ladder-table">
+            <thead>
+              <tr>
+                <th>题材</th>
+                <th>涨停</th>
+                <th>炸板</th>
+                <th>跌停</th>
+                <th>净强度</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="(r, idx) in marketData.themePanels.strengthRows" :key="'ts-'+idx">
+                <td class="stock-name-cell">{{ r.name }}</td>
+                <td>{{ r.zt }}</td>
+                <td>{{ r.zb }}</td>
+                <td>{{ r.dt }}</td>
+                <td :class="r.netClass">{{ r.net }}</td>
+              </tr>
+            </tbody>
+          </table>
+          <div style="margin-top:8px; font-size:12px; color: var(--text-muted);">
+            说明：净强度 = 涨停*1.0 - 炸板*0.7 - 跌停*1.2（参数可后续迭代）。
+          </div>
+        </div>
+        <div class="summary-box" style="margin-top: 12px;">
+          <div class="summary-text">
+            🔎 主线/杀跌重叠度：<span class="summary-highlight">{{ marketData.themePanels.overlap.score }}</span>
+            <span style="color:var(--text-muted);font-size:12px;">（{{ marketData.themePanels.overlap.themes.join('、') || '无' }}）</span>
+            <div style="margin-top:6px;color:var(--text-muted);font-size:12px;">{{ marketData.themePanels.overlap.note }}</div>
+          </div>
+        </div>
+      </div>
+
       <!-- 成交额TOP10 -->
       <div class="card">
         <div class="card-title">成交额 TOP10</div>
@@ -1260,7 +1348,7 @@
       </div>
 
       <div class="footer">
-        <p>📊 生成时间：2026-04-17 收盘 · 自动回退交易日</p>
+        <p>📊 生成时间：2026-04-17 收盘</p>
         <p>数据来源：实时查询 | Claw Daily v11</p>
         <p>K线为王 · 数据即事实 · 零ST · 不编造不猜测</p>
       </div>
@@ -1270,7 +1358,7 @@
       // 核心数据对象
       const marketData = {
         date: "2026-04-17",
-        dateNote: "请求日期 2026-04-18 为周六，已自动切换到最近交易日 2026-04-17",
+        dateNote: "",
         indices: [
           { name: "上证指数", val: "4051.43", chg: "-0.10%", up: true },
           { name: "深证成指", val: "14885.42", chg: "+0.60%", up: true },
@@ -1278,6 +1366,7 @@
           { name: "科创50", val: "1423.35", chg: "+0.08%", up: true },
         ],
         panorama: { limitUp: 71, broken: 20, limitDown: 3, ratio: "78.0%" },
+        mood: { heat: 73, risk: 17, score: 76 },
         volume: {
           total: "24255.84亿",
           change: "+3.58%",
@@ -1295,11 +1384,11 @@
           limit: "71:3",
           limitDetail: "(23.7:1)",
           verdict: "📋 综合判断：大涨高潮日，赚钱效应极好。",
-          verdictDetail: "四大指数全红，封板率78%创近期高点，晋级率62%。当前是出手时机，但注意高潮次日分化风险。",
+          verdictDetail: "四大指数 3红1绿，封板率78%创近期高点，晋级率62%。当前是出手时机，但注意高潮次日分化风险。",
           verdictType: "good",
         },
         fear: {
-          bigFace: "4只",
+          bigFace: "3只",
           bigFaceNote: "GQY视讯, 网达软件, 实达集团",
           limitDown: "3只",
           limitDownNote: "GQY视讯-20.0%, 网达软件-10.0%",
@@ -1308,11 +1397,11 @@
           brokenNote: "20/(71+20)=22.0%",
           success: "78.0%",
           successNote: "封板质量尚可",
-          yesterday: "良好",
+          yesterday: "未计算",
         },
         styleRadar: {
           indicators: ["连板接力", "低位试错", "20cm弹性", "题材集中", "资金抱团", "高位博弈"],
-          values: [81, 98, 56, 90, 36, 70],
+          values: [81, 98, 56, 90, 9, 70],
           palette: ["#ef4444","#f97316","#f59e0b","#fb7185"],
         },
         themeTrend: {
@@ -1326,11 +1415,11 @@
             },
             {
               name: "光伏玻璃",
-              values: [11,4,6,13,16]
+              values: [11,5,6,13,16]
             },
             {
               name: "光通信",
-              values: [8,4,1,4,15]
+              values: [9,4,1,4,15]
             }
           ]
         },
@@ -1364,9 +1453,12 @@
         ],
         broken: "大胜达(2板) / 申通快递(2板) / 丽江股份(2板)",
         sectors: [{"rank": 1, "name": "华为概念", "detail": "品高股份·共进股份·盛视科技", "eval": "最强", "eval_color": "red-text"}, {"rank": 2, "name": "光伏玻璃", "detail": "天通股份·圣阳股份·云南锗业", "eval": "爆发", "eval_color": "success"}, {"rank": 3, "name": "光通信", "detail": "天通股份·共进股份·剑桥科技", "eval": "活跃", "eval_color": "primary"}, {"rank": 4, "name": "机器人概念", "detail": "天通股份·共进股份·盛视科技", "eval": "活跃", "eval_color": "warning"}, {"rank": 5, "name": "储能", "detail": "天通股份·圣阳股份·深南电A", "eval": "活跃", "eval_color": "text-muted"}],
-        top10: [{"rank": 1, "mc": "中际旭创", "zf_str": "+5.11%", "pct_class": "red-text", "cje_yi": "336亿", "weight": 900, "sector": "谷歌概念"}, {"rank": 2, "mc": "新易盛", "zf_str": "+9.58%", "pct_class": "red-text", "cje_yi": "239亿", "weight": 800, "sector": "预盈预增"}, {"rank": 3, "mc": "胜宏科技", "zf_str": "+7.55%", "pct_class": "red-text", "cje_yi": "216亿", "weight": 800, "sector": "百元股"}, {"rank": 4, "mc": "东山精密", "zf_str": "+8.39%", "pct_class": "red-text", "cje_yi": "190亿", "weight": 700, "sector": "龙虎榜热门"}, {"rank": 5, "mc": "沪电股份", "zf_str": "+3.45%", "pct_class": "red-text", "cje_yi": "90亿", "weight": 700, "sector": "预盈预增"}, {"rank": 6, "mc": "协创数据", "zf_str": "-0.66%", "pct_class": "green-text", "cje_yi": "82亿", "weight": 700, "sector": "预盈预增"}, {"rank": 7, "mc": "晶科科技", "zf_str": "+3.75%", "pct_class": "red-text", "cje_yi": "77亿", "weight": 700, "sector": "算电协同"}, {"rank": 8, "mc": "天华新能", "zf_str": "+2.46%", "pct_class": "red-text", "cje_yi": "72亿", "weight": 700, "sector": "预盈预增"}, {"rank": 9, "mc": "光迅科技", "zf_str": "+10.00%", "pct_class": "red-text", "cje_yi": "71亿", "weight": 700, "sector": "6G概念"}, {"rank": 10, "mc": "永鼎股份", "zf_str": "+4.64%", "pct_class": "red-text", "cje_yi": "69亿", "weight": 700, "sector": "预盈预增"}],
-        top10Summary: {"top5_sum_yi": "1071亿", "top5_sectors": "谷歌概念, 预盈预增, 百元股, 龙虎榜热门, 预盈预增"},
+        top10: [{"rank": 1, "mc": "光迅科技", "zf_str": "+10.00%", "pct_class": "red-text", "cje_yi": "71亿", "weight": 900, "sector": "6G概念"}, {"rank": 2, "mc": "云南锗业", "zf_str": "+10.01%", "pct_class": "red-text", "cje_yi": "62亿", "weight": 800, "sector": "商业航天（航天航空）"}, {"rank": 3, "mc": "三安光电", "zf_str": "+9.98%", "pct_class": "red-text", "cje_yi": "56亿", "weight": 800, "sector": "荣耀概念"}, {"rank": 4, "mc": "利通电子", "zf_str": "+10.01%", "pct_class": "red-text", "cje_yi": "37亿", "weight": 700, "sector": "预盈预增"}, {"rank": 5, "mc": "剑桥科技", "zf_str": "+10.00%", "pct_class": "red-text", "cje_yi": "34亿", "weight": 700, "sector": "百元股"}, {"rank": 6, "mc": "禾望电气", "zf_str": "+9.99%", "pct_class": "red-text", "cje_yi": "26亿", "weight": 700, "sector": "光伏玻璃"}, {"rank": 7, "mc": "圣阳股份", "zf_str": "+10.00%", "pct_class": "red-text", "cje_yi": "25亿", "weight": 700, "sector": "历史新高"}, {"rank": 8, "mc": "斯迪克", "zf_str": "+20.00%", "pct_class": "red-text", "cje_yi": "21亿", "weight": 700, "sector": "电子皮肤"}, {"rank": 9, "mc": "博云新材", "zf_str": "+10.01%", "pct_class": "red-text", "cje_yi": "20亿", "weight": 700, "sector": "盾构机"}, {"rank": 10, "mc": "帝尔激光", "zf_str": "+20.00%", "pct_class": "red-text", "cje_yi": "19亿", "weight": 700, "sector": "太空光伏"}],
+        top10Summary: {"top5_sum_yi": "260亿", "top5_sectors": "6G概念, 商业航天（航天航空）, 荣耀概念, 预盈预增, 百元股"},
         actionGuide: [{"dot_class": "dot-key", "strong_text": "关键看点①：", "text": "圣阳股份7→8板能否晋级？决定空间是否打开。", "style": ""}, {"dot_class": "dot-key", "strong_text": "关键看点②：", "text": "华为概念持续性！", "style": ""}, {"dot_class": "dot-watch", "strong_text": "观察：", "text": "光伏玻璃是否分化。", "style": ""}, {"dot_class": "dot-watch", "strong_text": "主线应对：", "text": "围绕华为概念做核心辨识度，当前风格偏高低切，优先看低位换手首板 / 2板确认。", "style": ""}, {"dot_class": "dot-risk", "strong_text": "风险提示：", "text": "高潮次日分化风险！今日涨停71只是近期峰值，不追涨。", "style": ""}, {"dot_class": "dot-safe", "strong_text": "策略建议：持仓观察", "text": "— 四维度向好，但今天高潮，只持仓不追涨。", "style": "color: var(--theme-positive)"}],
+        moodStage: {"title": "弱修复", "type": "warn", "detail": "有修复但承接一般，适合轻仓试错，重点观察2进3/3进4能否走强。"},
+        moodCards: [{"value": "66%", "label": "早盘封板占比", "note": "10点前首封 47 / 涨停 71", "valueClass": "red-text"}, {"value": "1.1亿", "label": "平均封板资金", "note": "TOP3：剑桥科技6亿、株冶集团6亿、光迅科技4亿", "valueClass": "orange-text"}, {"value": "8.3%", "label": "涨停换手(中位)", "note": "高换手(≥15%) 20%", "valueClass": "orange-text"}, {"value": "40%", "label": "2进3成功率", "note": "昨日2板 5 → 今3板+ 2", "valueClass": "orange-text"}, {"value": "100%", "label": "3进4成功率", "note": "昨日3板 1 → 今4板+ 1", "valueClass": "red-text"}, {"value": "2", "label": "高度差", "note": "最高7板 / 次高5板", "valueClass": "blue-text"}, {"value": "0.0%", "label": "高位炸板占比(4板+)", "note": "高位炸板 0 / 炸板 20（真视通、乔治白、深圳华强）", "valueClass": "green-text"}, {"value": "1.6", "label": "涨停炸板次数(均)", "note": "高炸板(≥3次) 17%", "valueClass": "orange-text"}, {"value": "25%", "label": "小票活跃度(<50亿)", "note": "小票 18 / 涨停 71", "valueClass": "green-text"}, {"value": "38%", "label": "连板断板率", "note": "昨日连板 8 → 断板 3", "valueClass": "red-text"}],
+        themePanels: {"ztTop": [{"name": "华为概念", "count": 22, "examples": "品高股份·共进股份·盛视科技"}, {"name": "光伏玻璃", "count": 16, "examples": "天通股份·圣阳股份·云南锗业"}, {"name": "光通信", "count": 15, "examples": "天通股份·共进股份·剑桥科技"}], "zbTop": [{"name": "华为概念", "count": 7, "examples": "真视通·深圳华强·高新发展"}, {"name": "航天军工", "count": 5, "examples": "真视通·东方通信·东材科技"}, {"name": "创投", "count": 5, "examples": "乔治白·深圳华强·高新发展"}], "dtTop": [{"name": "在线教育", "count": 3, "examples": "GQY视讯·网达软件·实达集团"}, {"name": "智慧城市", "count": 3, "examples": "GQY视讯·网达软件·实达集团"}, {"name": "安防", "count": 3, "examples": "GQY视讯·网达软件·实达集团"}], "strengthRows": [{"name": "华为概念", "zt": 22, "zb": 7, "dt": 2, "net": 14.7, "risk": 7.3, "netClass": "red-text", "riskClass": "red-text"}, {"name": "光通信", "zt": 15, "zb": 2, "dt": 0, "net": 13.6, "risk": 1.4, "netClass": "red-text", "riskClass": "orange-text"}, {"name": "芯片概念", "zt": 14, "zb": 2, "dt": 0, "net": 12.6, "risk": 1.4, "netClass": "red-text", "riskClass": "orange-text"}, {"name": "光伏玻璃", "zt": 16, "zb": 5, "dt": 0, "net": 12.5, "risk": 3.5, "netClass": "red-text", "riskClass": "red-text"}, {"name": "专精特新", "zt": 15, "zb": 2, "dt": 1, "net": 12.4, "risk": 2.6, "netClass": "red-text", "riskClass": "orange-text"}, {"name": "储能", "zt": 15, "zb": 4, "dt": 0, "net": 12.2, "risk": 2.8, "netClass": "red-text", "riskClass": "orange-text"}, {"name": "消费电子", "zt": 12, "zb": 0, "dt": 0, "net": 12.0, "risk": 0.0, "netClass": "red-text", "riskClass": "green-text"}, {"name": "新能源车", "zt": 14, "zb": 4, "dt": 0, "net": 11.2, "risk": 2.8, "netClass": "red-text", "riskClass": "orange-text"}, {"name": "新材料", "zt": 14, "zb": 4, "dt": 0, "net": 11.2, "risk": 2.8, "netClass": "red-text", "riskClass": "orange-text"}, {"name": "太阳能（光伏）", "zt": 14, "zb": 4, "dt": 0, "net": 11.2, "risk": 2.8, "netClass": "red-text", "riskClass": "orange-text"}, {"name": "5G", "zt": 14, "zb": 4, "dt": 0, "net": 11.2, "risk": 2.8, "netClass": "red-text", "riskClass": "orange-text"}, {"name": "比亚迪概念", "zt": 13, "zb": 3, "dt": 0, "net": 10.9, "risk": 2.1, "netClass": "red-text", "riskClass": "orange-text"}], "overlap": {"themes": ["光伏玻璃", "华为概念"], "score": "40%", "note": "涨停主线与炸板主杀题材的重叠度（越高越提示主线在分歧/退潮）"}},
       };
 
       /**
