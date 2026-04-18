@@ -5,7 +5,7 @@
 严格按照 /Users/zxl/Desktop/短线复盘利器-优化版.html 模板结构输出
 """
 
-import json, urllib.request, time, sys, datetime
+import json, urllib.request, time, sys, datetime, os
 
 TOKEN = "60D084A7-FF4A-4B42-9E1C-45F0B719F33C"
 DATE = sys.argv[1] if len(sys.argv) > 1 else "2026-04-17"
@@ -116,7 +116,7 @@ def fetch_index_klines(code, n=5):
 def get_trading_days(n=7):
     k_days = 5 if n > 5 else n
     sh = fetch_index_klines("000001.SH", k_days) or {}
-    sz = fetch_index_klines("000001.SZ", k_days) or {}
+    sz = fetch_index_klines("399001.SZ", k_days) or {}
     result = sorted(set(list(sh.keys()) + list(sz.keys())))
     if len(result) < n:
         today = datetime.date.today()
@@ -130,13 +130,9 @@ def get_trading_days(n=7):
             except: pass
     return sorted(result)
 
-
-
-
-
 # 取上证和深证最近5日K线
-sh_klines = fetch_index_klines("000001.SH", 5)
-sz_klines = fetch_index_klines("399001.SZ", 5)
+sh_d = fetch_index_klines("000001.SH", 5)
+sz_d = fetch_index_klines("399001.SZ", 5)
 
 # 取K线自动过滤后的真实交易日
 all_dates = get_trading_days(5)
@@ -144,11 +140,6 @@ recent5_dates = all_dates[-5:]
 vol_history = []
 prev_v = None
 for d in recent5_dates:
-    sh_v = fetch_index_klines("000001.SH", 5).get(d, 0)
-    sz_v = fetch_index_klines("000001.SH", 5).get(d, 0)
-    # 重新fetch而不是缓存
-    sh_d = fetch_index_klines("000001.SH", 5)
-    sz_d = fetch_index_klines("000001.SZ", 5)
     sh_v = sh_d.get(d, 0)
     sz_v = sz_d.get(d, 0)
     total = (sh_v + sz_v) / 1e8
@@ -202,9 +193,24 @@ for lb in sorted(by_lbc.keys(), reverse=True):
 print("   获取昨日数据对比晋级...")
 yest_zt = []
 try:
-    yest_zt = api("hslt/ztgc/2026-04-15")
-except:
-    pass
+    # 从 all_dates 寻找昨日
+    yest_date = None
+    for i, d in enumerate(all_dates):
+        if d == DATE and i > 0:
+            yest_date = all_dates[i-1]
+            break
+    if not yest_date:
+        # 如果 DATE 不在 all_dates 中，找比 DATE 小的最大日期
+        past_dates = [d for d in all_dates if d < DATE]
+        if past_dates: yest_date = past_dates[-1]
+    
+    if yest_date:
+        print(f"   昨日交易日: {yest_date}")
+        yest_zt = api(f"hslt/ztgc/{yest_date}")
+    else:
+        print("   警告: 无法确定昨日交易日")
+except Exception as e:
+    print(f"   获取昨日数据失败: {e}")
 
 yest_lb_stocks = {}  # code -> {lbc, mc}
 for s in yest_zt:
@@ -302,10 +308,13 @@ zb_theme_count = {}   # 炸板题材
 
 def query_themes(code_list, target_dict):
     """批量查询股票题材"""
+    print(f"   准备查询 {len(code_list)} 只股票题材...")
     for i, code in enumerate(code_list):
         try:
-            req = urllib.request.Request(f"{BASE}/hszg/zg/{code}/{TOKEN}")
-            with urllib.request.urlopen(req, timeout=15) as r:
+            url = f"{BASE}/hszg/zg/{code}/{TOKEN}"
+            req = urllib.request.Request(url)
+            # 缩短超时时间到5秒
+            with urllib.request.urlopen(req, timeout=5) as r:
                 data = json.loads(r.read())
             if isinstance(data, list):
                 for item in data:
@@ -314,10 +323,11 @@ def query_themes(code_list, target_dict):
                     if t and t not in NOISE_THEMES:
                         target_dict[t] = target_dict.get(t, 0) + 1
                         theme_stocks.setdefault(t, []).append(mc)
-            if (i + 1) % 20 == 0:
+            if (i + 1) % 10 == 0:
                 print(f"   已处理 {i+1}/{len(code_list)}...")
-            time.sleep(0.03)
-        except:
+            time.sleep(0.01)
+        except Exception as e:
+            # print(f"   查询 {code} 失败: {e}")
             pass
 
 # 查询涨停股题材
@@ -327,19 +337,8 @@ query_themes(zt_codes, theme_count)
 # 查询炸板股题材
 if zb_all:
     zb_codes = [s['dm'] for s in zb_all]
-    for code in zb_codes:
-        try:
-            req = urllib.request.Request(f"{BASE}/hszg/zg/{code}/{TOKEN}")
-            with urllib.request.urlopen(req, timeout=15) as r:
-                data = json.loads(r.read())
-            if isinstance(data, list):
-                for item in data:
-                    t = clean_theme(item.get('name', ''))
-                    if t and t not in NOISE_THEMES:
-                        zb_theme_count[t] = zb_theme_count.get(t, 0) + 1
-            time.sleep(0.03)
-        except:
-            pass
+    print(f"   准备查询 {len(zb_codes)} 只炸板股题材...")
+    query_themes(zb_codes, zb_theme_count)
 
 real_themes = sorted(theme_count.items(), key=lambda x: -x[1])
 print(f"   有效题材: {len(real_themes)} 个")
@@ -797,7 +796,7 @@ for i, t in enumerate(top10_with_theme):
     cls = pct_class(t['zf'])
     w = '900' if i == 0 else ('800' if i <= 2 else '700')
     top10_body += f"""            <tr>
-              <td><span style="color: var(--danger'); font-weight: {w}">{i+1}</span></td>
+              <td><span style="color: var(--danger); font-weight: {w}">{i+1}</span></td>
               <td class="stock-name-cell">{t['mc']}</td>
               <td class="{cls}">{t['zf']:+.2f}%</td>
               <td style="font-weight: {w}">{t['cje']/1e8:.0f}亿</td>
@@ -1530,11 +1529,11 @@ html = f'''<!doctype html>
   </body>
 </html>'''
 
-output_path = "/Users/zxl/Desktop/daily-report-v3-full.html"
+output_path = f"daily-report-{DATE.replace('-','')}.html"
 with open(output_path, 'w', encoding='utf-8') as f:
     f.write(html)
 
-print(f"\n✅ HTML已生成: {output_path}")
+print(f"\n✅ HTML已生成: {os.path.abspath(output_path) if 'os' in globals() else output_path}")
 print(f"\n--- 报告摘要 ---")
 print(f"日期: {DATE}")
 print("指数: " + " ".join([f'{i["name"]}{i["close"]:.2f}({i["pct"]:+.2f}%)' for i in indices_data]))
