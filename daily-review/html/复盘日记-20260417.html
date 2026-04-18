@@ -13,6 +13,20 @@
         --warning: #f59e0b;
         --purple: #8b5cf6;
         --pink: #ec4899;
+        --theme-accent: #2563eb;
+        --theme-accent-2: #60a5fa;
+        --theme-soft: rgba(37, 99, 235, 0.12);
+        --hero-start: #1e3a8a;
+        --hero-mid: #2563eb;
+        --hero-end: #60a5fa;
+        --theme-glow: rgba(37, 99, 235, 0.18);
+        --theme-chip-bg: rgba(37, 99, 235, 0.12);
+        --theme-chip-text: #1d4ed8;
+        --theme-positive: #2563eb;
+        --theme-heat-hot: rgba(239,68,68,0.12);
+        --theme-heat-warm: rgba(245,158,11,0.12);
+        --theme-heat-cool: rgba(37,99,235,0.10);
+        --theme-heat-cold: rgba(16,185,129,0.10);
 
         /* 亮色主题 */
         --bg-base: #f4f7fa;
@@ -43,6 +57,60 @@
         --shadow-md: 0 4px 20px rgba(0, 0, 0, 0.4);
       }
 
+      body[data-market-tone="bull"] {
+        --primary: #ea580c;
+        --theme-accent: #ef4444;
+        --theme-accent-2: #f97316;
+        --theme-soft: rgba(239, 68, 68, 0.14);
+        --hero-start: #7f1d1d;
+        --hero-mid: #dc2626;
+        --hero-end: #f97316;
+        --theme-glow: rgba(239, 68, 68, 0.24);
+        --theme-chip-bg: rgba(249, 115, 22, 0.16);
+        --theme-chip-text: #c2410c;
+        --theme-positive: #dc2626;
+        --theme-heat-hot: rgba(239,68,68,0.18);
+        --theme-heat-warm: rgba(249,115,22,0.16);
+        --theme-heat-cool: rgba(251,191,36,0.14);
+        --theme-heat-cold: rgba(253,186,116,0.12);
+      }
+
+      body[data-market-tone="mixed"] {
+        --primary: #d97706;
+        --theme-accent: #f59e0b;
+        --theme-accent-2: #fb7185;
+        --theme-soft: rgba(245, 158, 11, 0.14);
+        --hero-start: #78350f;
+        --hero-mid: #d97706;
+        --hero-end: #fb7185;
+        --theme-glow: rgba(245, 158, 11, 0.20);
+        --theme-chip-bg: rgba(245, 158, 11, 0.14);
+        --theme-chip-text: #b45309;
+        --theme-positive: #ea580c;
+        --theme-heat-hot: rgba(251,146,60,0.16);
+        --theme-heat-warm: rgba(245,158,11,0.16);
+        --theme-heat-cool: rgba(59,130,246,0.10);
+        --theme-heat-cold: rgba(16,185,129,0.10);
+      }
+
+      body[data-market-tone="bear"] {
+        --primary: #0f766e;
+        --theme-accent: #10b981;
+        --theme-accent-2: #38bdf8;
+        --theme-soft: rgba(16, 185, 129, 0.14);
+        --hero-start: #0f172a;
+        --hero-mid: #0f766e;
+        --hero-end: #0ea5e9;
+        --theme-glow: rgba(16, 185, 129, 0.20);
+        --theme-chip-bg: rgba(16, 185, 129, 0.14);
+        --theme-chip-text: #0f766e;
+        --theme-positive: #0ea5e9;
+        --theme-heat-hot: rgba(14,165,233,0.14);
+        --theme-heat-warm: rgba(56,189,248,0.12);
+        --theme-heat-cool: rgba(16,185,129,0.12);
+        --theme-heat-cold: rgba(15,118,110,0.16);
+      }
+
       * {
         margin: 0;
         padding: 0;
@@ -66,7 +134,7 @@
 
       /* Hero */
       .hero {
-        background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 60%, #60a5fa 100%);
+        background: linear-gradient(135deg, var(--hero-start) 0%, var(--hero-mid) 58%, var(--hero-end) 100%);
         border-radius: var(--radius-lg);
         padding: 32px 28px;
         color: #fff;
@@ -158,6 +226,9 @@
       }
       .index-card:hover { transform: translateY(-3px); background: rgba(255, 255, 255, 0.18); }
       .index-card.highlight { background: rgba(239, 68, 68, 0.25); border-color: rgba(239, 68, 68, 0.4); box-shadow: 0 0 30px rgba(239, 68, 68, 0.2); }
+      body[data-market-tone="bull"] .index-card.highlight { background: rgba(239, 68, 68, 0.26); border-color: rgba(249, 115, 22, 0.48); box-shadow: 0 0 34px rgba(239, 68, 68, 0.26); }
+      body[data-market-tone="mixed"] .index-card.highlight { background: rgba(245, 158, 11, 0.24); border-color: rgba(251, 146, 60, 0.44); box-shadow: 0 0 30px rgba(245, 158, 11, 0.22); }
+      body[data-market-tone="bear"] .index-card.highlight { background: rgba(14, 165, 233, 0.20); border-color: rgba(16, 185, 129, 0.38); box-shadow: 0 0 30px rgba(14, 165, 233, 0.18); }
       .index-name { font-size: 12px; opacity: 0.85; margin-bottom: 6px; font-weight: 600; }
       .index-val { font-size: 20px; font-weight: 800; margin-bottom: 2px; }
       .index-pct { font-size: 13px; font-weight: 700; }
@@ -179,7 +250,7 @@
       .card-title {
         display: flex; align-items: center; gap: 10px;
         font-size: 17px; font-weight: 800; color: var(--text-primary);
-        margin-buttom
+        margin-bottom: 10px;
       }
       .card-title::before {
         content: ""; display: inline-block;
@@ -192,9 +263,9 @@
       .panorama-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
       @media (max-width: 500px) { .panorama-grid { grid-template-columns: repeat(2, 1fr); } }
       .panorama-box { text-align: center; padding: 18px 10px; border-radius: var(--radius-md); background: var(--bg-elevated); transition: all 0.2s; border: 1px solid transparent; }
-      .panorama-box:hover { transform: translateY(-2px); border-color: var(--primary); box-shadow: 0 4px 12px rgba(37, 99, 235, 0.1); }
+      .panorama-box:hover { transform: translateY(-2px); border-color: var(--primary); box-shadow: 0 4px 14px var(--theme-glow); }
       .panorama-box.pulse { animation: boxPulse 2s ease-in-out; }
-      @keyframes boxPulse { 0%, 100% { box-shadow: none; } 50% { box-shadow: 0 0 20px rgba(239, 68, 68, 0.3); } }
+      @keyframes boxPulse { 0%, 100% { box-shadow: none; } 50% { box-shadow: 0 0 22px var(--theme-glow); } }
       .panorama-num { font-size: 30px; font-weight: 900; line-height: 1.1; margin-bottom: 6px; }
       .panorama-label { font-size: 12px; color: var(--text-muted); font-weight: 600; }
 
@@ -207,6 +278,26 @@
       .volume-total { font-size: 26px; font-weight: 900; color: var(--text-primary); }
       .volume-change { font-size: 16px; font-weight: 800; }
       .volume-increase { font-size: 14px; font-weight: 600; }
+      .insight-banner { display: grid; grid-template-columns: 120px 1fr auto; gap: 18px; align-items: center; padding: 16px 18px; border-radius: var(--radius-md); background: linear-gradient(135deg, var(--theme-soft), rgba(255,255,255,0.02)); border: 1px solid var(--theme-glow); margin-top: 16px; }
+      .insight-score { display: flex; align-items: baseline; justify-content: center; gap: 4px; }
+      .insight-score-num { font-size: 34px; line-height: 1; font-weight: 900; color: var(--primary); }
+      .insight-score-unit { font-size: 12px; font-weight: 700; color: var(--text-muted); }
+      .insight-title { font-size: 15px; font-weight: 800; color: var(--text-primary); }
+      .insight-desc { margin-top: 4px; font-size: 12px; color: var(--text-secondary); line-height: 1.7; }
+      .insight-side { text-align: right; }
+      .insight-chip { display: inline-flex; align-items: center; padding: 6px 12px; border-radius: 999px; font-size: 11px; font-weight: 800; background: var(--theme-chip-bg); color: var(--theme-chip-text); border: 1px solid var(--theme-glow); }
+      .insight-side-note { margin-top: 8px; font-size: 11px; color: var(--text-muted); font-weight: 700; }
+      .insight-meter { margin-top: 12px; height: 10px; border-radius: 999px; background: rgba(148, 163, 184, 0.16); overflow: hidden; }
+      .insight-meter-fill { height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--theme-accent-2) 0%, var(--theme-accent) 100%); }
+      .heatmap-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-top: 16px; }
+      .heatmap-cell { border-radius: var(--radius-md); padding: 16px; border: 1px solid var(--border); background: var(--bg-elevated); }
+      .heatmap-cell.hot { background: linear-gradient(135deg, var(--theme-heat-hot), rgba(248,250,252,0.65)); }
+      .heatmap-cell.warm { background: linear-gradient(135deg, var(--theme-heat-warm), rgba(248,250,252,0.65)); }
+      .heatmap-cell.cool { background: linear-gradient(135deg, var(--theme-heat-cool), rgba(248,250,252,0.65)); }
+      .heatmap-cell.cold { background: linear-gradient(135deg, var(--theme-heat-cold), rgba(248,250,252,0.65)); }
+      .heatmap-title { font-size: 12px; font-weight: 800; color: var(--text-muted); margin-bottom: 8px; }
+      .heatmap-value { font-size: 24px; line-height: 1.1; font-weight: 900; color: var(--text-primary); }
+      .heatmap-note { margin-top: 6px; font-size: 11px; line-height: 1.6; color: var(--text-secondary); }
 
       /* Effect Grid */
       .effect-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
@@ -217,6 +308,14 @@
       .effect-item.blue-bg { background: linear-gradient(135deg, #eff6ff, #dbeafe); }
       .effect-item.green-bg { background: linear-gradient(135deg, #ecfdf5, #d1fae5); }
       .effect-item.red-bg { background: linear-gradient(135deg, #fef2f2, #fee2e2); }
+      body[data-market-tone="bull"] .effect-item.yellow-bg,
+      body[data-market-tone="bull"] .effect-item.red-bg { background: linear-gradient(135deg, rgba(254, 226, 226, 0.96), rgba(253, 186, 116, 0.86)); border-color: rgba(239, 68, 68, 0.18); }
+      body[data-market-tone="bull"] .effect-item.blue-bg,
+      body[data-market-tone="bull"] .effect-item.green-bg { background: linear-gradient(135deg, rgba(255, 237, 213, 0.92), rgba(254, 249, 195, 0.86)); border-color: rgba(249, 115, 22, 0.16); }
+      body[data-market-tone="bear"] .effect-item.yellow-bg,
+      body[data-market-tone="bear"] .effect-item.red-bg { background: linear-gradient(135deg, rgba(220, 252, 231, 0.92), rgba(186, 230, 253, 0.84)); border-color: rgba(16, 185, 129, 0.18); }
+      body[data-market-tone="bear"] .effect-item.blue-bg,
+      body[data-market-tone="bear"] .effect-item.green-bg { background: linear-gradient(135deg, rgba(224, 242, 254, 0.92), rgba(204, 251, 241, 0.84)); border-color: rgba(14, 165, 233, 0.16); }
       [data-theme="dark"] .effect-item.yellow-bg { background: rgba(245, 158, 11, 0.15); }
       [data-theme="dark"] .effect-item.blue-bg { background: rgba(37, 99, 235, 0.15); }
       [data-theme="dark"] .effect-item.green-bg { background: rgba(16, 185, 129, 0.15); }
@@ -229,6 +328,8 @@
       @media (max-width: 500px) { .fear-grid { grid-template-columns: 1fr; } }
       .fear-card { background: var(--bg-elevated); border-radius: var(--radius-md); padding: 14px 10px; text-align: center; border: 1px solid var(--border); transition: all 0.2s; }
       .fear-card:hover { border-color: var(--primary); transform: translateY(-1px); }
+      body[data-market-tone="bull"] .fear-card { box-shadow: inset 0 1px 0 rgba(255,255,255,0.25), 0 0 0 1px rgba(249, 115, 22, 0.05); }
+      body[data-market-tone="bear"] .fear-card { box-shadow: inset 0 1px 0 rgba(255,255,255,0.18), 0 0 0 1px rgba(14, 165, 233, 0.05); }
       .fear-val { font-size: 20px; font-weight: 800; margin-bottom: 4px; }
       .fear-label { font-size: 11px; color: var(--text-muted); font-weight: 700; }
       .fear-note { font-size: 10px; color: var(--text-muted); margin-top: 4px; line-height: 1.3; }
@@ -258,9 +359,9 @@
       /* Hot Topic */
       .hot-topic { padding: 16px; border-radius: var(--radius-md); margin-bottom: 12px; border-left: 4px solid; transition: all 0.2s; }
       .hot-topic:hover { transform: translateX(4px); }
-      .hot-topic.good { background: var(--bg-elevated); border-color: var(--success); }
+      .hot-topic.good { background: linear-gradient(135deg, var(--theme-soft), var(--bg-elevated)); border-color: var(--theme-accent); }
       .hot-topic.caution { background: var(--bg-elevated); border-color: var(--warning); }
-      .hot-topic.fire { background: var(--bg-elevated); border-color: var(--danger); }
+      .hot-topic.fire { background: linear-gradient(135deg, var(--theme-soft), var(--bg-elevated)); border-color: var(--theme-accent-2); }
       .topic-title { font-weight: 800; font-size: 14px; margin-bottom: 6px; display: flex; align-items: center; gap: 8px; color: var(--text-primary); }
       .topic-desc { font-size: 13px; color: var(--text-secondary); line-height: 1.65; }
       .topic-tag { display: inline-block; font-size: 10px; padding: 2px 10px; border-radius: 20px; font-weight: 800; margin-left: auto; }
@@ -300,12 +401,17 @@
       /* Chart */
       .chart-container { width: 100%; height: 220px; margin-bottom: 16px; position: relative; }
       .chart-legend { display: none; } /* ECharts has its own legend or we use custom one */
+      .radar-chart-container { width: 100%; height: 300px; }
+      .theme-trend-chart-container { width: 100%; height: 280px; margin-top: 12px; }
 
       /* Verdict Box */
       .verdict-box { border-radius: var(--radius-md); padding: 18px; font-size: 13.5px; line-height: 1.75; margin-top: 14px; }
       .verdict-warn { background: linear-gradient(135deg, #fffbeb, #fef3c7); color: #92400e; border: 1px solid #fde68a; }
       .verdict-good { background: linear-gradient(135deg, #ecfdf5, #d1fae5); color: #166534; border: 1px solid #a7f3d0; }
       .verdict-fire { background: linear-gradient(135deg, #fef2f2, #fee2e2); color: #b91c1c; border: 1px solid #fecaca; }
+      body[data-market-tone="bull"] .verdict-good { background: linear-gradient(135deg, rgba(254, 226, 226, 0.96), rgba(253, 186, 116, 0.92)); color: #9a3412; border-color: rgba(249, 115, 22, 0.30); }
+      body[data-market-tone="mixed"] .verdict-warn { background: linear-gradient(135deg, rgba(255, 247, 237, 0.96), rgba(254, 215, 170, 0.88)); color: #9a3412; border-color: rgba(245, 158, 11, 0.30); }
+      body[data-market-tone="bear"] .verdict-fire { background: linear-gradient(135deg, rgba(220, 252, 231, 0.94), rgba(186, 230, 253, 0.88)); color: #0f766e; border-color: rgba(14, 165, 233, 0.28); }
       [data-theme="dark"] .verdict-warn { background: rgba(245, 158, 11, 0.15); border-color: rgba(245, 158, 11, 0.3); }
       [data-theme="dark"] .verdict-good { background: rgba(16, 185, 129, 0.15); border-color: rgba(16, 185, 129, 0.3); }
       [data-theme="dark"] .verdict-fire { background: rgba(239, 68, 68, 0.15); border-color: rgba(239, 68, 68, 0.3); }
@@ -316,7 +422,7 @@
         background: var(--bg-elevated); 
         border-radius: var(--radius-md); 
         padding: 18px 20px; 
-        border-left: 5px solid var(--warning); 
+        border-left: 5px solid var(--theme-accent); 
         margin-top: 16px; 
         box-shadow: inset 0 0 10px rgba(0,0,0,0.02);
       }
@@ -327,7 +433,7 @@
         font-weight: 500; 
       }
       .summary-highlight { 
-        color: var(--danger); 
+        color: var(--theme-accent); 
         font-weight: 800; 
         padding: 0 2px;
       }
@@ -345,6 +451,12 @@
 
       /* Section Header */
       .section-header { font-size: 12px; font-weight: 800; color: var(--text-muted); margin: 16px 0 10px; padding-left: 10px; border-left: 3px solid var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+      .hero-note { margin-top: 8px; font-size: 12px; color: rgba(255,255,255,0.86); font-weight: 600; }
+      .tier-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+      .tier-card { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 14px 16px; }
+      .tier-label { font-size: 11px; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 8px; }
+      .tier-title { font-size: 14px; font-weight: 800; color: var(--text-primary); line-height: 1.5; }
+      .tier-desc { margin-top: 6px; font-size: 12px; color: var(--text-secondary); line-height: 1.6; }
       .red-text { color: var(--danger); }
       .green-text { color: var(--success); }
       .orange-text { color: var(--warning); }
@@ -360,6 +472,9 @@
         .hero-date { font-size: 22px; }
         .card { padding: 18px 16px; }
         .volume-info-box { flex-direction: column; text-align: center; }
+        .insight-banner { grid-template-columns: 1fr; text-align: center; }
+        .insight-side { text-align: center; }
+        .heatmap-grid { grid-template-columns: 1fr; }
         .index-card { min-width: 100px; }
         .index-val { font-size: 18px; }
       }
@@ -367,17 +482,18 @@
       @media print { .theme-toggle { display: none; } body { background: #fff; color: #000; } .card { box-shadow: none; border: 1px solid #e2e8f0; } }
     </style>
   </head>
-  <body>
+  <body data-market-tone="bull">
     <div class="container">
       <!-- Hero -->
       <div class="hero">
         <div class="hero-controls">
-          <button class="theme-toggle" onclick="toggleTheme()">🌙 深色</button>
+          <button class="theme-toggle" id="themeToggleBtn" onclick="toggleTheme()">🌙 深色</button>
         </div>
         <div class="hero-top">
           <div class="cycle-tag"><span class="cycle-dot"></span>短线复盘 · 情绪监控</div>
           <div class="hero-date">2026年04月17收盘简报</div>
           <div class="hero-subtitle">数据来源：实时API | 自动生成报告</div>
+          <div class="hero-note">⚠️ 请求日期 2026-04-18 为周六，已自动切换到最近交易日 2026-04-17</div>
         </div>
         <div class="index-row">
 
@@ -426,6 +542,112 @@
             <div class="panorama-label">封板率</div>
           </div>
         </div>
+
+        <div class="insight-banner">
+          <div class="insight-score">
+            <span class="insight-score-num">56</span>
+            <span class="insight-score-unit">分</span>
+          </div>
+          <div class="insight-main">
+            <div class="insight-title">情绪温度 · 分歧</div>
+            <div class="insight-desc">封板率 78.0% 、连板晋级率 62% 、大面股 4 只，当前情绪定位偏分歧。</div>
+          </div>
+          <div class="insight-side">
+            <div class="insight-chip">高度集中</div>
+            <div class="insight-side-note">主线集中度</div>
+          </div>
+          <div style="grid-column: 1 / -1;">
+            <div class="insight-meter">
+              <div class="insight-meter-fill" style="width: 56%;"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 短线结构拆解 -->
+      <div class="card">
+        <div class="card-title">短线结构拆解</div>
+        <div class="section-header">涨停结构</div>
+        <div class="fear-grid">
+
+          <div class="fear-card">
+            <div class="fear-val red-text">58只</div>
+            <div class="fear-label">首板</div>
+            <div class="fear-note">低位试错主战场</div>
+          </div>
+          <div class="fear-card">
+            <div class="fear-val orange-text">8只</div>
+            <div class="fear-label">2板</div>
+            <div class="fear-note">次日接力核心池</div>
+          </div>
+          <div class="fear-card">
+            <div class="fear-val blue-text">2只</div>
+            <div class="fear-label">3板</div>
+            <div class="fear-note">分歧后核心验证</div>
+          </div>
+          <div class="fear-card">
+            <div class="fear-val purple-text">3只</div>
+            <div class="fear-label">4板+</div>
+            <div class="fear-note">高位抱团观察区</div>
+          </div>
+        </div>
+        <div class="section-header">高位风险</div>
+        <div class="fear-grid">
+
+          <div class="fear-card">
+            <div class="fear-val red-text">2只</div>
+            <div class="fear-label">5板及以上</div>
+            <div class="fear-note">5板及以上 2只 / 占比 2.8%</div>
+          </div>
+          <div class="fear-card">
+            <div class="fear-val blue-text">62%</div>
+            <div class="fear-label">连板晋级率</div>
+            <div class="fear-note">昨日连板 8 → 今存活 5</div>
+          </div>
+          <div class="fear-card">
+            <div class="fear-val green-text">可控</div>
+            <div class="fear-label">高位风险</div>
+            <div class="fear-note">结合空间高度与断板数量综合判断</div>
+          </div>
+        </div>
+        <div class="section-header">高低切换偏好</div>
+        <div class="fear-grid">
+
+          <div class="fear-card">
+            <div class="fear-val purple-text">高低切</div>
+            <div class="fear-label">风格偏好</div>
+            <div class="fear-note">首板 58 只 / 连板 13 只 / 5板+ 2 只，当前更偏 高低切。</div>
+          </div>
+          <div class="fear-card">
+            <div class="fear-val blue-text">58:13</div>
+            <div class="fear-label">低位/连板比</div>
+            <div class="fear-note">首板试错与接力博弈的相对强弱</div>
+          </div>
+          <div class="fear-card">
+            <div class="fear-val orange-text">2.8%</div>
+            <div class="fear-label">高位占比</div>
+            <div class="fear-note">5板及以上在涨停池中的占比</div>
+          </div>
+        </div>
+        <div class="section-header">主线 / 支线 / 轮动线</div>
+        <div class="tier-grid">
+
+        <div class="tier-card">
+          <div class="tier-label">主线</div>
+          <div class="tier-title">华为概念</div>
+          <div class="tier-desc">22只涨停 · 品高股份·共进股份·盛视科技</div>
+        </div>
+        <div class="tier-card">
+          <div class="tier-label">支线</div>
+          <div class="tier-title">光伏玻璃 / 光通信</div>
+          <div class="tier-desc">31只涨停 · 天通股份·圣阳股份·云南锗业</div>
+        </div>
+        <div class="tier-card">
+          <div class="tier-label">轮动</div>
+          <div class="tier-title">机器人概念 / 储能 / 新能源车</div>
+          <div class="tier-desc">44只涨停 · 天通股份·共进股份·盛视科技</div>
+        </div>
+        </div>
       </div>
 
       <!-- 市场量能 -->
@@ -445,6 +667,26 @@
 
         <div class="chart-container">
           <div id="volume-trend-echart" style="width: 100%; height: 100%;"></div>
+        </div>
+
+        <div class="section-header">资金抱团度</div>
+        <div class="fear-grid">
+
+          <div class="fear-card">
+            <div class="fear-val blue-text">5.9%</div>
+            <div class="fear-label">TOP10 成交集中度</div>
+            <div class="fear-note">成交额前十占两市总成交比例</div>
+          </div>
+          <div class="fear-card">
+            <div class="fear-val red-text">3.5%</div>
+            <div class="fear-label">涨停池吸金占比</div>
+            <div class="fear-note">涨停股成交额占两市总成交比例</div>
+          </div>
+          <div class="fear-card">
+            <div class="fear-val purple-text">分散轮动</div>
+            <div class="fear-label">资金风格</div>
+            <div class="fear-note">成交额 TOP10 占两市 5.9% ，涨停池吸金占比 3.5% 。</div>
+          </div>
         </div>
 
         <div class="summary-box">
@@ -491,6 +733,92 @@
           <strong>📋 综合判断：大涨高潮日，赚钱效应极好。</strong>
           四大指数全红，封板率78%创近期高点，晋级率62%。当前是出手时机，但注意高潮次日分化风险。
         </div>
+        <div class="section-header">接力承接质量</div>
+        <div class="fear-grid">
+
+          <div class="fear-card">
+            <div class="fear-val blue-text">62%</div>
+            <div class="fear-label">连板承接</div>
+            <div class="fear-note">昨日连板 8 只，今日晋级 5 只</div>
+          </div>
+          <div class="fear-card">
+            <div class="fear-val orange-text">11%</div>
+            <div class="fear-label">首板转二板</div>
+            <div class="fear-note">昨日首板 71 只，今日晋级 8 只</div>
+          </div>
+          <div class="fear-card">
+            <div class="fear-val red-text">+4.22%</div>
+            <div class="fear-label">昨日强势反馈</div>
+            <div class="fear-note">接力质量判断：顺畅</div>
+          </div>
+        </div>
+        <div class="section-header">昨日强势股反馈</div>
+        <div class="fear-grid">
+
+          <div class="fear-card">
+            <div class="fear-val red-text">+4.22%</div>
+            <div class="fear-label">强势股均涨</div>
+            <div class="fear-note">昨日涨停 / 强势股的次日整体反馈</div>
+          </div>
+          <div class="fear-card">
+            <div class="fear-val red-text">优利德 +20.01%</div>
+            <div class="fear-label">最佳反馈</div>
+            <div class="fear-note">最强延续样本</div>
+          </div>
+          <div class="fear-card">
+            <div class="fear-val green-text">华新科技 -4.08%</div>
+            <div class="fear-label">最弱反馈</div>
+            <div class="fear-note">次日负反馈样本</div>
+          </div>
+        </div>
+        <div class="section-header">昨日强势股四象限反馈</div>
+        <div class="fear-grid">
+
+          <div class="fear-card">
+            <div class="fear-val red-text">114只</div>
+            <div class="fear-label">强延续</div>
+            <div class="fear-note">昨日强势股中今日涨幅 >= 5%</div>
+          </div>
+          <div class="fear-card">
+            <div class="fear-val orange-text">133只</div>
+            <div class="fear-label">温和盈利</div>
+            <div class="fear-note">昨日强势股中今日收红但未大涨</div>
+          </div>
+          <div class="fear-card">
+            <div class="fear-val blue-text">47只</div>
+            <div class="fear-label">小幅负反馈</div>
+            <div class="fear-note">昨日强势股中今日小幅回落</div>
+          </div>
+          <div class="fear-card">
+            <div class="fear-val green-text">1只</div>
+            <div class="fear-label">大面 / 核按钮</div>
+            <div class="fear-note">昨日强势股中今日跌幅 <= -5%</div>
+          </div>
+        </div>
+        <div class="section-header">情绪热力图</div>
+        <div class="heatmap-grid">
+
+        <div class="heatmap-cell hot">
+          <div class="heatmap-title">接力热区</div>
+          <div class="heatmap-value">114 + 133 只</div>
+          <div class="heatmap-note">昨日强势股中继续给溢价的样本</div>
+        </div>
+        <div class="heatmap-cell warm">
+          <div class="heatmap-title">主线拥挤度</div>
+          <div class="heatmap-value">74.6%</div>
+          <div class="heatmap-note">TOP3 题材覆盖率，越高越聚焦</div>
+        </div>
+        <div class="heatmap-cell cool">
+          <div class="heatmap-title">风险冷区</div>
+          <div class="heatmap-value">7 只</div>
+          <div class="heatmap-note">大面股 + 跌停数量，反映亏钱扩散</div>
+        </div>
+        <div class="heatmap-cell cold">
+          <div class="heatmap-title">高位压力</div>
+          <div class="heatmap-value">2 / 0</div>
+          <div class="heatmap-note">5板+数量 / 高位炸板数量</div>
+        </div>
+        </div>
       </div>
 
       <!-- 恐惧指标 -->
@@ -536,6 +864,25 @@
             <div class="fear-note">昨日涨停多数盈利</div>
           </div>
         </div>
+        <div class="section-header">炸板结构拆解</div>
+        <div class="fear-grid">
+
+          <div class="fear-card">
+            <div class="fear-val orange-text">20只</div>
+            <div class="fear-label">首板炸板</div>
+            <div class="fear-note">低位试错失败，隔日修复价值一般</div>
+          </div>
+          <div class="fear-card">
+            <div class="fear-val blue-text">0只</div>
+            <div class="fear-label">中位炸板</div>
+            <div class="fear-note">2-3板分歧区，最影响接力信心</div>
+          </div>
+          <div class="fear-card">
+            <div class="fear-val red-text">0只</div>
+            <div class="fear-label">高位炸板</div>
+            <div class="fear-note">高位风险样本：真视通、乔治白、深圳华强</div>
+          </div>
+        </div>
       </div>
 
       <!-- 今日热点板块解读 -->
@@ -579,10 +926,84 @@
         </div>
         <div class="hot-topic caution">
           <div class="topic-title">
-            💻 专精特新
+            💻 新能源车
             <span class="topic-tag tag-caution">活跃</span>
           </div>
-          <div class="topic-desc">专精特新方向15只涨停，资金关注度提升。海亮股份(+10.0%) 宝丽迪(+20.0%)</div>
+          <div class="topic-desc">赛道股反弹，天通股份(+10.0%)、沧州明珠(+10.1%)、合力泰(+9.8%)异动。</div>
+        </div>
+        <div class="section-header">主线集中度</div>
+        <div class="fear-grid">
+
+          <div class="fear-card">
+            <div class="fear-val red-text">华为概念</div>
+            <div class="fear-label">最强主线</div>
+            <div class="fear-note">贡献 22 只涨停</div>
+          </div>
+          <div class="fear-card">
+            <div class="fear-val blue-text">74.6%</div>
+            <div class="fear-label">TOP3 覆盖率</div>
+            <div class="fear-note">TOP3 题材合计 53 只涨停</div>
+          </div>
+          <div class="fear-card">
+            <div class="fear-val purple-text">高度集中</div>
+            <div class="fear-label">主线集中度</div>
+            <div class="fear-note">TOP1 题材为 华为概念，贡献 22 只涨停；TOP3 题材合计覆盖 53 只涨停。</div>
+          </div>
+        </div>
+        <div class="section-header">板块内部梯队</div>
+        <div class="tier-grid">
+
+        <div class="tier-card">
+          <div class="tier-label">华为概念 · 22只</div>
+          <div class="tier-title">龙头：盛视科技(4板)</div>
+          <div class="tier-desc">中军：暂无</div>
+          <div class="tier-desc">弹性：斯迪克(+20.0%)</div>
+        </div>
+        <div class="tier-card">
+          <div class="tier-label">光伏玻璃 · 16只</div>
+          <div class="tier-title">龙头：圣阳股份(7板)</div>
+          <div class="tier-desc">中军：暂无</div>
+          <div class="tier-desc">弹性：优利德(+20.0%)</div>
+        </div>
+        <div class="tier-card">
+          <div class="tier-label">光通信 · 15只</div>
+          <div class="tier-title">龙头：可川科技(2板)</div>
+          <div class="tier-desc">中军：暂无</div>
+          <div class="tier-desc">弹性：优迅股份(+20.0%)</div>
+        </div>
+        </div>
+        <div class="section-header">主线题材近5日持续性</div>
+        <div class="tier-grid">
+
+        <div class="tier-card">
+          <div class="tier-label">近5日持续性 · 04-13 ~ 04-17</div>
+          <div class="tier-title">华为概念</div>
+          <div class="tier-desc">涨停家数：13 → 12 → 12 → 15 → 22</div>
+          <div class="tier-desc red-text">最新变化：+7 只</div>
+        </div>
+        <div class="tier-card">
+          <div class="tier-label">近5日持续性 · 04-13 ~ 04-17</div>
+          <div class="tier-title">光伏玻璃</div>
+          <div class="tier-desc">涨停家数：11 → 5 → 6 → 13 → 16</div>
+          <div class="tier-desc red-text">最新变化：+3 只</div>
+        </div>
+        <div class="tier-card">
+          <div class="tier-label">近5日持续性 · 04-13 ~ 04-17</div>
+          <div class="tier-title">光通信</div>
+          <div class="tier-desc">涨停家数：9 → 4 → 1 → 4 → 15</div>
+          <div class="tier-desc red-text">最新变化：+11 只</div>
+        </div>
+        </div>
+        <div class="theme-trend-chart-container">
+          <div id="theme-trend-echart" style="width: 100%; height: 100%;"></div>
+        </div>
+      </div>
+
+      <!-- 风格雷达图 -->
+      <div class="card">
+        <div class="card-title">市场风格雷达</div>
+        <div class="radar-chart-container">
+          <div id="style-radar-echart" style="width: 100%; height: 100%;"></div>
         </div>
       </div>
 
@@ -845,6 +1266,13 @@
             </span>
           </li>
           <li class="action-item">
+            <span class="action-dot dot-watch"></span>
+            <span class="action-text">
+              <strong>主线应对：</strong>
+              围绕华为概念做核心辨识度，当前风格偏高低切，优先看低位换手首板 / 2板确认。
+            </span>
+          </li>
+          <li class="action-item">
             <span class="action-dot dot-risk"></span>
             <span class="action-text">
               <strong>风险提示：</strong>
@@ -853,7 +1281,7 @@
           </li>
           <li class="action-item">
             <span class="action-dot dot-safe"></span>
-            <span class="action-text" style="color: var(--success)">
+            <span class="action-text" style="color: var(--theme-positive)">
               <strong>策略建议：持仓观察</strong>
               — 四维度向好，但今天高潮，只持仓不追涨。
             </span>
@@ -862,7 +1290,7 @@
       </div>
 
       <div class="footer">
-        <p>📊 生成时间：2026-04-17 收盘</p>
+        <p>📊 生成时间：2026-04-17 收盘 · 自动回退交易日</p>
         <p>数据来源：实时查询 | Claw Daily v11</p>
         <p>K线为王 · 数据即事实 · 零ST · 不编造不猜测</p>
       </div>
@@ -872,6 +1300,7 @@
       // 核心数据对象
       const marketData = {
         date: "2026-04-17",
+        dateNote: "请求日期 2026-04-18 为周六，已自动切换到最近交易日 2026-04-17",
         indices: [
           { name: "上证指数", val: "4051.43", chg: "-0.10%", up: true },
           { name: "深证成指", val: "14885.42", chg: "+0.60%", up: true },
@@ -911,11 +1340,36 @@
           successNote: "封板质量尚可",
           yesterday: "良好",
         },
+        styleRadar: {
+          indicators: ["连板接力", "低位试错", "20cm弹性", "题材集中", "资金抱团", "高位博弈"],
+          values: [81, 98, 56, 90, 36, 70],
+          palette: ["#ef4444","#f97316","#f59e0b","#fb7185"],
+        },
+        themeTrend: {
+          dates: ["04-13","04-14","04-15","04-16","04-17"],
+          palette: ["#ef4444","#f97316","#f59e0b","#fb7185"],
+          series: [
+
+            {
+              name: "华为概念",
+              values: [13,12,12,15,22]
+            },
+            {
+              name: "光伏玻璃",
+              values: [11,5,6,13,16]
+            },
+            {
+              name: "光通信",
+              values: [9,4,1,4,15]
+            }
+          ]
+        },
         heightTrend: {
           dates: ["04-09","04-10","04-13","04-14","04-15","04-16","04-17"],
           main: [5,4,5,6,5,6,7],
           sub: [3,3,4,4,3,4,5],
           gem: [1,1,0,1,0,1,2],
+          palette: ["#ef4444","#f97316","#f59e0b","#fb7185"],
           labels: {
             main: ["汇源通信","华远控股","华远控股","华远控股","圣阳股份","圣阳股份","圣阳股份"],
             sub: ["华远控股","中嘉博创","长源东谷","中恒电气","博云新材","博云新材","博云新材"],
@@ -942,7 +1396,7 @@
       };
 
       // 核心图表实例
-      let volumeChart, heightChart;
+      let volumeChart, heightChart, styleChart, themeTrendChart;
 
       /**
        * 渲染量能趋势图 (ECharts 实现)
@@ -956,6 +1410,8 @@
         
         const vals = data.values.map(v => Number(v));
         const isUp = (i) => i === 0 || vals[i] >= vals[i-1];
+        const themeTone = document.body.getAttribute('data-market-tone') || 'mixed';
+        const trendColor = themeTone === 'bull' ? '#ef4444' : (themeTone === 'bear' ? '#0ea5e9' : '#f59e0b');
         
         const option = {
           backgroundColor: 'transparent',
@@ -1015,11 +1471,11 @@
               data: vals,
               smooth: true,
               showSymbol: false,
-              lineStyle: { width: 3, color: '#2563eb' },
+              lineStyle: { width: 3, color: trendColor },
               areaStyle: {
                 color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-                  { offset: 0, color: 'rgba(37, 99, 235, 0.2)' },
-                  { offset: 1, color: 'rgba(37, 99, 235, 0)' }
+                  { offset: 0, color: echarts.color.modifyAlpha(trendColor, 0.22) },
+                  { offset: 1, color: echarts.color.modifyAlpha(trendColor, 0.02) }
                 ])
               }
             }
@@ -1037,6 +1493,7 @@
         if (!chartDom) return;
         if (heightChart) heightChart.dispose();
         heightChart = echarts.init(chartDom, document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : null);
+        const colors = data.palette?.length ? data.palette : ['#ef4444', '#f59e0b', '#94a3b8'];
 
         const option = {
           backgroundColor: 'transparent',
@@ -1069,12 +1526,12 @@
               type: 'line',
               data: data.main,
               smooth: true,
-              lineStyle: { width: 4, color: '#ef4444' },
-              itemStyle: { color: '#ef4444' },
+              lineStyle: { width: 4, color: colors[0] },
+              itemStyle: { color: colors[0] },
               areaStyle: {
                 color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-                  { offset: 0, color: 'rgba(239, 68, 68, 0.15)' },
-                  { offset: 1, color: 'rgba(239, 68, 68, 0)' }
+                  { offset: 0, color: echarts.color.modifyAlpha(colors[0], 0.16) },
+                  { offset: 1, color: echarts.color.modifyAlpha(colors[0], 0.02) }
                 ])
               },
               symbolSize: 8,
@@ -1082,13 +1539,13 @@
                 show: true,
                 position: 'top',
                 formatter: (params) => data.labels.main[params.dataIndex] || '',
-                color: '#ef4444',
+                color: colors[0],
                 fontWeight: 800,
                 fontSize: 10,
-                backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                backgroundColor: echarts.color.modifyAlpha(colors[0], 0.12),
                 padding: [2, 4],
                 borderRadius: 4,
-                borderColor: '#ef4444',
+                borderColor: colors[0],
                 borderWidth: 0.5
               }
             },
@@ -1097,14 +1554,14 @@
               type: 'line',
               data: data.sub,
               smooth: true,
-              lineStyle: { width: 3, color: '#f59e0b', type: 'dashed' },
-              itemStyle: { color: '#f59e0b' },
+              lineStyle: { width: 3, color: colors[1], type: 'dashed' },
+              itemStyle: { color: colors[1] },
               symbolSize: 6,
               label: {
                 show: true,
                 position: 'top',
                 formatter: (params) => data.labels.sub[params.dataIndex] || '',
-                color: '#f59e0b',
+                color: colors[1],
                 fontWeight: 800,
                 fontSize: 10
               }
@@ -1114,14 +1571,14 @@
               type: 'line',
               data: data.gem,
               smooth: true,
-              lineStyle: { width: 2, color: '#94a3b8' },
-              itemStyle: { color: '#94a3b8' },
+              lineStyle: { width: 2, color: colors[2] },
+              itemStyle: { color: colors[2] },
               symbolSize: 4,
               label: {
                 show: true,
                 position: 'top',
                 formatter: (params) => data.labels.gem[params.dataIndex] || '',
-                color: '#94a3b8',
+                color: colors[2],
                 fontWeight: 800,
                 fontSize: 10
               }
@@ -1129,6 +1586,115 @@
           ]
         };
         heightChart.setOption(option);
+      };
+
+      /**
+       * 渲染市场风格雷达图
+       * @param {Object} data 风格数据
+       */
+      const renderStyleRadar = (data) => {
+        const chartDom = document.getElementById('style-radar-echart');
+        if (!chartDom) return;
+        if (styleChart) styleChart.dispose();
+        styleChart = echarts.init(chartDom, document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : null);
+        const colors = data.palette?.length ? data.palette : ['#2563eb', '#60a5fa'];
+
+        const option = {
+          backgroundColor: 'transparent',
+          tooltip: { trigger: 'item' },
+          radar: {
+            radius: '62%',
+            splitNumber: 5,
+            indicator: data.indicators.map(name => ({ name, max: 100 })),
+            axisName: {
+              color: 'var(--text-primary)',
+              fontSize: 12,
+              fontWeight: 700
+            },
+            splitArea: {
+              areaStyle: {
+                color: ['rgba(37, 99, 235, 0.03)', 'rgba(37, 99, 235, 0.06)']
+              }
+            },
+            splitLine: { lineStyle: { color: 'rgba(148, 163, 184, 0.28)' } },
+            axisLine: { lineStyle: { color: 'rgba(148, 163, 184, 0.28)' } }
+          },
+          series: [
+            {
+              name: '市场风格',
+              type: 'radar',
+              data: [
+                {
+                  value: data.values,
+                  areaStyle: { color: echarts.color.modifyAlpha(colors[0], 0.22) },
+                  lineStyle: { color: colors[0], width: 2.5 },
+                  itemStyle: { color: colors[0] },
+                  symbolSize: 6
+                }
+              ]
+            }
+          ]
+        };
+        styleChart.setOption(option);
+      };
+
+      /**
+       * 渲染主线题材持续性图
+       * @param {Object} data 题材趋势数据
+       */
+      const renderThemeTrend = (data) => {
+        const chartDom = document.getElementById('theme-trend-echart');
+        if (!chartDom || !data?.series?.length) return;
+        if (themeTrendChart) themeTrendChart.dispose();
+        themeTrendChart = echarts.init(chartDom, document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : null);
+
+        const colors = data.palette?.length ? data.palette : ['#ef4444', '#f59e0b', '#2563eb'];
+        const option = {
+          backgroundColor: 'transparent',
+          tooltip: { trigger: 'axis' },
+          legend: {
+            bottom: 0,
+            textStyle: { color: 'var(--text-muted)', fontWeight: 700, fontSize: 11 }
+          },
+          grid: { top: '14%', left: '3%', right: '4%', bottom: '18%', containLabel: true },
+          xAxis: {
+            type: 'category',
+            data: data.dates,
+            axisLine: { lineStyle: { color: 'var(--text-muted)' } },
+            axisLabel: { color: 'var(--text-muted)', fontWeight: 700, fontSize: 10 }
+          },
+          yAxis: {
+            type: 'value',
+            minInterval: 1,
+            splitLine: { lineStyle: { type: 'dashed', color: 'var(--border)' } },
+            axisLabel: { color: 'var(--text-muted)', fontWeight: 700, fontSize: 10 }
+          },
+          series: data.series.map((item, index) => ({
+            name: item.name,
+            type: 'line',
+            data: item.values,
+            smooth: true,
+            symbolSize: 7,
+            lineStyle: { width: 3, color: colors[index % colors.length] },
+            itemStyle: { color: colors[index % colors.length] },
+            areaStyle: index === 0 ? {
+              color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                { offset: 0, color: echarts.color.modifyAlpha(colors[index % colors.length], 0.18) },
+                { offset: 1, color: echarts.color.modifyAlpha(colors[index % colors.length], 0.02) }
+              ])
+            } : undefined
+          }))
+        };
+        themeTrendChart.setOption(option);
+      };
+
+      const updateThemeToggleLabel = () => {
+        const btn = document.getElementById("themeToggleBtn");
+        if (!btn) return;
+        const isDark = document.documentElement.getAttribute("data-theme") === "dark";
+        const marketTone = document.body.getAttribute("data-market-tone") || "mixed";
+        const toneText = marketTone === "bull" ? "强市暖色" : (marketTone === "bear" ? "弱市冷色" : "混合主题");
+        btn.textContent = `${isDark ? '☀️ 浅色' : '🌙 深色'} · ${toneText}`;
       };
 
       /**
@@ -1155,21 +1721,29 @@
         const html = document.documentElement;
         const isDark = html.getAttribute("data-theme") === "dark";
         isDark ? html.removeAttribute("data-theme") : html.setAttribute("data-theme", "dark");
+        updateThemeToggleLabel();
         
         // 重新初始化图表以适配主题
         renderVolumeTrend(marketData.volume);
         renderHeightTrend(marketData.heightTrend);
+        renderStyleRadar(marketData.styleRadar);
+        renderThemeTrend(marketData.themeTrend);
       };
 
       document.addEventListener("DOMContentLoaded", () => {
         renderVolumeTrend(marketData.volume);
         renderHeightTrend(marketData.heightTrend);
+        renderStyleRadar(marketData.styleRadar);
+        renderThemeTrend(marketData.themeTrend);
         renderLadder(marketData.ladder);
+        updateThemeToggleLabel();
         
         // 响应式处理
         window.addEventListener('resize', () => {
           volumeChart && volumeChart.resize();
           heightChart && heightChart.resize();
+          styleChart && styleChart.resize();
+          themeTrendChart && themeTrendChart.resize();
         });
       });
 

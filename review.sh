@@ -52,14 +52,12 @@ python3 "$GEN_SCRIPT" "$TARGET_DATE"
 
 # 4. 检查执行结果
 if [ $? -eq 0 ]; then
-    # 计算输出文件名
-    CLEAN_DATE=${TARGET_DATE//-/}
-    HTML_NAME="复盘日记-${CLEAN_DATE}.html"
-    HTML_PATH="${WORK_DIR}/html/${HTML_NAME}"
+    # 非交易日可能会自动回退到最近交易日，这里取最新生成的报告文件
+    HTML_PATH=$(ls -t "${WORK_DIR}"/html/复盘日记-*.html 2>/dev/null | head -n 1)
     
     echo -e "\n${GREEN}✅ 复盘流程执行成功！${NC}"
     echo -e "${BLUE}--------------------------------------------------${NC}"
-    if [ -f "$HTML_PATH" ]; then
+    if [ -n "$HTML_PATH" ] && [ -f "$HTML_PATH" ]; then
         echo -e "🎨 网页报告: ${HTML_PATH}"
     fi
     echo -e "${BLUE}--------------------------------------------------${NC}"
