@@ -854,7 +854,8 @@ html = f'''<!doctype html>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>A股收盘简报 | {DATE}</title>
-<style>
+    <script src="https://fastly.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <style>
       :root {{
         --primary: #2563eb;
         --success: #10b981;
@@ -1028,6 +1029,7 @@ html = f'''<!doctype html>
       .card-title {{
         display: flex; align-items: center; gap: 10px;
         font-size: 17px; font-weight: 800; color: var(--text-primary);
+        margin-buttom
       }}
       .card-title::before {{
         content: ""; display: inline-block;
@@ -1146,13 +1148,8 @@ html = f'''<!doctype html>
       .action-text {{ font-size: 13.5px; color: var(--text-secondary); line-height: 1.65; font-weight: 500; }}
 
       /* Chart */
-      .chart-container {{ width: 100%; margin-bottom: 16px; position: relative; }}
-      .chart-legend {{ display: flex; justify-content: flex-end; gap: 14px; margin-bottom: 10px; font-size: 12px; font-weight: 600; color: var(--text-muted); }}
-      .legend-item {{ display: flex; align-items: center; gap: 6px; }}
-      .legend-dot {{ width: 14px; height: 4px; border-radius: 2px; }}
-      .dot-main {{ background: var(--danger); }}
-      .dot-sub {{ background: var(--warning); border: 1px dashed var(--warning); background: none; }}
-      .dot-gem {{ background: var(--text-muted); }}
+      .chart-container {{ width: 100%; height: 220px; margin-bottom: 16px; position: relative; }}
+      .chart-legend {{ display: none; }} /* ECharts has its own legend or we use custom one */
 
       /* Verdict Box */
       .verdict-box {{ border-radius: var(--radius-md); padding: 18px; font-size: 13.5px; line-height: 1.75; margin-top: 14px; }}
@@ -1261,11 +1258,7 @@ html = f'''<!doctype html>
         </div>
 
         <div class="chart-container">
-          <div class="chart-legend">
-            <div class="legend-item"><span class="legend-dot dot-main" style="background:var(--warning)"></span>两市成交额(柱)</div>
-            <div class="legend-item"><span class="legend-dot" style="background:var(--primary);height:2px;border-radius:1px"></span>趋势线</div>
-          </div>
-          <svg id="volume-trend-svg" viewBox="0 0 500 160"></svg>
+          <div id="volume-trend-echart" style="width: 100%; height: 100%;"></div>
         </div>
 
         <div class="summary-box">
@@ -1310,13 +1303,8 @@ html = f'''<!doctype html>
       <!-- 近7日高度趋势 -->
       <div class="card">
         <div class="card-title">近7日高度趋势</div>
-        <div class="chart-legend">
-          <div class="legend-item"><span class="legend-dot dot-main"></span>主板</div>
-          <div class="legend-item"><span class="legend-dot dot-sub"></span>次高</div>
-          <div class="legend-item"><span class="legend-dot dot-gem"></span>创板</div>
-        </div>
-        <div class="chart-container">
-          <svg id="height-trend-svg" viewBox="0 0 500 185"></svg>
+        <div class="chart-container" style="height: 260px;">
+          <div id="height-trend-echart" style="width: 100%; height: 100%;"></div>
         </div>
       </div>
 
@@ -1379,7 +1367,7 @@ html = f'''<!doctype html>
         indices: [
           {{ name: "{indices_data[0]['name']}", val: "{indices_data[0]['close']:.2f}", chg: "{indices_data[0]['pct']:+.2f}%", up: true }},
           {{ name: "{indices_data[1]['name']}", val: "{indices_data[1]['close']:.2f}", chg: "{indices_data[1]['pct']:+.2f}%", up: true }},
-          {{ name: "{indices_data[2]['name']}", val: "{indices_data[2]['close']:.2f}", chg: "{indices_data[2]['pct']:+.2f}%", up: true, highlight: {indices_data[2]['pct'] > 2} }},
+          {{ name: "{indices_data[2]['name']}", val: "{indices_data[2]['close']:.2f}", chg: "{indices_data[2]['pct']:+.2f}%", up: true, highlight: {"true" if indices_data[2]["pct"] > 2 else "false"} }},
           {{ name: "{indices_data[3]['name']}", val: "{indices_data[3]['close']:.2f}", chg: "{indices_data[3]['pct']:+.2f}%", up: true }},
         ],
         panorama: {{ limitUp: {zt_count}, broken: {zb_count}, limitDown: {dt_count}, ratio: "{fb_rate:.1f}%" }},
@@ -1431,128 +1419,221 @@ html = f'''<!doctype html>
         broken: "{broken_text.replace('❌ 昨日断板：','').replace('✅ 昨日无断板','')}",
       }};
 
-      // 量能K线柱状图 + 趋势折线
+      // 核心图表实例
+      let volumeChart, heightChart;
+
+      /**
+       * 渲染量能趋势图 (ECharts 实现)
+       * @param {{Object}} data 量能数据
+       */
       const renderVolumeTrend = (data) => {{
-        const svg = document.getElementById("volume-trend-svg");
-        if (!svg) return;
-        const width = 500, height = 160;
-        const pL = 45, pR = 25, pT = 15, pB = 32;
-        const uW = width - pL - pR, uH = height - pT - pB;
+        const chartDom = document.getElementById('volume-trend-echart');
+        if (!chartDom) return;
+        if (volumeChart) volumeChart.dispose();
+        volumeChart = echarts.init(chartDom, document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : null);
+        
         const vals = data.values.map(v => Number(v));
-        const min = Math.min(...vals) * 0.92;
-        const max = Math.max(...vals) * 1.06;
-        const range = max - min || 1;
-        const n = data.dates.length;
-        const barW = Math.min(36, (uW / n) * 0.55);
-        const gap = (uW - barW * n) / (n + 1);
-        const getX = (i) => pL + gap + i * (barW + gap) + barW / 2;
-        const getY = (v) => height - pB - ((v - min) / range) * uH;
-
-        // 判断涨跌（与昨日比较）
         const isUp = (i) => i === 0 || vals[i] >= vals[i-1];
-        const upColor = "#ef4444", downColor = "#10b981";
-
-        let html = `<defs><linearGradient id="volLineGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#2563eb" stop-opacity="0.3"/><stop offset="100%" stop-color="#2563eb" stop-opacity="0"/></linearGradient></defs>`;
-
-        // 网格线
-        for (let i = 0; i <= 4; i++) {{
-          const y = pT + (i/4)*uH, isBottom = i===4;
-          html += `<line x1="${{pL}}" y1="${{y}}" x2="${{width-pR}}" y2="${{y}}" stroke="${{isBottom?'var(--text-muted)':'var(--border')}}" stroke-width="${{isBottom?1.5:1}}" ${{isBottom?'':'stroke-dasharray="2,2"'}}/>`;
-          if (i < 4) {{
-            const vLabel = (max - (i/4)*range);
-            html += `<text x="${{pL-6}}" y="${{y+4}}" text-anchor="end" fill="var(--text-muted)" font-size="9" font-weight="600">${{vLabel>=10000?(vLabel/10000).toFixed(1)+'万':Math.round(vLabel)}}</text>`;
-          }}
-        }}
-
-        // Y轴标题
-        html += `<text x="${{pL-6}}" y="${{pT-4}}" text-anchor="end" fill="var(--text-muted)" font-size="9" font-weight="700">亿</text>`;
-
-        // 柱状图
-        vals.forEach((v, i) => {{
-          const cx = pL + gap + i*(barW+gap);
-          const bh = ((v-min)/range)*uH;
-          const by = height-pB-bh;
-          const color = isUp(i) ? upColor : downColor;
-          // 柱子圆角
-          const r = Math.min(4, barW/4);
-          html += `<rect x="${{cx}}" y="${{by}}" width="${{barW}}" height="${{bh}}" rx="${{r}}" ry="${{r}}" fill="${{color}}" opacity="0.85">
-            <title>${{data.dates[i]}}: ${{v.toFixed(0)}}亿</title></rect>`;
-          // 柱顶数值
-          html += `<text x="${{cx+barW/2}}" y="${{by-5}}" text-anchor="middle" fill="${{color}}" font-size="10" font-weight="800">${{v>=10000?(v/10000).toFixed(1)+'万':Math.round(v)}}</text>`;
-        }});
-
-        // 趋势折线 + 面积
-        const linePts = vals.map((v,i) => `${{getX(i)}},${{getY(v)}}`).join(" ");
-        html += `<polygon points="${{pL}},${{height-pB}} ${{linePts}} ${{width-pR}},${{height-pB}}" fill="url(#volLineGrad)" opacity="0.5"/>`;
         
-        const pathD = vals.map((v,i) => (i===0?"M":"L")+` ${{getX(i)}} ${{getY(v)}}`).join(" ");
-        html += `<path d="${{pathD}}" fill="none" stroke="#2563eb" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>`;
-        
-        // 折线上的点
-        vals.forEach((v,i) => {{
-          const isLast = i===n-1;
-          const cx=getX(i), cy=getY(v);
-          html += `<circle cx="${{cx}}" cy="${{cy}}" r="${{isLast?5:3}}" fill="#2563eb" ${{isLast?'stroke="#fff" stroke-width="2':''}}/>`;
-          if(isLast) {{
-            html += `<text x="${{cx}}" y="${{cy-12}}" text-anchor="middle" fill="#2563eb" font-size="11" font-weight="900">今</text>`;
-          }}
-        }});
-
-        // X轴日期标签
-        data.dates.forEach((d,i) => {{
-          const isLast=i===n-1;
-          const cx = pL+gap+i*(barW+gap)+barW/2;
-          html += `<text x="${{cx}}" y="${{height-8}}" text-anchor="middle" fill="${{isLast?"#f59e0b":"var(--text-muted")}}" font-size="${{isLast?11:10}}" font-weight="${{isLast?900:700}}">${{d}}${{isLast?"今":""}}</text>`;
-        }});
-
-        svg.innerHTML = html;
-      }};
-
-      const renderHeightTrend = (data) => {{
-        const svg = document.getElementById("height-trend-svg"); if (!svg) return;
-        const width = 500, height = 185;
-        const pL = 45, pR = 30, pT = 25, pB = 35;
-        const uW = width - pL - pR, uH = height - pT - pB;
-        const getX = (i) => pL + (i / (data.dates.length - 1)) * uW;
-        const getY = (val) => pT + (7 - val) * (uH / 7);
-        svg.innerHTML = `<defs><linearGradient id="mainGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#ef4444" stop-opacity="0.15"/><stop offset="100%" stop-color="#ef4444" stop-opacity="0"/></linearGradient><filter id="glow" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="2" result="blur" /><feComposite in="SourceGraphic" in2="blur" operator="over" /></filter></defs>`;
-        let grid = "";
-        for (let i = 0; i <= 7; i++) {{
-          const y = pT + (i/7)*uH; const isBottom=i===7;
-          grid += `<line x1="${{pL}}" y1="${{y}}" x2="${{width - pR}}" y2="${{y}}" stroke="${{isBottom ? 'var(--text-muted)' : 'var(--border)'}}" stroke-width="${{isBottom ? '1.5' : '1'}}" ${{isBottom ? '' : 'stroke-dasharray="2,2"'}}/>`;
-          grid += `<text x="${{pL - 10}}" y="${{y + 4}}" text-anchor="end" fill="var(--text-muted)" font-size="10" font-weight="700">${{7 - i}}</text>`;
-        }}
-        svg.insertAdjacentHTML("beforeend", grid);
-        const getBezierPath = (pts) => pts.reduce((acc, p, i, a) => i === 0 ? `M ${{getX(i)}} ${{getY(p)}}` : `${{acc}} C ${{getX(i-1) + (getX(i)-getX(i-1))/2}} ${{getY(a[i-1])}}, ${{getX(i-1) + (getX(i)-GetX(i-1))/2}} ${{getY(p)}}, ${{getX(i)}} ${{GetY(p)}}`, "");
-        const drawTrend = (pts, color, dashed=false, labels=[], gradId=null) => {{
-          const getBP = (pts2) => pts2.reduce((ac, p, i, a) => i===0?`M ${{getX(i)}} ${{GetY(p)}}`:`${{ac}} C ${{getX(i-1)+(getX(i)-getX(i-1))/2}} ${{GetY(a[i-1])}},${{getX(i-1)+(getX(i)-GetX(i-1))/2}} ${{GetY(p)}},${{getX(i)}} ${{GetY(p)}}`, "");
-          const pathD = getBP(pts);
-          if (gradId) {{ const areaD=`${{pathD}} L ${{getX(pts.length-1)}} ${{height-pB}} L ${{pL}} ${{height-pB}} Z`; const area=document.createElementNS("http://www.w3.org/2000/svg","path"); area.setAttribute("d",areaD); area.setAttribute("fill",`url(#${{gradId}})`); svg.appendChild(area); }}
-          const line=document.createElementNS("http://www.w3.org/2000/svg","path"); line.setAttribute("d",pathD); line.setAttribute("fill","none"); line.setAttribute("stroke",color); line.setAttribute("stroke-width","3"); line.setAttribute("stroke-linecap","round"); if(dashed) line.setAttribute("stroke-dasharray","6,4"); line.setAttribute("filter","url(#glow)"); svg.appendChild(line);
-          pts.forEach((p,i)=>{{const isLast=i===pts.length-1;const cx=getX(i),cy=GetY(p);const c=document.createElementNS("http://www.w3.org/2000/svg","circle");c.setAttribute("cx",cx);c.setAttribute("cy",cy);c.setAttribute("r",isLast?"5.5":"3.5");c.setAttribute("fill",color);c.setAttribute("stroke","var(--bg-card)");c.setAttribute("stroke-width","2");svg.appendChild(c);if(labels&&labels[i]){{const tw=labels[i].length*10+10;const r=document.createElementNS("http://www.w3.org/2000/svg","rect");r.setAttribute("x",cx-tw/2);r.setAttribute("y",cy-26);r.setAttribute("width",tw);r.setAttribute("height",16);r.setAttribute("rx",4);r.setAttribute("fill",color==="#ef4444"?"rgba(239,68,68,0.1)":"rgba(245,158,11,0.1)");r.setAttribute("stroke",color);r.setAttribute("stroke-width","0.5");svg.appendChild(r);const t=document.createElementNS("http://www.w3.org/2000/svg","text");t.setAttribute("x",cx);t.setAttribute("y",cy-14);t.setAttribute("text-anchor","middle");t.setAttribute("fill",color);t.setAttribute("font-size","10");t.setAttribute("font-weight","800");t.textContent=labels[i];svg.appendChild(t);}}}});
+        const option = {{
+          backgroundColor: 'transparent',
+          tooltip: {{ 
+            trigger: 'axis', 
+            axisPointer: {{ type: 'shadow' }},
+            formatter: (params) => {{
+              let res = `<div style="font-weight:800;margin-bottom:4px">${{params[0].name}}</div>`;
+              params.forEach(p => {{
+                res += `<div style="display:flex;justify-content:space-between;gap:12px;font-size:12px">
+                  <span>${{p.seriesName}}</span>
+                  <span style="font-weight:800;color:${{p.color}}">${{p.value.toFixed(0)}}亿</span>
+                </div>`;
+              }});
+              return res;
+            }}
+          }},
+          grid: {{ top: '15%', left: '3%', right: '3%', bottom: '15%', containLabel: true }},
+          xAxis: {{
+            type: 'category',
+            data: data.dates,
+            axisLine: {{ lineStyle: {{ color: 'var(--text-muted)' }} }},
+            axisLabel: {{ color: 'var(--text-muted)', fontWeight: 700, fontSize: 10 }}
+          }},
+          yAxis: {{
+            type: 'value',
+            splitLine: {{ lineStyle: {{ type: 'dashed', color: 'var(--border)' }} }},
+            axisLabel: {{ 
+              color: 'var(--text-muted)', 
+              fontWeight: 700, 
+              fontSize: 10,
+              formatter: (v) => v >= 10000 ? (v/10000).toFixed(1)+'万' : v 
+            }}
+          }},
+          series: [
+            {{
+              name: '两市成交额',
+              type: 'bar',
+              data: vals.map((v, i) => ({{
+                value: v,
+                itemStyle: {{ color: isUp(i) ? '#ef4444' : '#10b981', borderRadius: [4, 4, 0, 0] }}
+              }})),
+              barWidth: '45%'
+            }},
+            {{
+              name: '成交趋势',
+              type: 'line',
+              data: vals,
+              smooth: true,
+              showSymbol: false,
+              lineStyle: {{ width: 3, color: '#2563eb' }},
+              areaStyle: {{
+                color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                  {{ offset: 0, color: 'rgba(37, 99, 235, 0.2)' }},
+                  {{ offset: 1, color: 'rgba(37, 99, 235, 0)' }}
+                ])
+              }}
+            }}
+          ]
         }};
-        drawTrend(data.main,"#ef4444",false,data.labels.main,"mainGrad");
-        drawTrend(data.sub,"#f59e0b",true,data.labels.sub);
-        drawTrend(data.gem,"#94a3b8");
-        data.dates.forEach((d,i)=>{{const isLast=i===data.dates.length-1;const t=document.createElementNS("http://www.w3.org/2000/svg","text");t.setAttribute("x",getX(i));t.setAttribute("y",height-8);t.setAttribute("text-anchor","middle");t.setAttribute("fill",isLast?"#ef4444":"var(--text-muted)");t.setAttribute("font-size","10");t.setAttribute("font-weight",isLast?"900":"700");t.textContent=d+(isLast?"今":"");svg.appendChild(t);}});
+        volumeChart.setOption(option);
       }};
 
+      /**
+       * 渲染高度趋势图 (ECharts 实现)
+       * @param {{Object}} data 高度趋势数据
+       */
+      const renderHeightTrend = (data) => {{
+        const chartDom = document.getElementById('height-trend-echart');
+        if (!chartDom) return;
+        if (heightChart) heightChart.dispose();
+        heightChart = echarts.init(chartDom, document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : null);
+
+        const option = {{
+          backgroundColor: 'transparent',
+          tooltip: {{ trigger: 'axis' }},
+          legend: {{
+            data: ['最高板', '次高板', '创业板'],
+            bottom: 0,
+            textStyle: {{ color: 'var(--text-muted)', fontWeight: 600, fontSize: 11 }},
+            icon: 'circle'
+          }},
+          grid: {{ top: '15%', left: '3%', right: '5%', bottom: '20%', containLabel: true }},
+          xAxis: {{
+            type: 'category',
+            data: data.dates,
+            boundaryGap: false,
+            axisLine: {{ lineStyle: {{ color: 'var(--text-muted)' }} }},
+            axisLabel: {{ color: 'var(--text-muted)', fontWeight: 700, fontSize: 10 }}
+          }},
+          yAxis: {{
+            type: 'value',
+            min: 0,
+            max: 8,
+            interval: 1,
+            splitLine: {{ lineStyle: {{ type: 'dashed', color: 'var(--border)' }} }},
+            axisLabel: {{ color: 'var(--text-muted)', fontWeight: 700, fontSize: 10 }}
+          }},
+          series: [
+            {{
+              name: '主板',
+              type: 'line',
+              data: data.main,
+              smooth: true,
+              lineStyle: {{ width: 4, color: '#ef4444' }},
+              itemStyle: {{ color: '#ef4444' }},
+              areaStyle: {{
+                color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                  {{ offset: 0, color: 'rgba(239, 68, 68, 0.15)' }},
+                  {{ offset: 1, color: 'rgba(239, 68, 68, 0)' }}
+                ])
+              }},
+              symbolSize: 8,
+              label: {{
+                show: true,
+                position: 'top',
+                formatter: (params) => data.labels.main[params.dataIndex] || '',
+                color: '#ef4444',
+                fontWeight: 800,
+                fontSize: 10,
+                backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                padding: [2, 4],
+                borderRadius: 4,
+                borderColor: '#ef4444',
+                borderWidth: 0.5
+              }}
+            }},
+            {{
+              name: '次高板',
+              type: 'line',
+              data: data.sub,
+              smooth: true,
+              lineStyle: {{ width: 3, color: '#f59e0b', type: 'dashed' }},
+              itemStyle: {{ color: '#f59e0b' }},
+              symbolSize: 6,
+              label: {{
+                show: true,
+                position: 'top',
+                formatter: (params) => data.labels.sub[params.dataIndex] || '',
+                color: '#f59e0b',
+                fontWeight: 800,
+                fontSize: 10
+              }}
+            }},
+            {{
+              name: '创业板',
+              type: 'line',
+              data: data.gem,
+              smooth: true,
+              lineStyle: {{ width: 2, color: '#94a3b8' }},
+              itemStyle: {{ color: '#94a3b8' }},
+              symbolSize: 4
+            }}
+          ]
+        }};
+        heightChart.setOption(option);
+      }};
+
+      /**
+       * 渲染连板天梯
+       * @param {{Array}} data 天梯数据
+       */
       const renderLadder = (data) => {{
-        const tbody = document.getElementById("ladderBody"); if(!tbody)return;
-        tbody.innerHTML=data.map(row=>`<tr><td><span class="ladder-badge badge-${{row.badge}}">${{row.badge}}板</span></td><td class="stock-name-cell">${{row.name}}</td><td class="${{row.status==="晋级"?"green-text":"blue-text"}}">${{row.status}}</td><td style="font-size:12px;color:var(--text-muted)">${{row.note}}</td></tr>`).join("");
+        const tbody = document.getElementById("ladderBody"); 
+        if(!tbody) return;
+        tbody.innerHTML = data.map(row => `
+          <tr>
+            <td><span class="ladder-badge badge-${{row.badge}}">${{row.badge}}板</span></td>
+            <td class="stock-name-cell">${{row.name}}</td>
+            <td class="${{row.status === "晋级" ? "green-text" : "blue-text"}}">${{row.status}}</td>
+            <td style="font-size:12px;color:var(--text-muted)">${{row.note}}</td>
+          </tr>
+        `).join("");
       }};
 
+      /**
+       * 切换主题 (支持 ECharts 重新渲染)
+       */
       const toggleTheme = () => {{
-        const html=document.documentElement;
-        const isDark=html.getAttribute("data-theme")==="dark";
-        isDark?html.removeAttribute("data-theme"):html.setAttribute("data-theme","dark");
+        const html = document.documentElement;
+        const isDark = html.getAttribute("data-theme") === "dark";
+        isDark ? html.removeAttribute("data-theme") : html.setAttribute("data-theme", "dark");
+        
+        // 重新初始化图表以适配主题
+        renderVolumeTrend(marketData.volume);
+        renderHeightTrend(marketData.heightTrend);
       }};
 
       document.addEventListener("DOMContentLoaded", () => {{
         renderVolumeTrend(marketData.volume);
         renderHeightTrend(marketData.heightTrend);
         renderLadder(marketData.ladder);
+        
+        // 响应式处理
+        window.addEventListener('resize', () => {{
+          volumeChart && volumeChart.resize();
+          heightChart && heightChart.resize();
+        }});
       }});
+
     </script>
   </body>
 </html>'''
