@@ -664,7 +664,7 @@ panorama_html = f"""
 vol_dates_str = ','.join(v['date'] for v in vol_history)
 vol_values_str = ','.join(str(round(v['vol'], 2)) for v in vol_history)
 
-summary_text = f"""📊 涨停{zt_count}家、封板率{fb_rate:.1f}%显示短线情绪{'良好' if fb_rate>=70 else '一般'}。<br />量能{'增量' if vol_diff>=0 else '缩量'}{abs(vol_diff):.0f}亿({vol_chg_pct:+.2f}%)，资金{'仍在博弈' if abs(vol_chg_pct)<5 else ('加速进场' if vol_diff>0 else '有所退潮')}。"""
+summary_text = f"""📊 涨停<span class="summary-highlight">{zt_count}家</span>、封板率<span class="summary-highlight">{fb_rate:.1f}%</span>显示短线情绪<span class="summary-highlight">{'良好' if fb_rate>=70 else '一般'}</span>。<br />量能<span class="summary-highlight">{'增量' if vol_diff>=0 else '缩量'}{abs(vol_diff):.0f}亿({vol_chg_pct:+.2f}%)</span>，资金{'仍在博弈' if abs(vol_chg_pct)<5 else ('加速进场' if vol_diff>0 else '有所退潮')}。"""
 
 # 赚钱效应四维
 effect_grid_html = f"""
@@ -1165,9 +1165,36 @@ html = f'''<!doctype html>
       .verdict-box strong {{ font-size: 14px; display: block; margin-bottom: 4px; }}
 
       /* Summary Box */
-      .summary-box {{ background: var(--bg-elevated); border-radius: var(--radius-md); padding: 16px; border-left: 4px solid var(--warning); margin-top: 14px; }}
-      .summary-text {{ font-size: 13.5px; color: var(--text-secondary); line-height: 1.75; font-weight: 500; }}
-      .summary-footer {{ display: flex; justify-content: flex-end; align-items: center; gap: 8px; margin-top: 10px; opacity: 0.5; font-size: 11px; font-weight: 600; }}
+      .summary-box {{ 
+        background: var(--bg-elevated); 
+        border-radius: var(--radius-md); 
+        padding: 18px 20px; 
+        border-left: 5px solid var(--warning); 
+        margin-top: 16px; 
+        box-shadow: inset 0 0 10px rgba(0,0,0,0.02);
+      }}
+      .summary-text {{ 
+        font-size: 14.5px; 
+        color: var(--text-primary); 
+        line-height: 1.85; 
+        font-weight: 500; 
+      }}
+      .summary-highlight {{ 
+        color: var(--danger); 
+        font-weight: 800; 
+        padding: 0 2px;
+      }}
+      .summary-footer {{ 
+        display: flex; 
+        justify-content: flex-end; 
+        align-items: center; 
+        gap: 8px; 
+        margin-top: 12px; 
+        opacity: 0.45; 
+        font-size: 11px; 
+        font-weight: 700;
+        color: var(--text-secondary);
+      }}
 
       /* Section Header */
       .section-header {{ font-size: 12px; font-weight: 800; color: var(--text-muted); margin: 16px 0 10px; padding-left: 10px; border-left: 3px solid var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }}
@@ -1243,6 +1270,7 @@ html = f'''<!doctype html>
 
         <div class="summary-box">
           <div class="summary-text" id="summaryText">{summary_text}</div>
+          
         </div>
       </div>
 

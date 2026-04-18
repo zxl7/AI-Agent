@@ -315,9 +315,36 @@
       .verdict-box strong { font-size: 14px; display: block; margin-bottom: 4px; }
 
       /* Summary Box */
-      .summary-box { background: var(--bg-elevated); border-radius: var(--radius-md); padding: 16px; border-left: 4px solid var(--warning); margin-top: 14px; }
-      .summary-text { font-size: 13.5px; color: var(--text-secondary); line-height: 1.75; font-weight: 500; }
-      .summary-footer { display: flex; justify-content: flex-end; align-items: center; gap: 8px; margin-top: 10px; opacity: 0.5; font-size: 11px; font-weight: 600; }
+      .summary-box { 
+        background: var(--bg-elevated); 
+        border-radius: var(--radius-md); 
+        padding: 18px 20px; 
+        border-left: 5px solid var(--warning); 
+        margin-top: 16px; 
+        box-shadow: inset 0 0 10px rgba(0,0,0,0.02);
+      }
+      .summary-text { 
+        font-size: 14.5px; 
+        color: var(--text-primary); 
+        line-height: 1.85; 
+        font-weight: 500; 
+      }
+      .summary-highlight { 
+        color: var(--danger); 
+        font-weight: 800; 
+        padding: 0 2px;
+      }
+      .summary-footer { 
+        display: flex; 
+        justify-content: flex-end; 
+        align-items: center; 
+        gap: 8px; 
+        margin-top: 12px; 
+        opacity: 0.45; 
+        font-size: 11px; 
+        font-weight: 700;
+        color: var(--text-secondary);
+      }
 
       /* Section Header */
       .section-header { font-size: 12px; font-weight: 800; color: var(--text-muted); margin: 16px 0 10px; padding-left: 10px; border-left: 3px solid var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
@@ -428,7 +455,7 @@
         </div>
 
         <div class="summary-box">
-          <div class="summary-text" id="summaryText">📊 涨停71家、封板率78.0%显示短线情绪良好。<br />量能增量839亿(+3.58%)，资金仍在博弈。</div>
+          <div class="summary-text" id="summaryText">📊 涨停<span class="summary-highlight">71家</span>、封板率<span class="summary-highlight">78.0%</span>显示短线情绪<span class="summary-highlight">良好</span>。<br />量能<span class="summary-highlight">增量839亿(+3.58%)</span>，资金仍在博弈。</div>
         </div>
       </div>
 
@@ -526,7 +553,7 @@
             🔥 昨日涨停
             <span class="topic-tag tag-fire">最强主线</span>
           </div>
-          <div class="topic-desc">昨日涨停方向69只涨停，资金关注度提升。</div>
+          <div class="topic-desc">昨日涨停方向70只涨停，资金关注度提升。</div>
         </div>
         <div class="hot-topic fire">
           <div class="topic-title">
@@ -540,7 +567,7 @@
             📡 光伏玻璃
             <span class="topic-tag tag-sustained">关注</span>
           </div>
-          <div class="topic-desc">赛道股反弹，共15只涨停异动。</div>
+          <div class="topic-desc">赛道股反弹，共16只涨停异动。</div>
         </div>
         <div class="hot-topic caution">
           <div class="topic-title">
@@ -678,7 +705,7 @@
             <span class="sector-rank rank-1">1</span>
             <div class="sector-info">
               <div class="sector-name">昨日涨停</div>
-              <div class="sector-detail">69只涨停 · 600961·600330·002203</div>
+              <div class="sector-detail">70只涨停 · 600961·600330·002203</div>
             </div>
             <div class="sector-pct" style="color: var(--red-text)">最强</div>
           </li>
@@ -694,7 +721,7 @@
             <span class="sector-rank rank-3">3</span>
             <div class="sector-info">
               <div class="sector-name">光伏玻璃</div>
-              <div class="sector-detail">15只涨停 · 600330·002580·002428</div>
+              <div class="sector-detail">16只涨停 · 600330·002580·002428</div>
             </div>
             <div class="sector-pct" style="color: var(--primary)">活跃</div>
           </li>
