@@ -183,7 +183,7 @@ def get_trading_days(n=7):
             check = (today - datetime.timedelta(days=delta)).strftime("%Y-%m-%d")
             if check in result: continue
             try:
-                z = api(f"hslt/ztgc/{check}")
+                z = api(f"hslt/ztgc/{check}", exit_on_404=False, quiet_404=True)
                 if isinstance(z, list) and len(z) > 0: result.append(check)
             except: pass
     return sorted(result)
@@ -799,6 +799,32 @@ def clamp(value, low, high):
     """将数值限制在给定区间内。"""
     return max(low, min(value, high))
 
+def get_board_rate_class(rate):
+    """根据封板率返回对应的暖冷色类名。"""
+    if rate >= 75:
+        return 'red-text'
+    if rate >= 60:
+        return 'orange-text'
+    return 'green-text'
+
+def describe_volume_shift(volume_diff, volume_change_pct):
+    """根据量能变化生成放量/缩量与大/小幅文案。"""
+    magnitude_text = '大幅' if abs(volume_change_pct) >= 5 else '小幅'
+    direction_text = '放量' if volume_diff >= 0 else '缩量'
+    if volume_diff >= 0:
+        tone_text = '增量资金回流明显。' if abs(volume_change_pct) >= 5 else '增量资金有回流，但力度相对温和。'
+    else:
+        tone_text = '资金明显收缩，追涨意愿下降。' if abs(volume_change_pct) >= 5 else '资金小幅收缩，更多偏存量博弈。'
+    return {
+        'tag': f"{magnitude_text}{direction_text}",
+        'detail': f"{magnitude_text}{direction_text} {abs(volume_diff):.2f}亿",
+        'tone': tone_text,
+    }
+
+def get_heat_level(score):
+    """将热度分数映射为 1~5 级，用于热力图区块着色。"""
+    return int(clamp(round(score), 1, 5))
+
 top1_theme_name = real_themes[0][0] if real_themes else '暂无主线'
 top1_theme_count = real_themes[0][1] if real_themes else 0
 top3_theme_count = sum(item[1] for item in real_themes[:3])
@@ -875,12 +901,15 @@ def pick_theme_leader(theme_name):
 
 def pick_theme_center(theme_name):
     """从成交额核心中找题材中军。"""
-    candidates = [s for s in top10_with_theme if s.get('sector') == theme_name]
+    candidates = [s for s in unique_stocks if s.get('mc', '') in set(theme_stocks.get(theme_name, []))]
     if not candidates:
         return '暂无'
     candidates.sort(key=lambda x: x.get('cje', 0), reverse=True)
-    center = candidates[0]
-    return f"{center.get('mc', '')}({center.get('cje', 0)/1e8:.0f}亿)"
+    centers = candidates[:2]
+    return ' / '.join(
+        f"{center.get('mc', '')}({center.get('cje', 0)/1e8:.0f}亿)"
+        for center in centers
+    )
 
 def pick_theme_elastic(theme_name):
     """从 20cm / 科创方向中找弹性票。"""
@@ -950,6 +979,52 @@ def render_metric_cards(cards):
         for card in cards
     )
 
+def render_heatmap_cells(cells):
+    """渲染更接近热力图视觉语义的热区单元。"""
+    return ''.join(
+        f"""
+        <div class="heatmap-cell level-{cell['level']}">
+          <div class="heatmap-rank">热度 L{cell['level']}</div>
+          <div class="heatmap-title">{cell['title']}</div>
+          <div class="heatmap-value">{cell['value']}</div>
+          <div class="heatmap-note">{cell['note']}</div>
+        </div>"""
+        for cell in cells
+    )
+
+def render_ladder_steps(groups):
+    """将连板数据渲染为阶梯式天梯布局。"""
+    if not groups:
+        return '<div class="tier-card">暂无 2 板及以上连板股</div>'
+
+    max_badge = max(group['badge'] for group in groups)
+
+    def render_stock(stock):
+        status_cls = 'green-text' if stock['status'] == '晋级' else 'blue-text'
+        note_html = f'<span class="ladder-chip-note">{stock["note"]}</span>' if stock['note'] else ''
+        return f"""
+            <div class="ladder-stock-card">
+              <div class="ladder-stock-name">{stock['name']}</div>
+              <div class="ladder-stock-meta">
+                <span class="ladder-chip {status_cls}">{stock['status']}</span>
+                {note_html}
+              </div>
+            </div>"""
+
+    return ''.join(
+        f"""
+        <div class="ladder-step" style="--step-offset: {(max_badge - group['badge']) * 28}px;">
+          <div class="ladder-step-header">
+            <span class="ladder-badge {'badge-' + str(group['badge']) if group['badge'] <= 6 else 'badge-1'}">{group['badge']}板</span>
+            <span class="ladder-step-count">{len(group['stocks'])}只</span>
+          </div>
+          <div class="ladder-stock-list">
+            {''.join(render_stock(stock) for stock in group['stocks'])}
+          </div>
+        </div>"""
+        for group in groups
+    )
+
 # 构建指数行
 idx_cards_html = ""
 for idx in indices_data:
@@ -964,6 +1039,7 @@ for idx in indices_data:
           </div>"""
 
 # 全景网格
+seal_rate_class = get_board_rate_class(fb_rate)
 panorama_html = f"""
           <div class="panorama-box pulse">
             <div class="panorama-num red-text">{zt_count}</div>
@@ -978,15 +1054,16 @@ panorama_html = f"""
             <div class="panorama-label">跌停</div>
           </div>
           <div class="panorama-box">
-            <div class="panorama-num green-text">{fb_rate:.1f}%</div>
+            <div class="panorama-num {seal_rate_class}">{fb_rate:.1f}%</div>
             <div class="panorama-label">封板率</div>
           </div>"""
 
 # 量能
 vol_dates_str = ','.join(v['date'] for v in vol_history)
 vol_values_str = ','.join(str(round(v['vol'], 2)) for v in vol_history)
+volume_shift = describe_volume_shift(vol_diff, vol_chg_pct)
 
-summary_text = f"""📊 涨停<span class="summary-highlight">{zt_count}家</span>、封板率<span class="summary-highlight">{fb_rate:.1f}%</span>显示短线情绪<span class="summary-highlight">{'良好' if fb_rate>=70 else '一般'}</span>。<br />量能<span class="summary-highlight">{'增量' if vol_diff>=0 else '缩量'}{abs(vol_diff):.0f}亿({vol_chg_pct:+.2f}%)</span>，资金{'仍在博弈' if abs(vol_chg_pct)<5 else ('加速进场' if vol_diff>0 else '有所退潮')}。"""
+summary_text = f"""📊 涨停<span class="summary-highlight">{zt_count}家</span>、封板率<span class="summary-highlight">{fb_rate:.1f}%</span>显示短线情绪<span class="summary-highlight">{'良好' if fb_rate>=70 else '一般'}</span>。<br />量能<span class="summary-highlight">{volume_shift['tag']}{abs(vol_diff):.0f}亿({vol_chg_pct:+.2f}%)</span>，{volume_shift['tone']}"""
 
 sentiment_html = f"""
         <div class="insight-banner">
@@ -1139,7 +1216,7 @@ fear_grid2 = f"""
             <div class="fear-note" id="fearBrokenNote">{zb_count}/({zt_count}+{zb_count}) = {zb_rate:.1f}% | {'高于' if zb_rate>25 else '低于'}均值</div>
           </div>
           <div class="fear-card">
-            <div class="fear-val green-text" id="fearSuccess">{fb_rate:.1f}%</div>
+            <div class="fear-val {seal_rate_class}" id="fearSuccess">{fb_rate:.1f}%</div>
             <div class="fear-label">封板成功率</div>
             <div class="fear-note">封板质量{'极高' if fb_rate>=80 else ('尚可' if fb_rate>=70 else '偏低')}</div>
           </div>
@@ -1316,27 +1393,33 @@ quadrant_feedback_html = render_metric_cards([
     },
 ])
 
-heatmap_cells_html = f"""
-        <div class="heatmap-cell hot">
-          <div class="heatmap-title">接力热区</div>
-          <div class="heatmap-value">{len(qs_extreme_up)} + {len(qs_positive)} 只</div>
-          <div class="heatmap-note">昨日强势股中继续给溢价的样本</div>
-        </div>
-        <div class="heatmap-cell warm">
-          <div class="heatmap-title">主线拥挤度</div>
-          <div class="heatmap-value">{top3_theme_ratio:.1f}%</div>
-          <div class="heatmap-note">TOP3 题材覆盖率，越高越聚焦</div>
-        </div>
-        <div class="heatmap-cell cool">
-          <div class="heatmap-title">风险冷区</div>
-          <div class="heatmap-value">{bf_count + dt_count} 只</div>
-          <div class="heatmap-note">大面股 + 跌停数量，反映亏钱扩散</div>
-        </div>
-        <div class="heatmap-cell cold">
-          <div class="heatmap-title">高位压力</div>
-          <div class="heatmap-value">{five_plus_count} / {zb_high_count}</div>
-          <div class="heatmap-note">5板+数量 / 高位炸板数量</div>
-        </div>"""
+heatmap_cells = [
+    {
+        'title': '接力热区',
+        'value': f"{len(qs_extreme_up) + len(qs_positive)}只",
+        'note': '昨日强势股中继续给到正反馈的样本数量。',
+        'level': get_heat_level((len(qs_extreme_up) * 1.3 + len(qs_positive) * 0.7) / max(qs_count, 1) * 5),
+    },
+    {
+        'title': '主线拥挤度',
+        'value': f"{top3_theme_ratio:.1f}%",
+        'note': 'TOP3 题材覆盖率越高，资金越集中在主线。',
+        'level': get_heat_level(top3_theme_ratio / 20),
+    },
+    {
+        'title': '亏钱扩散',
+        'value': f"{bf_count + dt_count}只",
+        'note': '大面股与跌停数量越多，亏钱效应越容易扩散。',
+        'level': get_heat_level((bf_count + dt_count) / 3),
+    },
+    {
+        'title': '高位压力',
+        'value': f"{five_plus_count} / {zb_high_count}",
+        'note': '5板+家数与高位炸板数量共同反映高位博弈压力。',
+        'level': get_heat_level((five_plus_count * 1.5 + zb_high_count) / 2),
+    },
+]
+heatmap_cells_html = render_heatmap_cells(heatmap_cells)
 
 # 高度趋势数据
 ht_dates_str = ','.join(height_trend['dates'])
@@ -1347,17 +1430,14 @@ ht_labels_main = ','.join(height_trend['labels_main'])
 ht_labels_sub = ','.join(height_trend['labels_sub'])
 
 # 连板天梯
-ladder_body = ""
-for row in ladder_rows:
-    status_cls = 'green-text' if row['status'] == '晋级' else 'blue-text'
-    badge_cls = f"badge-{row['badge']}" if row['badge'] <= 6 else 'badge-1'
-    ladder_body += f"""            <tr>
-              <td><span class="ladder-badge {badge_cls}">{row['badge']}板</span></td>
-              <td class="stock-name-cell">{row['name']}</td>
-              <td class="{status_cls}">{row['status']}</td>
-              <td style="font-size: 12px; color: var(--text-muted)">{row['note']}</td>
-            </tr>
-"""
+ladder_groups = [
+    {
+        'badge': badge,
+        'stocks': [row for row in ladder_rows if row['badge'] == badge]
+    }
+    for badge in sorted({row['badge'] for row in ladder_rows}, reverse=True)
+]
+ladder_steps_html = render_ladder_steps(ladder_groups)
 
 # 断板列表
 broken_text = ' / '.join([f"{s['mc']}({s['lbc']}板)" for s in duanban_list[:8]])
@@ -1635,6 +1715,8 @@ html = f'''<!doctype html>
         cursor: pointer;
         transition: all 0.2s;
         backdrop-filter: blur(10px);
+        font-weight: 700;
+        letter-spacing: 0.2px;
       }}
       .theme-toggle:hover {{ background: rgba(255, 255, 255, 0.25); }}
       .cycle-tag {{
@@ -1736,15 +1818,61 @@ html = f'''<!doctype html>
       .insight-side-note {{ margin-top: 8px; font-size: 11px; color: var(--text-muted); font-weight: 700; }}
       .insight-meter {{ margin-top: 12px; height: 10px; border-radius: 999px; background: rgba(148, 163, 184, 0.16); overflow: hidden; }}
       .insight-meter-fill {{ height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--theme-accent-2) 0%, var(--theme-accent) 100%); }}
-      .heatmap-grid {{ display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-top: 16px; }}
-      .heatmap-cell {{ border-radius: var(--radius-md); padding: 16px; border: 1px solid var(--border); background: var(--bg-elevated); }}
-      .heatmap-cell.hot {{ background: linear-gradient(135deg, var(--theme-heat-hot), rgba(248,250,252,0.65)); }}
-      .heatmap-cell.warm {{ background: linear-gradient(135deg, var(--theme-heat-warm), rgba(248,250,252,0.65)); }}
-      .heatmap-cell.cool {{ background: linear-gradient(135deg, var(--theme-heat-cool), rgba(248,250,252,0.65)); }}
-      .heatmap-cell.cold {{ background: linear-gradient(135deg, var(--theme-heat-cold), rgba(248,250,252,0.65)); }}
+      .heatmap-shell {{ margin-top: 16px; }}
+      .heatmap-grid {{ display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }}
+      .heatmap-cell {{
+        position: relative;
+        min-height: 148px;
+        border-radius: var(--radius-md);
+        padding: 18px;
+        border: 1px solid var(--border);
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-end;
+        background: var(--bg-elevated);
+        isolation: isolate;
+      }}
+      .heatmap-cell::before {{
+        content: "";
+        position: absolute;
+        inset: 0;
+        background:
+          radial-gradient(circle at top right, rgba(255,255,255,0.35), transparent 34%),
+          linear-gradient(135deg, rgba(255,255,255,0.18), transparent 55%);
+        z-index: -1;
+      }}
+      .heatmap-cell.level-1 {{ background: linear-gradient(135deg, rgba(224, 242, 254, 0.88), rgba(248, 250, 252, 0.98)); }}
+      .heatmap-cell.level-2 {{ background: linear-gradient(135deg, rgba(186, 230, 253, 0.92), rgba(240, 249, 255, 0.98)); }}
+      .heatmap-cell.level-3 {{ background: linear-gradient(135deg, rgba(254, 240, 138, 0.82), rgba(255, 247, 237, 0.98)); }}
+      .heatmap-cell.level-4 {{ background: linear-gradient(135deg, rgba(253, 186, 116, 0.86), rgba(255, 237, 213, 0.98)); }}
+      .heatmap-cell.level-5 {{ background: linear-gradient(135deg, rgba(252, 165, 165, 0.9), rgba(254, 226, 226, 0.98)); }}
+      [data-theme="dark"] .heatmap-cell.level-1 {{ background: linear-gradient(135deg, rgba(14, 116, 144, 0.55), rgba(15, 23, 42, 0.92)); }}
+      [data-theme="dark"] .heatmap-cell.level-2 {{ background: linear-gradient(135deg, rgba(3, 105, 161, 0.6), rgba(15, 23, 42, 0.92)); }}
+      [data-theme="dark"] .heatmap-cell.level-3 {{ background: linear-gradient(135deg, rgba(161, 98, 7, 0.62), rgba(30, 41, 59, 0.94)); }}
+      [data-theme="dark"] .heatmap-cell.level-4 {{ background: linear-gradient(135deg, rgba(194, 65, 12, 0.68), rgba(51, 65, 85, 0.94)); }}
+      [data-theme="dark"] .heatmap-cell.level-5 {{ background: linear-gradient(135deg, rgba(185, 28, 28, 0.72), rgba(69, 10, 10, 0.92)); }}
+      .heatmap-rank {{ position: absolute; top: 14px; right: 14px; font-size: 11px; font-weight: 800; color: rgba(15, 23, 42, 0.62); }}
+      [data-theme="dark"] .heatmap-rank {{ color: rgba(241, 245, 249, 0.78); }}
       .heatmap-title {{ font-size: 12px; font-weight: 800; color: var(--text-muted); margin-bottom: 8px; }}
-      .heatmap-value {{ font-size: 24px; line-height: 1.1; font-weight: 900; color: var(--text-primary); }}
-      .heatmap-note {{ margin-top: 6px; font-size: 11px; line-height: 1.6; color: var(--text-secondary); }}
+      .heatmap-value {{ font-size: 30px; line-height: 1.1; font-weight: 900; color: var(--text-primary); }}
+      .heatmap-note {{ margin-top: 8px; font-size: 11px; line-height: 1.6; color: var(--text-secondary); max-width: 88%; }}
+      .heatmap-legend {{
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-top: 12px;
+        font-size: 11px;
+        color: var(--text-muted);
+        font-weight: 700;
+      }}
+      .heatmap-legend-bar {{
+        flex: 1;
+        height: 10px;
+        border-radius: 999px;
+        background: linear-gradient(90deg, #bae6fd 0%, #fef08a 50%, #fca5a5 100%);
+        border: 1px solid rgba(148, 163, 184, 0.18);
+      }}
 
       /* Effect Grid */
       .effect-grid {{ display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }}
@@ -1802,6 +1930,38 @@ html = f'''<!doctype html>
       [data-theme="dark"] .badge-2 {{ background: rgba(37, 99, 235, 0.2); color: #93c5fd; }}
       [data-theme="dark"] .badge-1 {{ background: rgba(148, 163, 184, 0.2); color: #94a3b8; }}
       .stock-name-cell {{ font-weight: 700; color: var(--text-primary); }}
+      .ladder-steps {{ display: flex; flex-direction: column; gap: 12px; }}
+      .ladder-step {{
+        margin-left: var(--step-offset);
+        background: linear-gradient(135deg, var(--bg-elevated), rgba(255,255,255,0.04));
+        border: 1px solid var(--border);
+        border-radius: var(--radius-md);
+        padding: 14px 16px;
+        box-shadow: var(--shadow-sm);
+      }}
+      .ladder-step-header {{ display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }}
+      .ladder-step-count {{ font-size: 11px; color: var(--text-muted); font-weight: 800; }}
+      .ladder-stock-list {{ display: flex; flex-wrap: wrap; gap: 10px; }}
+      .ladder-stock-card {{
+        min-width: 150px;
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 10px 12px;
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.3);
+      }}
+      .ladder-stock-name {{ font-size: 13px; font-weight: 800; color: var(--text-primary); }}
+      .ladder-stock-meta {{ display: flex; align-items: center; gap: 8px; margin-top: 6px; flex-wrap: wrap; }}
+      .ladder-chip {{
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        font-size: 10px;
+        font-weight: 800;
+        background: rgba(148, 163, 184, 0.12);
+        padding: 2px 8px;
+      }}
+      .ladder-chip-note {{ font-size: 10px; color: var(--text-muted); }}
 
       /* Hot Topic */
       .hot-topic {{ padding: 16px; border-radius: var(--radius-md); margin-bottom: 12px; border-left: 4px solid; transition: all 0.2s; }}
@@ -1924,6 +2084,8 @@ html = f'''<!doctype html>
         .heatmap-grid {{ grid-template-columns: 1fr; }}
         .index-card {{ min-width: 100px; }}
         .index-val {{ font-size: 18px; }}
+        .ladder-step {{ margin-left: 0 !important; }}
+        .ladder-stock-card {{ min-width: 100%; }}
       }}
 
       @media print {{ .theme-toggle {{ display: none; }} body {{ background: #fff; color: #000; }} .card {{ box-shadow: none; border: 1px solid #e2e8f0; }} }}
@@ -1987,7 +2149,7 @@ html = f'''<!doctype html>
             <div class="volume-data-row">
               <span class="volume-total" id="volTotal">{today_total_vol:.2f}亿</span>
               <span class="volume-change {pct_class(vol_chg_pct)}" id="volChange">{vol_chg_pct:+.2f}%</span>
-              <span class="volume-increase orange-text" id="volIncrease">{'增量' if vol_diff>=0 else '缩量'} {abs(vol_diff):+.2f}亿</span>
+              <span class="volume-increase orange-text" id="volIncrease">{volume_shift['detail']}</span>
             </div>
           </div>
         </div>
@@ -2009,10 +2171,7 @@ html = f'''<!doctype html>
 
       <!-- 赚钱效应四维判断 -->
       <div class="card">
-        <div class="card-title">赚钱效应四维判断</div>
-        <div class="effect-grid">
-{effect_grid_html}
-        </div>
+        <div class="card-title">赚钱效应综合判断</div>
         <div class="verdict-box verdict-{effect_verdict_type}" id="effectVerdict">
           <strong>{effect_verdict_title}</strong>
           {effect_verdict_detail}
@@ -2030,8 +2189,15 @@ html = f'''<!doctype html>
 {quadrant_feedback_html}
         </div>
         <div class="section-header">情绪热力图</div>
-        <div class="heatmap-grid">
+        <div class="heatmap-shell">
+          <div class="heatmap-grid">
 {heatmap_cells_html}
+          </div>
+          <div class="heatmap-legend">
+            <span>低热度</span>
+            <div class="heatmap-legend-bar"></div>
+            <span>高热度</span>
+          </div>
         </div>
       </div>
 
@@ -2094,12 +2260,9 @@ html = f'''<!doctype html>
       <!-- 连板天梯 -->
       <div class="card">
         <div class="card-header"><div class="card-title">连板天梯</div><div class="card-badge">非ST</div></div>
-        <table class="ladder-table">
-          <thead><tr><th>高度</th><th>股票名称</th><th>状态</th><th>备注</th></tr></thead>
-          <tbody id="ladderBody">
-{ladder_body}
-          </tbody>
-        </table>
+        <div class="ladder-steps" id="ladderBody">
+{ladder_steps_html}
+        </div>
         <div style="margin-top: 12px; padding: 10px 14px; background: rgba(239, 68, 68, 0.08); border-radius: var(--radius-sm); font-size: 12px; color: var(--danger); font-weight: 600" id="brokenList">
           {broken_text}
         </div>
@@ -2158,7 +2321,7 @@ html = f'''<!doctype html>
         volume: {{
           total: "{today_total_vol:.2f}亿",
           change: "{vol_chg_pct:+.2f}%",
-          increase: "{'增量' if vol_diff>=0 else '缩量'} {abs(vol_diff):+.2f}亿",
+          increase: "{volume_shift['detail']}",
           dates: [{','.join(['"'+v['date']+'"' for v in vol_history])}],
           values: [{','.join([str(round(v['vol'],2)) for v in vol_history])}],
         }},
@@ -2528,15 +2691,38 @@ html = f'''<!doctype html>
        * @param {{Array}} data 天梯数据
        */
       const renderLadder = (data) => {{
-        const tbody = document.getElementById("ladderBody"); 
-        if(!tbody) return;
-        tbody.innerHTML = data.map(row => `
-          <tr>
-            <td><span class="ladder-badge badge-${{row.badge}}">${{row.badge}}板</span></td>
-            <td class="stock-name-cell">${{row.name}}</td>
-            <td class="${{row.status === "晋级" ? "green-text" : "blue-text"}}">${{row.status}}</td>
-            <td style="font-size:12px;color:var(--text-muted)">${{row.note}}</td>
-          </tr>
+        const container = document.getElementById("ladderBody");
+        if (!container) return;
+
+        const groups = [...data.reduce((acc, row) => {{
+          const next = new Map(acc);
+          const group = next.get(row.badge) || [];
+          group.push(row);
+          next.set(row.badge, group);
+          return next;
+        }}, new Map()).entries()].sort((a, b) => b[0] - a[0]);
+
+        const maxBadge = groups.length ? groups[0][0] : 2;
+        container.innerHTML = groups.map(([badge, rows]) => `
+          <div class="ladder-step" style="--step-offset:${{(maxBadge - badge) * 28}}px;">
+            <div class="ladder-step-header">
+              <span class="ladder-badge ${{badge <= 6 ? `badge-${{badge}}` : 'badge-1'}}">${{badge}}板</span>
+              <span class="ladder-step-count">${{rows.length}}只</span>
+            </div>
+            <div class="ladder-stock-list">
+              ${{
+                rows.map(row => `
+                  <div class="ladder-stock-card">
+                    <div class="ladder-stock-name">${{row.name}}</div>
+                    <div class="ladder-stock-meta">
+                      <span class="ladder-chip ${{row.status === "晋级" ? "green-text" : "blue-text"}}">${{row.status}}</span>
+                      ${{row.note ? `<span class="ladder-chip-note">${{row.note}}</span>` : ''}}
+                    </div>
+                  </div>
+                `).join('')
+              }}
+            </div>
+          </div>
         `).join("");
       }};
 
