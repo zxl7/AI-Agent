@@ -1529,7 +1529,10 @@ html = f'''<!doctype html>
   </body>
 </html>'''
 
-output_path = f"daily-report-{DATE.replace('-','')}.html"
+if not os.path.exists("html"):
+    os.makedirs("html")
+
+output_path = os.path.join("html", f"复盘日记-{DATE.replace('-', '')}.html")
 with open(output_path, 'w', encoding='utf-8') as f:
     f.write(html)
 
