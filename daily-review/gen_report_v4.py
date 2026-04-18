@@ -263,7 +263,7 @@ print(f"   断板: {', '.join([s['mc']+f'({s['lbc']}板)' for s in duanban_list[
 # ══════════════════════════
 print("\n[5/12] 获取近7日高度趋势...")
 his_dates = get_trading_days(7)
-height_trend = {'dates': [], 'main': [], 'sub': [], 'gem': [], 'labels_main': [], 'labels_sub': []}
+height_trend = {'dates': [], 'main': [], 'sub': [], 'gem': [], 'labels_main': [], 'labels_sub': [], 'labels_gem': []}
 
 for d in his_dates:
     try:
@@ -271,23 +271,31 @@ for d in his_dates:
         lbs = [s.get('lbc', 1) for s in data]
         main_max = max(lbs) if lbs else 0
         # 创业板20cm最高
-        gem_max = max((s.get('lbc', 1) for s in data if s.get('dm','').startswith('300')), default=0)
+        gem_data = [s for s in data if s.get('dm','').startswith('300')]
+        gem_max = max((s.get('lbc', 1) for s in gem_data), default=0)
         # 次高
         sorted_lb = sorted(set(lbs), reverse=True)
         sub_max = sorted_lb[1] if len(sorted_lb) > 1 else 0
         
-        # 标注龙头名
+        # 标注各系列名称
         top_stock = max(data, key=lambda x: x.get('lbc', 0), default={})
         top_name = top_stock.get('mc', '')[:4] if top_stock else ''
+        
+        sub_stock = next((s for s in data if s.get('lbc') == sub_max), {})
+        sub_name = sub_stock.get('mc', '')[:4] if sub_stock else ''
+        
+        gem_stock = max(gem_data, key=lambda x: x.get('lbc', 0), default={}) if gem_data else {}
+        gem_name = gem_stock.get('mc', '')[:4] if gem_stock else ''
         
         height_trend['dates'].append(d[5:])
         height_trend['main'].append(main_max)
         height_trend['sub'].append(sub_max)
         height_trend['gem'].append(gem_max)
         height_trend['labels_main'].append(top_name if main_max >= 3 else '')
-        height_trend['labels_sub'].append('')
+        height_trend['labels_sub'].append(sub_name if sub_max >= 2 else '')
+        height_trend['labels_gem'].append(gem_name if gem_max >= 1 else '')
         
-        print(f"   {d[5:]}: 主板{main_max}板 次高{sub_max} 创板{gem_max}板 → {top_name}")
+        print(f"   {d[5:]}: 主板{main_max}板({top_name}) 次高{sub_max}({sub_name}) 创板{gem_max}板({gem_name})")
         time.sleep(0.03)
     except Exception as e:
         height_trend['dates'].append(d[5:])
@@ -296,6 +304,7 @@ for d in his_dates:
         height_trend['gem'].append(0)
         height_trend['labels_main'].append('')
         height_trend['labels_sub'].append('')
+        height_trend['labels_gem'].append('')
         print(f"   {d[5:]}: error {e}")
 
 # ══════════════════════════
@@ -306,10 +315,12 @@ theme_count = {}      # theme -> count
 theme_stocks = {}     # theme -> [names]
 zb_theme_count = {}   # 炸板题材
 
-def query_themes(code_list, target_dict):
+def query_themes(stock_list, target_dict):
     """批量查询股票题材"""
-    print(f"   准备查询 {len(code_list)} 只股票题材...")
-    for i, code in enumerate(code_list):
+    print(f"   准备查询 {len(stock_list)} 只股票题材...")
+    for i, s in enumerate(stock_list):
+        code = s['dm']
+        name = s.get('mc', code)
         try:
             url = f"{BASE}/hszg/zg/{code}/{TOKEN}"
             req = urllib.request.Request(url)
@@ -319,28 +330,29 @@ def query_themes(code_list, target_dict):
             if isinstance(data, list):
                 for item in data:
                     t = clean_theme(item.get('name', ''))
-                    mc = item.get('mc', code)
                     if t and t not in NOISE_THEMES:
                         target_dict[t] = target_dict.get(t, 0) + 1
-                        theme_stocks.setdefault(t, []).append(mc)
+                        # 确保存储的是名称而非代码
+                        if name not in theme_stocks.get(t, []):
+                            theme_stocks.setdefault(t, []).append(name)
             if (i + 1) % 10 == 0:
-                print(f"   已处理 {i+1}/{len(code_list)}...")
+                print(f"   已处理 {i+1}/{len(stock_list)}...")
             time.sleep(0.01)
         except Exception as e:
             # print(f"   查询 {code} 失败: {e}")
             pass
 
 # 查询涨停股题材
-zt_codes = [s['dm'] for s in zt_all]
-query_themes(zt_codes, theme_count)
+query_themes(zt_all, theme_count)
 
 # 查询炸板股题材
 if zb_all:
-    zb_codes = [s['dm'] for s in zb_all]
-    print(f"   准备查询 {len(zb_codes)} 只炸板股题材...")
-    query_themes(zb_codes, zb_theme_count)
+    print(f"   准备查询 {len(zb_all)} 只炸板股题材...")
+    query_themes(zb_all, zb_theme_count)
 
-real_themes = sorted(theme_count.items(), key=lambda x: -x[1])
+# 过滤掉噪音题材和"昨日涨停"
+real_themes = [item for item in theme_count.items() if item[0] != "昨日涨停"]
+real_themes = sorted(real_themes, key=lambda x: -x[1])
 print(f"   有效题材: {len(real_themes)} 个")
 for t, c in real_themes[:10]:
     print(f"   · {t}: {c}只 ({', '.join(theme_stocks.get(t, [])[:4])})")
@@ -540,7 +552,7 @@ print("\n[11/12] 生成热点解读...")
 
 hot_topics = []
 topic_tags = ['fire', 'fire', 'good', 'caution', 'good', 'caution']
-tag_texts = ['最强主线', '持续 ✅', '关注', '谨慎 ⚠️', '活跃', '分化']
+tag_texts = ['最强主线', '持续 ✅', '关注', '活跃', '活跃', '活跃']
 
 # 取TOP6题材生成解读
 emojis = ['🔥', '🔋', '📡', '⚡', '🤖', '💻']
@@ -594,14 +606,14 @@ for h in hot_topics:
 # ══════════════════════════
 print("\n[12/12] 板块强度排名...")
 sector_top5 = []
-sector_evals = ['最强', '爆发', '活跃', '关注', '维持']
+sector_evals = ['最强', '爆发', '活跃', '活跃', '活跃']
 for idx, (t_name, t_cnt) in enumerate(real_themes[:5]):
     eval_word = sector_evals[idx] if idx < len(sector_evals) else '一般'
     stocks_str = '·'.join(theme_stocks.get(t_name, [])[:3])
     sector_top5.append({
         'rank': idx + 1,
         'name': t_name,
-        'detail': f"{t_cnt}只涨停 · {stocks_str}",
+        'detail': stocks_str,
         'eval': eval_word,
         'eval_color': ['red-text', 'success', 'primary', 'warning', 'text-muted'][min(idx, 4)]
     })
@@ -1411,6 +1423,7 @@ html = f'''<!doctype html>
           labels: {{
             main: [{','.join(['"'+l+'"' for l in height_trend['labels_main']])}],
             sub: [{','.join(['"'+l+'"' for l in height_trend['labels_sub']])}],
+            gem: [{','.join(['"'+l+'"' for l in height_trend['labels_gem']])}],
           }},
         }},
         ladder: [
@@ -1460,18 +1473,27 @@ html = f'''<!doctype html>
           }},
           yAxis: {{
             type: 'value',
+            max: 40000,
             splitLine: {{ lineStyle: {{ type: 'dashed', color: 'var(--border)' }} }},
             axisLabel: {{ 
               color: 'var(--text-muted)', 
               fontWeight: 700, 
               fontSize: 10,
-              formatter: (v) => v >= 10000 ? (v/10000).toFixed(1)+'万' : v 
+              formatter: (v) => v.toFixed(0)
             }}
           }},
           series: [
             {{
               name: '两市成交额',
               type: 'bar',
+              label: {{
+                show: true,
+                position: 'top',
+                formatter: (params) => params.value.toFixed(0),
+                color: 'var(--text-muted)',
+                fontWeight: 800,
+                fontSize: 10
+              }},
               data: vals.map((v, i) => ({{
                 value: v,
                 itemStyle: {{ color: isUp(i) ? '#ef4444' : '#10b981', borderRadius: [4, 4, 0, 0] }}
@@ -1534,7 +1556,7 @@ html = f'''<!doctype html>
           }},
           series: [
             {{
-              name: '主板',
+              name: '最高板',
               type: 'line',
               data: data.main,
               smooth: true,
@@ -1585,7 +1607,15 @@ html = f'''<!doctype html>
               smooth: true,
               lineStyle: {{ width: 2, color: '#94a3b8' }},
               itemStyle: {{ color: '#94a3b8' }},
-              symbolSize: 4
+              symbolSize: 4,
+              label: {{
+                show: true,
+                position: 'top',
+                formatter: (params) => data.labels.gem[params.dataIndex] || '',
+                color: '#94a3b8',
+                fontWeight: 800,
+                fontSize: 10
+              }}
             }}
           ]
         }};
