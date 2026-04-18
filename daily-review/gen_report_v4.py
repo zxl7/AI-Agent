@@ -6,12 +6,37 @@
 """
 
 import json, urllib.request, time, sys, datetime, os
+from pathlib import Path
 
 TOKEN = "60D084A7-FF4A-4B42-9E1C-45F0B719F33C"
 REQUEST_DATE = sys.argv[1] if len(sys.argv) > 1 else datetime.date.today().strftime("%Y-%m-%d")
 DATE = REQUEST_DATE
 DATE_NOTE = ""
 BASE = "https://api.biyingapi.com"
+
+# ───────────────────────────────
+# 本地化资源（替代 CDN）
+# ───────────────────────────────
+def asset_url(local_path: str, cdn_url: str, use_local: bool = True) -> str:
+    """
+    纯函数：根据开关选择本地资源或 CDN 资源。
+
+    - use_local=True：生成的 HTML 将引用 ./vendor 下的文件，适合离线打开
+    - use_local=False：引用 CDN
+    """
+    return local_path if use_local else cdn_url
+
+USE_LOCAL_VENDOR = True
+ECHARTS_SRC = asset_url(
+    local_path="./vendor/echarts.min.js",
+    cdn_url="https://fastly.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js",
+    use_local=USE_LOCAL_VENDOR,
+)
+VUE_SRC = asset_url(
+    local_path="./vendor/vue.global.prod.js",
+    cdn_url="https://fastly.jsdelivr.net/npm/vue@3/dist/vue.global.prod.js",
+    use_local=USE_LOCAL_VENDOR,
+)
 
 # ── 噪音过滤 ──
 NOISE_PREFIXES = ('A股-分类', 'A股-指数成分', 'A股-证监会行业', 'A股-申万行业',
@@ -314,7 +339,8 @@ if ladder_rows:
 
 print(f"   天梯: 最高{max_lb}板, 共{len(ladder_rows)}只连板")
 print(f"   昨日{len(yest_lb_stocks)}只连板→存活{len(jinwei_list)}只({jj_rate:.0f}%)")
-print(f"   断板: {', '.join([s['mc']+f'({s['lbc']}板)' for s in duanban_list[:8]])}")
+duanban_preview = ', '.join([f"{s['mc']}({s['lbc']}板)" for s in duanban_list[:8]])
+print(f"   断板: {duanban_preview}")
 
 # 连板结构拆分
 board_level_count = {}
@@ -957,6 +983,48 @@ print("=" * 50)
 # ───────────────────────────────
 print("\n正在生成HTML...")
 
+# ───────────────────────────────
+# 输出文件策略（加分秒 + 清理历史）
+# ───────────────────────────────
+OUTPUT_DIR = "html"
+KEEP_ONLY_LATEST_PER_DATE = True
+
+def build_report_filename(date_str: str, now: datetime.datetime) -> str:
+    """
+    纯函数：构建报告文件名（包含分秒）。
+
+    示例：复盘日记-20260417-153012.html
+    """
+    date_compact = date_str.replace("-", "")
+    hms = now.strftime("%H%M%S")
+    return f"复盘日记-{date_compact}-{hms}.html"
+
+def cleanup_old_reports(output_dir: str, date_str: str, keep: int = 1) -> None:
+    """
+    有副作用函数：清理同一天的历史报告，只保留最新 keep 份。
+
+    说明：
+    - 只匹配：复盘日记-YYYYMMDD-*.html
+    - keep=1：每次生成新报告前，自动删掉旧版本，避免 html 目录堆积
+    """
+    if keep < 0:
+        return
+    date_compact = date_str.replace("-", "")
+    folder = Path(output_dir)
+    if not folder.exists():
+        return
+    candidates = sorted(
+        folder.glob(f"复盘日记-{date_compact}-*.html"),
+        key=lambda p: p.stat().st_mtime,
+        reverse=True,
+    )
+    for p in candidates[keep:]:
+        try:
+            p.unlink()
+        except Exception:
+            # 清理失败不影响主流程
+            pass
+
 def up_down_class(val):
     if val > 0: return 'up'
     elif val < 0: return 'down'
@@ -1025,38 +1093,10 @@ def render_ladder_steps(groups):
         for group in groups
     )
 
-# 构建指数行
-idx_cards_html = ""
-for idx in indices_data:
-    ud = up_down_class(idx['pct'])
-    hl = ' highlight' if (idx['name'] == '创业板指' and idx['pct'] > 2) else ''
-    font_extra = 'style="font-size: 15px"' if hl else ''
-    idx_cards_html += f"""
-          <div class="index-card{hl}">
-            <div class="index-name">{idx['name']}</div>
-            <div class="index-val">{idx['close']:.2f}</div>
-            <div class="index-pct {ud}" {font_extra}>{"🔼" if idx["pct"]>=0 else "🔽"} {idx['pct']:+.2f}%</div>
-          </div>"""
-
-# 全景网格
-seal_rate_class = get_board_rate_class(fb_rate)
-panorama_html = f"""
-          <div class="panorama-box pulse">
-            <div class="panorama-num red-text">{zt_count}</div>
-            <div class="panorama-label">涨停</div>
-          </div>
-          <div class="panorama-box">
-            <div class="panorama-num orange-text">{zb_count}</div>
-            <div class="panorama-label">炸板</div>
-          </div>
-          <div class="panorama-box">
-            <div class="panorama-num green-text">{dt_count}</div>
-            <div class="panorama-label">跌停</div>
-          </div>
-          <div class="panorama-box">
-            <div class="panorama-num {seal_rate_class}">{fb_rate:.1f}%</div>
-            <div class="panorama-label">封板率</div>
-          </div>"""
+# 说明：
+# 1) 过去这里会用 Python 拼接 idx_cards_html / panorama_html 等片段；
+# 2) 现在改为在最终 HTML 中使用 Vue3（CDN）来渲染这些列表/数字，便于后续维护迭代；
+# 3) Python 侧只负责产出结构化数据（marketData）与静态样式。
 
 # 量能
 vol_dates_str = ','.join(v['date'] for v in vol_history)
@@ -1209,6 +1249,7 @@ fear_grid1 = f"""
           </div>"""
 
 # 恐惧指标 - 炸板&昨表现组
+seal_rate_class = get_board_rate_class(fb_rate)
 fear_grid2 = f"""
           <div class="fear-card">
             <div class="fear-val orange-text" id="fearBroken">{zb_rate:.1f}%</div>
@@ -1446,81 +1487,119 @@ if broken_text:
 else:
     broken_text = "✅ 昨日无断板"
 
-# 板块强度TOP5
-sector_list_html = ""
-for sec in sector_top5:
-    rank_cls = f"rank-{sec['rank']}" if sec['rank'] <= 3 else 'rank-n'
-    sector_list_html += f"""          <li class="sector-item">
-            <span class="sector-rank {rank_cls}">{sec['rank']}</span>
-            <div class="sector-info">
-              <div class="sector-name">{sec['name']}</div>
-              <div class="sector-detail">{sec['detail']}</div>
-            </div>
-            <div class="sector-pct" style="color: var(--{sec['eval_color']})">{sec['eval']}</div>
-          </li>
-"""
+# ───────────────────────────────
+# Vue 渲染所需数据（结构化 JSON）
+# ───────────────────────────────
+def build_top10_rows(rows):
+    """
+    纯函数：把成交额 TOP10 的原始字段，整理为前端易渲染的行数据。
+    说明：这里直接产出显示用字符串（如 +x.xx% / xx亿），确保渲染结果与旧版 HTML 一致。
+    """
+    result = []
+    for i, t in enumerate(rows):
+        weight = 900 if i == 0 else (800 if i <= 2 else 700)
+        result.append({
+            'rank': i + 1,
+            'mc': t['mc'],
+            'zf_str': f"{t['zf']:+.2f}%",
+            'pct_class': pct_class(t['zf']),
+            'cje_yi': f"{t['cje']/1e8:.0f}亿",
+            'weight': weight,
+            'sector': t['sector'],
+        })
+    return result
 
-# 成交额TOP10
-top10_body = ""
-for i, t in enumerate(top10_with_theme):
-    cls = pct_class(t['zf'])
-    w = '900' if i == 0 else ('800' if i <= 2 else '700')
-    top10_body += f"""            <tr>
-              <td><span style="color: var(--danger); font-weight: {w}">{i+1}</span></td>
-              <td class="stock-name-cell">{t['mc']}</td>
-              <td class="{cls}">{t['zf']:+.2f}%</td>
-              <td style="font-weight: {w}">{t['cje']/1e8:.0f}亿</td>
-              <td>{t['sector']}</td>
-            </tr>
-"""
+def build_action_guide(key_watch1, key_watch2, hot_topics, top1_theme_name, rotation_style, zt_count, effect_verdict_type):
+    """
+    纯函数：生成“明日行动指南”的结构化数据（Vue v-for 渲染）。
+    """
+    watch3 = hot_topics[1]['title'] if len(hot_topics) > 1 else '主流板块'
+    mainline_focus = (
+        '低位换手首板 / 2板确认'
+        if rotation_style == '高低切'
+        else '高位核心分歧承接'
+    )
+    risk_prefix = '高潮次日分化风险！' if zt_count >= 70 else '注意情绪变化'
+    risk_level = '近期峰值' if zt_count >= 70 else '正常水平'
+    risk_action = '不追涨' if zt_count >= 70 else '控制仓位'
 
-# 行动指南
-# 关键看点
+    if effect_verdict_type == 'good':
+        suggest = '持仓观察'
+        suggest_detail = '— 四维度向好，但今天高潮，只持仓不追涨。'
+    elif effect_verdict_type == 'warn':
+        suggest = '轻仓试错'
+        suggest_detail = '— 有结构性机会，以低位首板为主。'
+    else:
+        suggest = '空仓观望'
+        suggest_detail = '— 等待情绪修复再入场。'
+
+    return [
+        {'dot_class': 'dot-key', 'strong_text': '关键看点①：', 'text': key_watch1, 'style': ''},
+        {'dot_class': 'dot-key', 'strong_text': '关键看点②：', 'text': key_watch2, 'style': ''},
+        {'dot_class': 'dot-watch', 'strong_text': '观察：', 'text': f"{watch3}是否分化。", 'style': ''},
+        {
+            'dot_class': 'dot-watch',
+            'strong_text': '主线应对：',
+            'text': f"围绕{top1_theme_name}做核心辨识度，当前风格偏{rotation_style}，优先看{mainline_focus}。",
+            'style': '',
+        },
+        {
+            'dot_class': 'dot-risk',
+            'strong_text': '风险提示：',
+            'text': f"{risk_prefix}今日涨停{zt_count}只是{risk_level}，{risk_action}。",
+            'style': '',
+        },
+        {
+            'dot_class': 'dot-safe',
+            'strong_text': f"策略建议：{suggest}",
+            'text': suggest_detail,
+            'style': 'color: var(--theme-positive)',
+        },
+    ]
+
+# 板块强度TOP5 / 成交额TOP10 / 行动指南（改为 Vue 渲染）
+sectors_json = json.dumps(sector_top5, ensure_ascii=False)
+top10_rows_json = json.dumps(build_top10_rows(top10_with_theme), ensure_ascii=False)
+top10_summary_json = json.dumps(
+    {
+        'top5_sum_yi': f"{sum(t['cje'] for t in top10_with_theme[:5]) / 1e8:.0f}亿",
+        'top5_sectors': ', '.join([t['sector'] for t in top10_with_theme[:5]]),
+    },
+    ensure_ascii=False
+)
+
+# 行动指南：关键看点
 key_watch1 = f"{ladder_rows[0]['name'].replace('👑 ','')}{max_lb}→{max_lb+1}板能否晋级？决定空间是否打开。" if ladder_rows else ""
 key_watch2 = f"{hot_topics[0]['title']}持续性！" if hot_topics else ""
+action_guide_json = json.dumps(
+    build_action_guide(
+        key_watch1=key_watch1,
+        key_watch2=key_watch2,
+        hot_topics=hot_topics,
+        top1_theme_name=top1_theme_name,
+        rotation_style=rotation_style,
+        zt_count=zt_count,
+        effect_verdict_type=effect_verdict_type,
+    ),
+    ensure_ascii=False
+)
 
-action_items = f"""          <li class="action-item">
-            <span class="action-dot dot-key"></span>
-            <span class="action-text">
-              <strong>关键看点①：</strong>
-              {key_watch1}
-            </span>
-          </li>
-          <li class="action-item">
-            <span class="action-dot dot-key"></span>
-            <span class="action-text">
-              <strong>关键看点②：</strong>
-              {key_watch2}
-            </span>
-          </li>
-          <li class="action-item">
-            <span class="action-dot dot-watch"></span>
-            <span class="action-text">
-              <strong>观察：</strong>
-              {hot_topics[1]['title'] if len(hot_topics)>1 else '主流板块'}是否分化。
-            </span>
-          </li>
-          <li class="action-item">
-            <span class="action-dot dot-watch"></span>
-            <span class="action-text">
-              <strong>主线应对：</strong>
-              围绕{top1_theme_name}做核心辨识度，当前风格偏{rotation_style}，优先看{('低位换手首板 / 2板确认' if rotation_style == '高低切' else '高位核心分歧承接')}。
-            </span>
-          </li>
-          <li class="action-item">
-            <span class="action-dot dot-risk"></span>
-            <span class="action-text">
-              <strong>风险提示：</strong>
-              {'高潮次日分化风险！' if zt_count>=70 else '注意情绪变化'}今日涨停{zt_count}只是{'近期峰值' if zt_count>=70 else '正常水平'}，{'不追涨' if zt_count>=70 else '控制仓位'}。
-            </span>
-          </li>
-          <li class="action-item">
-            <span class="action-dot dot-safe"></span>
-            <span class="action-text" style="color: var(--theme-positive)">
-              <strong>策略建议：{'持仓观察' if effect_verdict_type=='good' else ('轻仓试错' if effect_verdict_type=='warn' else '空仓观望')}</strong>
-              {'— 四维度向好，但今天高潮，只持仓不追涨。' if effect_verdict_type=='good' else ('— 有结构性机会，以低位首板为主。' if effect_verdict_type=='warn' else '— 等待情绪修复再入场。')}
-            </span>
-          </li>"""
+# 题材趋势序列（避免在 f-string 内部嵌套三引号，降低语法风险）
+theme_trend_series_js = ','.join(
+    f'''
+            {{
+              name: "{item['name']}",
+              values: [{','.join(str(v) for v in item['counts'])}]
+            }}'''.rstrip()
+    for item in theme_trend['series']
+)
+
+# 连板天梯 JS 数组行（避免在 f-string 表达式里出现 \n 反斜杠）
+ladder_rows_js = ', '.join(
+    f'''
+          {{ badge: {r["badge"]}, name: "{r["name"]}", status: "{r["status"]}", note: "{r["note"]}" }}'''.rstrip()
+    for r in ladder_rows
+)
 
 # ───────────────────────────────
 # 最终HTML组装
@@ -1531,8 +1610,10 @@ html = f'''<!doctype html>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>A股收盘简报 | {DATE}</title>
-    <script src="https://fastly.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <script src="{ECHARTS_SRC}"></script>
+    <script src="{VUE_SRC}"></script>
     <style>
+      [v-cloak] {{ display: none; }}
       :root {{
         --primary: #2563eb;
         --success: #10b981;
@@ -2092,7 +2173,7 @@ html = f'''<!doctype html>
     </style>
   </head>
   <body data-market-tone="{market_tone}">
-    <div class="container">
+    <div class="container" id="app" v-cloak>
       <!-- Hero -->
       <div class="hero">
         <div class="hero-controls">
@@ -2105,7 +2186,11 @@ html = f'''<!doctype html>
           {'<div class="hero-note">⚠️ ' + DATE_NOTE + '</div>' if DATE_NOTE else ''}
         </div>
         <div class="index-row">
-{idx_cards_html}
+          <div v-for="(idx, i) in marketData.indices" :key="i" :class="idx.highlight ? 'index-card highlight' : 'index-card'">
+            <div class="index-name">{{{{ idx.name }}}}</div>
+            <div class="index-val">{{{{ idx.val }}}}</div>
+            <div class="index-pct" :class="indexChgClass(idx.chg)">{{{{ indexChgIcon(idx.chg) }}}} {{{{ idx.chg }}}}</div>
+          </div>
         </div>
       </div>
 
@@ -2113,7 +2198,22 @@ html = f'''<!doctype html>
       <div class="card">
         <div class="card-header"><div class="card-title">市场全景</div><div class="card-badge">非ST股</div></div>
         <div class="panorama-grid">
-{panorama_html}
+          <div class="panorama-box pulse">
+            <div class="panorama-num red-text">{{{{ marketData.panorama.limitUp }}}}</div>
+            <div class="panorama-label">涨停</div>
+          </div>
+          <div class="panorama-box">
+            <div class="panorama-num orange-text">{{{{ marketData.panorama.broken }}}}</div>
+            <div class="panorama-label">炸板</div>
+          </div>
+          <div class="panorama-box">
+            <div class="panorama-num green-text">{{{{ marketData.panorama.limitDown }}}}</div>
+            <div class="panorama-label">跌停</div>
+          </div>
+          <div class="panorama-box">
+            <div class="panorama-num" :class="boardRateClass(marketData.panorama.ratio)">{{{{ marketData.panorama.ratio }}}}</div>
+            <div class="panorama-label">封板率</div>
+          </div>
         </div>
 {sentiment_html}
       </div>
@@ -2271,8 +2371,15 @@ html = f'''<!doctype html>
       <!-- 板块强度TOP5 -->
       <div class="card">
         <div class="card-title">板块强度 TOP5</div>
-        <ul class="sector-list" id="sectorList">
-{sector_list_html}
+        <ul class="sector-list">
+          <li class="sector-item" v-for="sec in marketData.sectors" :key="sec.rank">
+            <span :class="sec.rank <= 3 ? ('sector-rank rank-' + sec.rank) : 'sector-rank rank-n'">{{{{ sec.rank }}}}</span>
+            <div class="sector-info">
+              <div class="sector-name">{{{{ sec.name }}}}</div>
+              <div class="sector-detail">{{{{ sec.detail }}}}</div>
+            </div>
+            <div class="sector-pct" :style="'color: var(--' + sec.eval_color + ')'">{{{{ sec.eval }}}}</div>
+          </li>
         </ul>
       </div>
 
@@ -2281,13 +2388,19 @@ html = f'''<!doctype html>
         <div class="card-title">成交额 TOP10</div>
         <table class="ladder-table">
           <thead><tr><th>#</th><th>个股</th><th>涨幅</th><th>成交额</th><th>板块</th></tr></thead>
-          <tbody id="top10Body">
-{top10_body}
+          <tbody>
+            <tr v-for="row in marketData.top10" :key="row.rank">
+              <td><span :style="'color: var(--danger); font-weight: ' + row.weight">{{{{ row.rank }}}}</span></td>
+              <td class="stock-name-cell">{{{{ row.mc }}}}</td>
+              <td :class="row.pct_class">{{{{ row.zf_str }}}}</td>
+              <td :style="'font-weight: ' + row.weight">{{{{ row.cje_yi }}}}</td>
+              <td>{{{{ row.sector }}}}</td>
+            </tr>
           </tbody>
         </table>
         <div style="margin-top: 10px; font-size: 12px; color: var(--text-muted)">
-          TOP5合计：<strong style="color: var(--text-primary)">{sum(t['cje'] for t in top10_with_theme[:5])/1e8:.0f}亿</strong>
-          | {', '.join([t['sector'] for t in top10_with_theme[:5]])}
+          TOP5合计：<strong style="color: var(--text-primary)">{{{{ marketData.top10Summary.top5_sum_yi }}}}</strong>
+          | {{{{ marketData.top10Summary.top5_sectors }}}}
         </div>
       </div>
 
@@ -2295,7 +2408,13 @@ html = f'''<!doctype html>
       <div class="card">
         <div class="card-title">明日行动指南</div>
         <ul class="action-list">
-{action_items}
+          <li class="action-item" v-for="(item, idx) in marketData.actionGuide" :key="idx">
+            <span class="action-dot" :class="item.dot_class"></span>
+            <span class="action-text" :style="item.style">
+              <strong>{{{{ item.strong_text }}}}</strong>
+              {{{{ item.text }}}}
+            </span>
+          </li>
         </ul>
       </div>
 
@@ -2359,11 +2478,7 @@ html = f'''<!doctype html>
           dates: [{','.join(['"'+d+'"' for d in theme_trend['dates']])}],
           palette: [{','.join(['"'+c+'"' for c in chart_palette])}],
           series: [
-{','.join([f'''
-            {{
-              name: "{item['name']}",
-              values: [{','.join(str(v) for v in item['counts'])}]
-            }}''' for item in theme_trend['series']])}
+{theme_trend_series_js}
           ]
         }},
         heightTrend: {{
@@ -2379,9 +2494,57 @@ html = f'''<!doctype html>
           }},
         }},
         ladder: [
-{', '.join([f'\n          {{ badge: {r["badge"]}, name: "{r["name"]}", status: "{r["status"]}", note: "{r["note"]}" }}' for r in ladder_rows])}
+{ladder_rows_js}
         ],
         broken: "{broken_text.replace('❌ 昨日断板：','').replace('✅ 昨日无断板','')}",
+        sectors: {sectors_json},
+        top10: {top10_rows_json},
+        top10Summary: {top10_summary_json},
+        actionGuide: {action_guide_json},
+      }};
+
+      /**
+       * Vue 应用：只负责把 marketData 渲染到 DOM（列表 / 表格 / 行动指南）
+       * 说明：图表仍由原有 ECharts 函数渲染，避免一次性改动过大。
+       */
+      const mountVueApp = () => {{
+        if (!window.Vue) return;
+        const {{ createApp }} = window.Vue;
+
+        createApp({{
+          data() {{
+            return {{ marketData }};
+          }},
+          methods: {{
+            /**
+             * 纯函数：根据涨跌幅字符串（如 +1.23%）返回样式类名
+             */
+            indexChgClass(chgStr) {{
+              const v = Number(String(chgStr).replace('%', ''));
+              if (v > 0) return 'up';
+              if (v < 0) return 'down';
+              return 'flat';
+            }},
+            /**
+             * 纯函数：根据涨跌幅字符串返回箭头图标
+             */
+            indexChgIcon(chgStr) {{
+              const v = Number(String(chgStr).replace('%', ''));
+              if (v > 0) return '🔼';
+              if (v < 0) return '🔽';
+              return '⏺';
+            }},
+            /**
+             * 纯函数：根据封板率（如 78.0%）返回对应色彩类名（与 Python get_board_rate_class 保持一致）
+             */
+            boardRateClass(rateStr) {{
+              const v = Number(String(rateStr).replace('%', ''));
+              if (v >= 75) return 'red-text';
+              if (v >= 60) return 'orange-text';
+              return 'green-text';
+            }},
+          }},
+        }}).mount('#app');
       }};
 
       // 核心图表实例
@@ -2743,6 +2906,7 @@ html = f'''<!doctype html>
       }};
 
       document.addEventListener("DOMContentLoaded", () => {{
+        mountVueApp();
         renderVolumeTrend(marketData.volume);
         renderHeightTrend(marketData.heightTrend);
         renderStyleRadar(marketData.styleRadar);
@@ -2763,11 +2927,14 @@ html = f'''<!doctype html>
   </body>
 </html>'''
 
-if not os.path.exists("html"):
-    os.makedirs("html")
+os.makedirs(OUTPUT_DIR, exist_ok=True)
+if KEEP_ONLY_LATEST_PER_DATE:
+    cleanup_old_reports(OUTPUT_DIR, DATE, keep=0)
 
-output_path = os.path.join("html", f"复盘日记-{DATE.replace('-', '')}.html")
-with open(output_path, 'w', encoding='utf-8') as f:
+now = datetime.datetime.now()
+output_filename = build_report_filename(DATE, now)
+output_path = os.path.join(OUTPUT_DIR, output_filename)
+with open(output_path, "w", encoding="utf-8") as f:
     f.write(html)
 
 print(f"\n✅ HTML已生成: {os.path.abspath(output_path) if 'os' in globals() else output_path}")
