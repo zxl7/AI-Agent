@@ -28,8 +28,14 @@ def clean_theme(name):
 def api(path):
     url = f"{BASE}/{path}/{TOKEN}"
     req = urllib.request.Request(url)
-    with urllib.request.urlopen(req, timeout=30) as r:
-        return json.loads(r.read())
+    try:
+        with urllib.request.urlopen(req, timeout=30) as r:
+            return json.loads(r.read())
+    except urllib.error.HTTPError as e:
+        if e.code == 404:
+            print(f"   ⚠️  未找到日期 {DATE} 的数据，请确认是否为交易日。")
+            sys.exit(1)
+        raise e
 
 def api_get(url):
     req = urllib.request.Request(url)

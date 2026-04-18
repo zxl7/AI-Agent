@@ -30,8 +30,8 @@ echo -e "${GREEN}🚀 启动 Alpha Agent 复盘自动化流程...${NC}"
 echo -e "${YELLOW}==================================================${NC}"
 
 # 2. 执行数据采集和报告生成
-# 由于 closing_report.py 已经集成了 update_report_html.py，只需调用这一个脚本即可
-python3 "${SCRIPT_DIR}/closing_report.py" "$TARGET_DATE"
+# 由于 gen_report_v4.py 已经集成了 update_report_html.py，只需调用这一个脚本即可
+python3 "${SCRIPT_DIR}/gen_report_v4.py" "$TARGET_DATE"
 
 # 3. 检查执行结果
 if [ $? -eq 0 ]; then
