@@ -571,6 +571,12 @@ for lb in sorted(by_lbc.keys(), reverse=True):
             'name': s.get('mc', ''),
             'code': s.get('dm', ''),
             'zf': s.get('zf', 0),
+            # 天梯增强字段（用于分歧标记/封板资金等，无需新增接口）
+            'zbc': int(s.get('zbc', 0) or 0),      # 开板/炸板次数（>=1 可视作“回封”，>=3 视作分歧较大）
+            'zj': float(s.get('zj', 0) or 0),      # 封板资金（元）
+            'hs': float(s.get('hs', 0) or 0),      # 换手
+            'cje': float(s.get('cje', 0) or 0),    # 成交额（元）
+            'fbt': s.get('fbt', '') or '',         # 首次封板时间（HHMMSS）
             'note': ''
         })
 

@@ -412,28 +412,68 @@
       [data-theme="dark"] .badge-2 { background: rgba(37, 99, 235, 0.2); color: #93c5fd; }
       [data-theme="dark"] .badge-1 { background: rgba(148, 163, 184, 0.2); color: #94a3b8; }
       .stock-name-cell { font-weight: 700; color: var(--text-primary); }
-      .ladder-steps { display: flex; flex-direction: column; gap: 12px; }
-      .ladder-step {
-        margin-left: var(--step-offset);
+      /* Ladder（Table-like 行展示） */
+      .ladder-rows { display: flex; flex-direction: column; gap: 10px; }
+      .ladder-row {
+        display: grid;
+        grid-template-columns: 128px 1fr;
+        gap: 12px;
+        align-items: start;
         background: linear-gradient(135deg, var(--bg-elevated), rgba(255,255,255,0.04));
         border: 1px solid var(--border);
         border-radius: var(--radius-md);
-        padding: 14px 16px;
+        padding: 12px 12px;
         box-shadow: var(--shadow-sm);
       }
-      .ladder-step-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
-      .ladder-step-count { font-size: 11px; color: var(--text-muted); font-weight: 800; }
-      .ladder-stock-list { display: flex; flex-wrap: wrap; gap: 10px; }
+      @media (max-width: 600px){
+        .ladder-row { grid-template-columns: 108px 1fr; gap: 10px; padding: 10px 10px; }
+      }
+      .ladder-left { position: sticky; left: 0; }
+      .ladder-left-top { display:flex; align-items:center; gap: 8px; }
+      .ladder-left-meta { margin-top: 6px; font-size: 11px; color: var(--text-muted); font-weight: 800; line-height: 1.35; }
+      .ladder-left-kpi { margin-top: 6px; font-size: 11px; color: var(--text-secondary); font-weight: 900; }
+      .ladder-left-kpi .muted { color: var(--text-muted); font-weight: 800; }
+      .ladder-left-kpi .kpi-red { color: var(--danger); }
+      .ladder-left-kpi .kpi-orange { color: var(--warning); }
+      .ladder-left-kpi .kpi-blue { color: var(--primary); }
+      .ladder-row-footer{
+        grid-column: 1 / -1;
+        margin-top: 8px;
+        padding-top: 8px;
+        border-top: 1px dashed var(--border);
+        font-size: 11px;
+        color: var(--text-muted);
+        font-weight: 750;
+        line-height: 1.25;
+        display: flex;
+        gap: 10px;
+        flex-wrap: nowrap; /* 一行小字，必要时横向滚动 */
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+      .ladder-row-footer .pill{
+        padding: 2px 8px;
+        border-radius: 999px;
+        background: rgba(148, 163, 184, 0.10);
+        border: 1px solid var(--border);
+        white-space: nowrap;
+      }
+      .ladder-stock-list { display: flex; flex-wrap: wrap; gap: 8px; }
       .ladder-stock-card {
-        min-width: 150px;
+        min-width: 140px;
         background: var(--bg-card);
         border: 1px solid var(--border);
         border-radius: 12px;
-        padding: 10px 12px;
+        padding: 7px 9px;
         box-shadow: inset 0 1px 0 rgba(255,255,255,0.3);
       }
+      .ladder-stock-top{ display:flex; align-items:center; justify-content: space-between; gap: 10px; }
       .ladder-stock-name { font-size: 13px; font-weight: 800; color: var(--text-primary); }
-      .ladder-stock-meta { display: flex; align-items: center; gap: 8px; margin-top: 6px; flex-wrap: wrap; }
+      .ladder-stock-tags { display:flex; gap:6px; align-items:center; justify-content:flex-end; flex-wrap:nowrap; }
+      .ladder-chip-mini { font-size: 10px; padding: 2px 6px; }
+      .ladder-chip-time { background: rgba(148, 163, 184, 0.10); }
+      .ladder-meta-row { margin-top: 6px; display:flex; gap: 6px; flex-wrap: wrap; }
+      .ladder-meta-row .ladder-chip { padding: 2px 6px; }
       .ladder-chip {
         display: inline-flex;
         align-items: center;
@@ -442,8 +482,32 @@
         font-weight: 800;
         background: rgba(148, 163, 184, 0.12);
         padding: 2px 8px;
+        white-space: nowrap;
       }
-      .ladder-chip-note { font-size: 10px; color: var(--text-muted); }
+      .ladder-chip-note { margin-top: 5px; font-size: 10px; color: var(--text-muted); line-height: 1.2; }
+      .ladder-chip-strong { background: rgba(239, 68, 68, 0.12); }
+      .ladder-chip-warn { background: rgba(245, 158, 11, 0.14); }
+      .ladder-chip-cool { background: rgba(14, 165, 233, 0.12); }
+      .ladder-summary {
+        display: flex;
+        gap: 10px;
+        flex-wrap: nowrap;          /* 小屏也不换行：强制一排 */
+        overflow-x: auto;           /* 小屏不足时横向滚动 */
+        -webkit-overflow-scrolling: touch;
+        margin-bottom: 12px;
+      }
+      .ladder-summary-item{
+        flex: 1;
+        background: linear-gradient(135deg, var(--theme-soft), var(--bg-elevated));
+        border: 1px solid var(--border);
+        border-radius: var(--radius-md);
+        padding: 10px 12px;
+        border-left: 4px solid var(--theme-accent);
+      }
+      .ladder-summary-k{ font-size: 11px; font-weight: 900; color: var(--text-muted); display:flex; align-items:center; gap: 6px; }
+      .ladder-summary-icon{ width: 22px; height: 22px; border-radius: 8px; display:flex; align-items:center; justify-content:center; background: rgba(37,99,235,0.14); font-size: 12px; }
+      .ladder-summary-v{ margin-top: 6px; font-size: 13px; font-weight: 900; color: var(--text-primary); font-variant-numeric: tabular-nums; }
+      .ladder-summary-sub{ margin-top: 4px; font-size: 11px; color: var(--text-secondary); }
 
       /* Hot Topic */
       .hot-topic { padding: 16px; border-radius: var(--radius-md); margin-bottom: 12px; border-left: 4px solid; transition: all 0.2s; }
@@ -588,6 +652,7 @@
       .card[data-page] { display: none; }
       body[data-page="sentiment"] .card[data-page="sentiment"] { display: block; }
       body[data-page="themes"] .card[data-page="themes"] { display: block; }
+      body[data-page="ladder"] .card[data-page="ladder"] { display: block; }
 
       /* Page blocks（非 card 的页面块，如 summary/toc） */
       .page-block[data-page] { display: none; }
@@ -682,6 +747,7 @@
       <div class="tabbar">
         <button class="tab-btn active" data-page="sentiment" type="button">短线情绪</button>
         <button class="tab-btn" data-page="themes" type="button">板块题材</button>
+        <button class="tab-btn" data-page="ladder" type="button">连板天梯</button>
       </div>
 
       <!-- 首屏：情绪总控（仅短线情绪页显示） -->
@@ -731,7 +797,7 @@
               <span :class="signedClass(marketData.volume?.change)">{{ marketData.volume?.change ?? '-' }}</span>
             </div>
           </div>
-          <div class="summary-item" data-target="sec-ladder">
+          <div class="summary-item" data-target="sec-ladder" data-target-page="ladder">
             <div class="summary-k">高度</div>
             <div class="summary-v">
               <span :class="heightClass(marketData.ladder?.[0]?.badge)">{{ marketData.ladder?.[0]?.badge ?? '-' }}</span> 板
@@ -1242,10 +1308,11 @@
         </div>
       </div>
 
-      <!-- 连板天梯 -->
-      <div class="card" data-page="sentiment" id="sec-ladder">
+      <!-- 连板天梯（独立 Tab） -->
+      <div class="card" data-page="ladder" id="sec-ladder">
         <div class="card-header"><div class="card-title">连板天梯</div><div class="card-badge">非ST</div></div>
-        <div class="ladder-steps" id="ladderBody">
+        <div class="ladder-summary" id="ladderSummary"></div>
+        <div class="ladder-rows" id="ladderBody">
 
         <div class="ladder-step" style="--step-offset: 0px;">
           <div class="ladder-step-header">
@@ -1745,15 +1812,22 @@
         // 注意：ECharts 在 display:none 容器里初始化会拿到 0 宽高，因此按页懒渲染
         if (page === 'sentiment') {
           if (themeTrendChart) { themeTrendChart.dispose(); themeTrendChart = null; }
+          // ladder 独立页，sentiment 不再渲染天梯（避免重复信息）
           renderVolumeTrend(marketData.volume);
           renderHeightTrend(marketData.heightTrend);
           renderStyleRadar(marketData.styleRadar);
-          renderLadder(marketData.ladder);
-        } else {
+        } else if (page === 'themes') {
           if (volumeChart) { volumeChart.dispose(); volumeChart = null; }
           if (heightChart) { heightChart.dispose(); heightChart = null; }
           if (styleChart) { styleChart.dispose(); styleChart = null; }
           renderThemeTrend(marketData.themeTrend);
+        } else if (page === 'ladder') {
+          // 仅渲染天梯，其他图表实例释放（减少隐藏容器下的尺寸问题）
+          if (themeTrendChart) { themeTrendChart.dispose(); themeTrendChart = null; }
+          if (volumeChart) { volumeChart.dispose(); volumeChart = null; }
+          if (heightChart) { heightChart.dispose(); heightChart = null; }
+          if (styleChart) { styleChart.dispose(); styleChart = null; }
+          renderLadder(marketData.ladder);
         }
       };
 
@@ -2076,6 +2150,7 @@
       const renderLadder = (data) => {
         const container = document.getElementById("ladderBody");
         if (!container) return;
+        const summaryEl = document.getElementById("ladderSummary");
 
         const groups = [...data.reduce((acc, row) => {
           const next = new Map(acc);
@@ -2086,27 +2161,144 @@
         }, new Map()).entries()].sort((a, b) => b[0] - a[0]);
 
         const maxBadge = groups.length ? groups[0][0] : 2;
-        container.innerHTML = groups.map(([badge, rows]) => `
-          <div class="ladder-step" style="--step-offset:${(maxBadge - badge) * 28}px;">
-            <div class="ladder-step-header">
-              <span class="ladder-badge ${badge <= 6 ? `badge-${badge}` : 'badge-1'}">${badge}板</span>
-              <span class="ladder-step-count">${rows.length}只</span>
+
+        // 工具函数（天梯增强展示用）
+        const median = (arr) => {
+          const a = (arr || []).filter(v => Number.isFinite(v)).sort((x, y) => x - y);
+          if (!a.length) return 0;
+          const mid = Math.floor(a.length / 2);
+          return a.length % 2 ? a[mid] : (a[mid - 1] + a[mid]) / 2;
+        };
+        const fmtYi = (v) => v ? (v >= 10 ? `${v.toFixed(0)}亿` : `${v.toFixed(1)}亿`) : '-';
+        const fmtHhmm = (fbt) => {
+          const s = String(fbt || '').trim();
+          if (!s) return '';
+          if (s.includes(':')) return s.slice(0, 5);
+          if (s.length >= 4) return `${s.slice(0, 2)}:${s.slice(2, 4)}`;
+          return s;
+        };
+        const timeClass = (hhmm) => {
+          const s = String(hhmm || '');
+          if (!s.includes(':')) return 'blue-text';
+          const [hh, mm] = s.split(':').map(x => Number(x));
+          const t = (hh * 60) + mm;
+          if (t <= (9 * 60 + 30)) return 'red-text';      // 09:30 前
+          if (t >= (14 * 60 + 30)) return 'blue-text';    // 14:30 后
+          return 'orange-text';
+        };
+
+        // 顶部摘要：昨日→今日、空间、风险
+        if (summaryEl) {
+          const mi = marketData?.features?.mood_inputs || {};
+          const yest = Number(mi.yest_lb_count ?? 0);
+          const duan = Number(mi.duanban_count ?? 0);
+          const jj = mi.jj_rate !== undefined ? `${Number(mi.jj_rate).toFixed(0)}%` : '-';
+          const zt = Number(marketData?.panorama?.limitUp ?? 0);
+          const maxLb = Number(mi.max_lb ?? maxBadge);
+          const zbRate = mi.zb_rate !== undefined ? `${Number(mi.zb_rate).toFixed(1)}%` : '-';
+
+          const total = data?.length || 0;
+          const promote = data.filter(r => r.status === '晋级').length;
+          const fresh = data.filter(r => r.status === '新晋').length;
+
+          summaryEl.innerHTML = `
+            <div class="ladder-summary-item">
+              <div class="ladder-summary-k"><span class="ladder-summary-icon">🚀</span>晋级 / 新晋</div>
+              <div class="ladder-summary-v"><span class="green-text">${promote}</span> / <span class="blue-text">${fresh}</span>（共 ${total}）</div>
+              <div class="ladder-summary-sub">连板结构：承接与新核心</div>
+            </div>
+            <div class="ladder-summary-item">
+              <div class="ladder-summary-k"><span class="ladder-summary-icon">🧭</span>昨日反馈</div>
+              <div class="ladder-summary-v">${yest} → ${promote}（晋级率 ${jj}）</div>
+              <div class="ladder-summary-sub">断板 ${duan} 只 | 今日涨停 ${zt} 只</div>
+            </div>
+            <div class="ladder-summary-item">
+              <div class="ladder-summary-k"><span class="ladder-summary-icon">📈</span>高度 / 风险</div>
+              <div class="ladder-summary-v"><span class="${(maxLb>=6)?'red-text':(maxLb>=4?'orange-text':'green-text')}">${maxLb}</span> 板</div>
+              <div class="ladder-summary-sub">炸板率 ${zbRate} | 空间越高越易分歧</div>
+            </div>
+          `;
+        }
+
+        container.innerHTML = groups.map(([badge, rows]) => {
+          const promote = rows.filter(r => r.status === '晋级').length;
+          const fresh = rows.filter(r => r.status === '新晋').length;
+          // 5板以上统一用更醒目的色阶（7板等也能显示红色）
+          const badgeClass = badge >= 6 ? 'badge-6' : (badge === 5 ? 'badge-5' : `badge-${badge}`);
+
+          // 行级摘要：分歧强度 & 封板资金（完全基于现有字段 zbc/zj）
+          const zbcArr = rows.map(r => Number(r.zbc ?? 0));
+          const resealCnt = zbcArr.filter(v => v >= 1).length;
+          const multiOpenCnt = zbcArr.filter(v => v >= 2).length;
+          const resealRate = rows.length ? Math.round(resealCnt / rows.length * 100) : 0;
+          const multiOpenRate = rows.length ? Math.round(multiOpenCnt / rows.length * 100) : 0;
+          const resealCls = resealRate >= 55 ? 'kpi-red' : (resealRate >= 35 ? 'kpi-orange' : 'kpi-blue');
+          const multiCls = multiOpenRate >= 35 ? 'kpi-red' : (multiOpenRate >= 18 ? 'kpi-orange' : 'kpi-blue');
+
+          const sealYiArr = rows.map(r => (Number(r.zj ?? 0) / 1e8)).filter(v => v > 0);
+          const sealMed = median(sealYiArr);
+          const sealMax = sealYiArr.length ? Math.max(...sealYiArr) : 0;
+          return `
+          <div class="ladder-row">
+            <div class="ladder-left">
+              <div class="ladder-left-top">
+                <span class="ladder-badge ${badgeClass}">${badge}板</span>
+              </div>
+              <div class="ladder-left-meta">${rows.length}只</div>
+              <div class="ladder-left-kpi"><span class="green-text">${promote}</span>晋级 · <span class="blue-text">${fresh}</span>新晋</div>
             </div>
             <div class="ladder-stock-list">
               ${
-                rows.map(row => `
+                rows.map(row => {
+                  const zbc = Number(row.zbc ?? 0);
+                  const hasReSeal = zbc >= 1;
+                  const isHighOpen = zbc >= 2;
+                  const sealYi = row.zj ? (Number(row.zj) / 1e8) : 0;
+                  const sealText = sealYi ? `${sealYi.toFixed(sealYi >= 10 ? 0 : 1)}亿封` : '';
+                  const sealClass = sealYi >= 5 ? 'ladder-chip-strong red-text' : (sealYi >= 2 ? 'ladder-chip-warn orange-text' : 'ladder-chip-cool blue-text');
+
+                  const openTag = hasReSeal
+                    ? (isHighOpen ? `${zbc}次开板` : '回封')
+                    : '';
+
+                  // 个股角标：涨幅 & 首封时间
+                  const zf = Number(row.zf ?? 0);
+                  const zfText = Number.isFinite(zf) ? `${zf >= 0 ? '+' : ''}${zf.toFixed(1)}%` : '';
+                  const zfCls = zf >= 15 ? 'purple-text' : (zf >= 0 ? 'red-text' : 'green-text');
+                  const hhmm = fmtHhmm(row.fbt);
+                  const tCls = timeClass(hhmm);
+
+                  const chipsTop = [
+                    `<span class="ladder-chip ladder-chip-mini ${row.status === "晋级" ? "green-text" : "blue-text"}">${row.status}</span>`,
+                    zfText ? `<span class="ladder-chip ladder-chip-mini ${zfCls}">${zfText}</span>` : '',
+                    hhmm ? `<span class="ladder-chip ladder-chip-mini ladder-chip-time ${tCls}">${hhmm}</span>` : '',
+                  ].filter(Boolean).join('');
+
+                  const chipsMeta = [
+                    openTag ? `<span class="ladder-chip ${isHighOpen ? "ladder-chip-warn orange-text" : "ladder-chip-cool blue-text"}">${openTag}</span>` : '',
+                    sealText ? `<span class="ladder-chip ${sealClass}">${sealText}</span>` : '',
+                  ].filter(Boolean).join('');
+
+                  return `
                   <div class="ladder-stock-card">
-                    <div class="ladder-stock-name">${row.name}</div>
-                    <div class="ladder-stock-meta">
-                      <span class="ladder-chip ${row.status === "晋级" ? "green-text" : "blue-text"}">${row.status}</span>
-                      ${row.note ? `<span class="ladder-chip-note">${row.note}</span>` : ''}
+                    <div class="ladder-stock-top">
+                      <div class="ladder-stock-name">${row.name}</div>
+                      <div class="ladder-stock-tags">${chipsTop}</div>
                     </div>
+                    ${chipsMeta ? `<div class="ladder-meta-row">${chipsMeta}</div>` : ''}
+                    ${row.note ? `<div class="ladder-chip-note">${row.note}</div>` : ''}
                   </div>
-                `).join('')
+                  `;
+                }).join('')
               }
             </div>
+            <div class="ladder-row-footer">
+              <span class="pill">分歧：<span class="${resealCls}">回封${resealRate}%</span> · <span class="${multiCls}">多开${multiOpenRate}%</span></span>
+              <span class="pill">封板资金：中位${fmtYi(sealMed)} · 最大${fmtYi(sealMax)}</span>
+            </div>
           </div>
-        `).join("");
+        `;
+        }).join("");
       };
 
       /**
@@ -2138,11 +2330,20 @@
         document.querySelectorAll('.summary-item[data-target]').forEach(item => {
           item.addEventListener('click', () => {
             const id = item.getAttribute('data-target');
-            const el = document.getElementById(id);
-            if (!el) return;
-            el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            el.classList.add('flash');
-            setTimeout(() => el.classList.remove('flash'), 900);
+            const targetPage = item.getAttribute('data-target-page');
+            const doScroll = () => {
+              const el = document.getElementById(id);
+              if (!el) return;
+              el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              el.classList.add('flash');
+              setTimeout(() => el.classList.remove('flash'), 900);
+            };
+            if (targetPage && targetPage !== currentPage) {
+              switchPage(targetPage);
+              setTimeout(doScroll, 80);
+              return;
+            }
+            doScroll();
           });
         });
         
