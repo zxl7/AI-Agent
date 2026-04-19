@@ -393,7 +393,7 @@ def build_summary3(*, market_data: Dict[str, Any]) -> Dict[str, Any]:
 
 def build_learning_notes(*, market_data: Dict[str, Any], cache_dir: Path) -> Dict[str, Any]:
     """
-    学习短线的注意事项 + 1~2 句金句（偏复盘语气）。
+    学习短线的注意事项 + 1~2 句语录（偏复盘语气）。
     - 不引用外部 PDF 原文，避免版权风险；内容为归纳提炼。
     - 可随盘面阶段动态切换语气（更贴合每日复盘）。
     """
@@ -462,7 +462,7 @@ def build_learning_notes(*, market_data: Dict[str, Any], cache_dir: Path) -> Dic
         fire_quotes_add: list[tuple[str, str]] = []
         for s in cand:
             _id = "u" + hashlib.md5(s.encode("utf-8")).hexdigest()[:8]
-            # 归类：更短的当“金句”，稍长的当“提醒”
+            # 归类：更短的当“语录”，稍长的当“提醒”
             if len(s) <= 26:
                 # 退潮/防守类句子放到 fire_quotes
                 if any(k in s for k in ["止损", "亏损", "认赔", "危险", "躲开", "不摊", "不平摊", "保命"]):
@@ -474,7 +474,7 @@ def build_learning_notes(*, market_data: Dict[str, Any], cache_dir: Path) -> Dic
 
         return (tips_add, quotes_add, fire_quotes_add)
 
-    # 展示强度 A：每天仅 1 条注意事项 + 1 句金句，并做近 7 日去重
+    # 展示强度 A：每天仅 1 条注意事项 + 1 句语录，并做近 7 日去重
     # 候选池尽量丰富，避免两三天就重复
     tips_general = [
         ("t001", "先活下来：单笔/单日都要有可执行的止损与撤退点，回撤不可失控。"),
@@ -658,7 +658,7 @@ if __name__ == "__main__":
     except Exception:
         market_data.setdefault("summary3", {"lines": []})
 
-    # 离线增强：学习短线提醒 + 金句（随情绪阶段动态切换）
+    # 离线增强：学习短线提醒 + 语录（随情绪阶段动态切换）
     try:
         market_data.setdefault("learningNotes", build_learning_notes(market_data=market_data, cache_dir=market_json_path.parent))
     except Exception:

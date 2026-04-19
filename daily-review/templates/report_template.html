@@ -595,10 +595,24 @@
       .zt-name{ font-size: 14px; font-weight: 950; color: var(--text-primary); }
       .zt-sub{ margin-top: 4px; font-size: 12px; color: var(--text-muted); font-weight: 650; line-height: 1.4; }
       .zt-tags{ margin-top: 10px; display:flex; gap: 6px; flex-wrap: wrap; }
-      .exp-pre{ color: var(--warning); font-weight: 900; }
-      .exp-hi{ color: var(--danger); font-weight: 950; }
-      /* 低预期固定用蓝色，避免与超预期（红色）混淆 */
-      .exp-lo{ color: var(--primary); font-weight: 950; }
+      /* 预期管理：用“胶囊标签 + 分行”避免一坨文字 */
+      .exp-wrap{ margin-top: 6px; display: grid; gap: 4px; }
+      .exp-row{ line-height: 1.45; }
+      .exp-pill{
+        display:inline-block;
+        font-size: 11px;
+        padding: 1px 7px;
+        border-radius: 999px;
+        font-weight: 950;
+        margin-right: 6px;
+        border: 1px solid transparent;
+        vertical-align: baseline;
+        white-space: nowrap;
+      }
+      .pill-pre{ background: rgba(245, 158, 11, 0.14); color: var(--warning); border-color: rgba(245, 158, 11, 0.22); }
+      .pill-hi{ background: rgba(239, 68, 68, 0.12); color: var(--danger); border-color: rgba(239, 68, 68, 0.20); }
+      .pill-lo{ background: rgba(37, 99, 235, 0.12); color: var(--primary); border-color: rgba(37, 99, 235, 0.20); }
+      .reason-bits{ color: var(--text-secondary); font-weight: 720; }
 
       /* Action List */
       .action-list { list-style: none; }
@@ -1818,7 +1832,7 @@
             <li v-for="(t, i) in marketData.learningNotes.tips" :key="'tip-'+i">{{ t }}</li>
           </ul>
           <div class="footer-quotes" v-if="marketData.learningNotes.quotes && marketData.learningNotes.quotes.length">
-            <div class="footer-quote" v-for="(q, i) in marketData.learningNotes.quotes" :key="'q-'+i"><span>金句</span>{{ q }}</div>
+            <div class="footer-quote" v-for="(q, i) in marketData.learningNotes.quotes" :key="'q-'+i"><span>语录</span>{{ q }}</div>
           </div>
         </div>
         <p>📊 生成时间：__REPORT_DATE__ 收盘</p>
@@ -3067,19 +3081,32 @@
               if (open >= 8) {
                 const need = fundNeed(0.50);
                 const lo = Math.min(gapRange.lo, 0), hi = Math.min(gapRange.hi, 2);
-                return `<span class="exp-pre">预期</span>：${gapLabel(lo,hi)}（${pct(lo)}~${pct(hi)}）。<span class="exp-hi">超预期</span>：回封后封单回补≥${fundStr(need)}亿（≈今${fundStr(fundRef)}亿×50%）且竞价成交额≥${aucStr(aucNeed)}亿（≈今${aucStr(cjeYi)}亿×${Math.round(aucRatio*100)}%）；<span class="exp-pre">符合</span>：回封但低于门槛；<span class="exp-lo">低预期</span>：不回封或继续多开板。`.trim();
+                return `
+                  <div class="exp-row"><span class="exp-pill pill-pre">预期</span>${gapLabel(lo,hi)}（${pct(lo)}~${pct(hi)}）</div>
+                  <div class="exp-row"><span class="exp-pill pill-hi">超预期</span>回封 + 封单回补≥${fundStr(need)}亿（≈今${fundStr(fundRef)}亿×50%） + 竞价成交额≥${aucStr(aucNeed)}亿（≈今${aucStr(cjeYi)}亿×${Math.round(aucRatio*100)}%）</div>
+                  <div class="exp-row"><span class="exp-pill pill-lo">低预期</span>不回封 或 多开板继续放大</div>
+                `.trim();
               }
               // 中分歧：回封 + 封单/量能门槛
               if (open >= 3) {
                 const need = fundNeed(0.35);
                 const lo = Math.min(gapRange.lo, 0), hi = gapRange.hi;
-                return `<span class="exp-pre">预期</span>：${gapLabel(lo,hi)}（${pct(lo)}~${pct(hi)}）。<span class="exp-hi">超预期</span>：高开≥${pct(hi)}且回封后封单≥${fundStr(need)}亿（≈今${fundStr(fundRef)}亿×35%）+ 竞价成交额≥${aucStr(aucNeed)}亿；<span class="exp-pre">符合</span>：落在区间且开板≤2；<span class="exp-lo">低预期</span>：低开≤${pct(gapRange.lo)}或开板继续放大。`.trim();
+                return `
+                  <div class="exp-row"><span class="exp-pill pill-pre">预期</span>${gapLabel(lo,hi)}（${pct(lo)}~${pct(hi)}）</div>
+                  <div class="exp-row"><span class="exp-pill pill-hi">超预期</span>高开≥${pct(hi)} + 回封后封单≥${fundStr(need)}亿（≈今${fundStr(fundRef)}亿×35%） + 竞价成交额≥${aucStr(aucNeed)}亿</div>
+                  <div class="exp-row"><span class="exp-pill pill-lo">低预期</span>低开≤${pct(gapRange.lo)} 或 开板继续放大</div>
+                `.trim();
               }
               // 稳定票：用“竞价成交额(估)”+“高开区间”管理预期
               const lo = gapRange.lo, hi = gapRange.hi;
-              return `<span class="exp-pre">预期</span>：${gapLabel(lo,hi)}（${pct(lo)}~${pct(hi)}）。<span class="exp-hi">超预期</span>：高开≥${pct(hi)}且竞价成交额≥${aucStr(aucNeed)}亿（≈今${aucStr(cjeYi)}亿×${Math.round(aucRatio*100)}%）+ 开板≤1；<span class="exp-pre">符合</span>：落在区间且开板≤2；<span class="exp-lo">低预期</span>：低于${pct(lo)}或竞价量能<${aucStr(aucNeed*0.7)}亿。`.trim();
+              return `
+                <div class="exp-row"><span class="exp-pill pill-pre">预期</span>${gapLabel(lo,hi)}（${pct(lo)}~${pct(hi)}）</div>
+                <div class="exp-row"><span class="exp-pill pill-hi">超预期</span>高开≥${pct(hi)} + 竞价成交额≥${aucStr(aucNeed)}亿（≈今${aucStr(cjeYi)}亿×${Math.round(aucRatio*100)}%） + 开板≤1</div>
+                <div class="exp-row"><span class="exp-pill pill-lo">低预期</span>低于${pct(lo)} 或 竞价量能<${aucStr(aucNeed*0.7)}亿</div>
+              `.trim();
             })();
-            const reason = (reasonBits.length ? `${reasonBits.join(' · ')}；${observePoint}` : `综合条件一般；${observePoint}`);
+            const head = (reasonBits.length ? reasonBits.join(' · ') : '综合条件一般');
+            const reason = `<span class="reason-bits">${head}</span><div class="exp-wrap">${observePoint}</div>`;
             return { name, code, lbc, hy, fundYi, open, score: Math.round(score), tags, reason };
           });
 
