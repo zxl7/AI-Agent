@@ -758,6 +758,21 @@
       .summary-v{ font-size: 16px; font-weight: 900; color: var(--text-primary); font-variant-numeric: tabular-nums; }
       .summary-sub{ font-size: 11px; color: var(--text-secondary); font-weight: 650; opacity: 0.9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
       .summary-sub .delta-badge{ margin-left: 0; }
+      .summary3{
+        margin-top: 12px;
+        background: var(--bg-elevated);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-md);
+        padding: 10px 12px;
+      }
+      .summary3-line{
+        font-size: 12px;
+        line-height: 1.7;
+        color: var(--text-secondary);
+        font-weight: 650;
+        margin: 4px 0;
+      }
+      .summary3-line strong{ color: var(--text-primary); font-weight: 900; }
       .card.flash {
         outline: 2px solid rgba(37,99,235,0.55);
         box-shadow: 0 0 0 5px rgba(37,99,235,0.12), var(--shadow-sm);
@@ -928,6 +943,9 @@
               <span v-html="deltaBadge(delta.max_lb)"></span>
             </div>
           </div>
+        </div>
+        <div class="summary3" v-if="marketData.summary3?.lines && marketData.summary3.lines.length">
+          <div class="summary3-line" v-for="(l, i) in marketData.summary3.lines" :key="'s3-'+i"><strong>{{ i+1 }}.</strong> {{ l }}</div>
         </div>
       </div>
 
@@ -1697,6 +1715,9 @@
           <strong>{{ marketData.actionGuideV2.meta.title }}</strong>
           {{ marketData.actionGuideV2.meta.detail }}
         </div>
+        <div class="summary3" v-if="marketData.summary3?.lines && marketData.summary3.lines.length">
+          <div class="summary3-line" v-for="(l, i) in marketData.summary3.lines" :key="'plan-s3-'+i"><strong>{{ i+1 }}.</strong> {{ l }}</div>
+        </div>
         <div class="section-header">确认门槛（满足才进入接力模式）</div>
         <ul class="action-list">
           <li class="action-item" v-for="(item, idx) in (marketData.actionGuideV2?.confirm || [])" :key="'cf-'+idx">
@@ -1826,7 +1847,7 @@
 
       <div class="footer">
         <div class="footer-learning" v-if="marketData.learningNotes">
-          <div class="footer-learning-title">📌 学习短线提醒</div>
+          <div class="footer-learning-title">📌 短线提醒:</div>
           <ul v-if="marketData.learningNotes.tips && marketData.learningNotes.tips.length">
             <li v-for="(t, i) in marketData.learningNotes.tips" :key="'tip-'+i">{{ t }}</li>
           </ul>
@@ -1835,8 +1856,8 @@
           </div>
         </div>
         <p>📊 生成时间：__REPORT_DATE__ 收盘</p>
-        <p>数据来源：实时查询 | Claw Daily v11</p>
-        <p>K线为王 · 数据即事实 · 零ST · 不编造不猜测</p>
+        <p>数据来源：爬虫计划 | Claw Daily v7</p>
+        <p>K线为王 · 数据即事实 · 非ST · 不虚构不猜测</p>
       </div>
     </div>
 
@@ -2044,8 +2065,8 @@
              */
             indexChgIcon(chgStr) {
               const v = Number(String(chgStr).replace('%', ''));
-              if (v > 0) return '🔼';
-              if (v < 0) return '🔽';
+              if (v > 0) return '📈';
+              if (v < 0) return '📉';
               return '⏺';
             },
             /**
@@ -3025,7 +3046,7 @@
               ),
             ].filter(Boolean);
 
-            // 解释：尽量复盘化（“因何推荐/观察”）
+            // 解释：复盘一句话归因 + 明日观察点（更贴复盘）
             const reasonBits = [];
             if (fundYi >= (fundLo + (fundHi - fundLo) * 0.6)) reasonBits.push('封单偏强');
             if (open <= 1) reasonBits.push('开板少/封板稳');
@@ -3035,19 +3056,26 @@
             if (isMain) reasonBits.push('主线加成');
             if (leaderBonus >= 10) reasonBits.push('龙头梯队');
             if (lbc >= 2) reasonBits.push('梯队内有辨识度');
-            if (open >= 3) reasonBits.push('分歧偏大');
+            if (open >= 8) reasonBits.push('强分歧(多开板)');
+            else if (open >= 3) reasonBits.push('分歧偏大');
             if (stageType === 'good' && lbc >= 5) reasonBits.push('高位谨慎');
 
-            return { name, code, lbc, hy, fundYi, open, score: Math.round(score), tags, reason: reasonBits.join(' · ') || '综合条件一般' };
+            const observePoint = (open >= 8)
+              ? '明日：只看回封与封单回补，不追一致。'
+              : (open >= 3)
+                ? '明日：分歧回封确认后再动。'
+                : '明日：盯开盘承接，强则可接力/确认。';
+            const reason = (reasonBits.length ? `${reasonBits.join(' · ')}；${observePoint}` : `综合条件一般；${observePoint}`);
+            return { name, code, lbc, hy, fundYi, open, score: Math.round(score), tags, reason };
           });
 
           const relay = scored
-            .filter(r => r.lbc >= 2)
+            .filter(r => r.lbc >= 2 && r.open <= 2)   // 接力池：尽量排除强分歧/多开板
             .sort((a, b) => b.score - a.score)
             .slice(0, 8);
 
           const watch = scored
-            .filter(r => r.lbc <= 2 || r.open >= 2)
+            .filter(r => r.lbc <= 2 || r.open >= 2)   // 观察池：低位/或有分歧的都先观察
             .sort((a, b) => b.score - a.score)
             .slice(0, 8);
 

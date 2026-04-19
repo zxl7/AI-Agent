@@ -66,19 +66,84 @@ def build_action_guide_v2(market_data: Dict[str, Any]) -> Dict[str, Any]:
         return {"text": text, "cls": cls}
 
     def pick_theme() -> Dict[str, Any]:
-        t = (((market_data.get("themePanels") or {}).get("ztTop") or [])[:1] or [None])[0]
-        if not t:
-            return {"name": "主线", "count": 0, "examples": ""}
-        return t
+        """
+        主线识别（复盘版）：
+        - 优先基于 strengthRows 的“净强-风险”来选主线（更稳，减少“涨停数虚胖”）
+        - examples 优先从当日涨停池里抽样，确保举例与主线一致（避免不精准）
+        """
+        tp = market_data.get("themePanels") or {}
+        rows = (tp.get("strengthRows") or [])[:10]
+        best = None
+        best_score = -1e9
+        for r in rows:
+            net = to_num(r.get("net"), 0)
+            risk = to_num(r.get("risk"), 0)
+            # 经验权重：净强优先，风险惩罚；避免“高净强但风险爆表”的误判
+            score = net - risk * 0.6
+            if score > best_score:
+                best_score = score
+                best = r
 
-    def pick_leader() -> Dict[str, Any]:
+        # 兜底：无 strengthRows 时回退到涨停Top
+        if not best:
+            t = ((tp.get("ztTop") or [])[:1] or [None])[0]
+            if not t:
+                return {"name": "主线", "count": 0, "examples": ""}
+            return t
+
+        name = str(best.get("name") or "主线")
+        count = int(to_num(best.get("zt"), 0))
+
+        # 从涨停池抽样 examples（依赖渲染器注入 ztgc + zt_code_themes）
+        ztgc = market_data.get("ztgc") or []
+        code2themes = market_data.get("zt_code_themes") or {}
+        picks: list[tuple[float, str]] = []
+        for s in ztgc:
+            code = str(s.get("dm") or s.get("code") or "")
+            mc = str(s.get("mc") or "")
+            if not code or not mc:
+                continue
+            ths = code2themes.get(code) or []
+            if name not in ths:
+                continue
+            lbc = to_num(s.get("lbc"), 1)
+            zj = to_num(s.get("zj"), 0)
+            zbc = to_num(s.get("zbc"), 0)
+            score = lbc * 100 + zj / 1e8 * 10 - zbc * 2
+            picks.append((score, mc))
+        picks.sort(reverse=True)
+        examples = "·".join([mc for _, mc in picks[:3]]) if picks else str(((tp.get("ztTop") or [{}])[0] or {}).get("examples") or "")
+        return {"name": name, "count": count, "examples": examples}
+
+    def pick_leader(*, prefer_theme: str) -> Dict[str, Any]:
+        """
+        龙头识别（复盘版）：
+        - 先取最高板组
+        - 同板高度下：优先主线题材命中，其次封单更大、开板更少
+        """
         rows = market_data.get("ladder") or []
         max_b = 0
         for r in rows:
             max_b = max(max_b, int(to_num(r.get("badge"), 0)))
-        names = [r.get("name") for r in rows if int(to_num(r.get("badge"), 0)) == max_b]
+        top = [r for r in rows if int(to_num(r.get("badge"), 0)) == max_b]
+        if not top:
+            return {"maxB": max_b, "names": "龙头", "count": 0}
+
+        code2themes = market_data.get("zt_code_themes") or {}
+
+        def rank_key(r: Dict[str, Any]) -> float:
+            code = str(r.get("code") or r.get("dm") or "")
+            ths = code2themes.get(code) or []
+            is_main = 1 if (prefer_theme and prefer_theme in ths) else 0
+            zj = to_num(r.get("zj"), 0)
+            zbc = to_num(r.get("zbc"), 0)
+            # 主线命中优先；封单大更好；开板多惩罚
+            return is_main * 1e6 + (zj / 1e8) * 1000 - zbc * 10
+
+        top_sorted = sorted(top, key=rank_key, reverse=True)
+        names = [str(r.get("name") or "") for r in top_sorted]
         names = [n for n in names if n]
-        return {"maxB": max_b, "names": "、".join(names[:3]) if names else "龙头", "count": len(names)}
+        return {"maxB": max_b, "names": "、".join(names[:3]) if names else "龙头", "count": len(top_sorted)}
 
     def pick_theme_strength(name: str) -> Dict[str, Any]:
         rows = ((market_data.get("themePanels") or {}).get("strengthRows") or [])
@@ -93,7 +158,7 @@ def build_action_guide_v2(market_data: Dict[str, Any]) -> Dict[str, Any]:
     stage = (market_data.get("moodStage") or {}).get("title") or "-"
     stage_type = (market_data.get("moodStage") or {}).get("type") or "warn"
     theme = pick_theme()
-    leader = pick_leader()
+    leader = pick_leader(prefer_theme=str(theme.get("name") or ""))
     theme_row = pick_theme_strength(str(theme.get("name") or ""))
     theme_net = to_num(theme_row.get("net"), 0)
     theme_risk = to_num(theme_row.get("risk"), 0)
@@ -154,18 +219,21 @@ def build_action_guide_v2(market_data: Dict[str, Any]) -> Dict[str, Any]:
     elif risk >= 60 or loss >= 10 or fb <= 55:
         stance = "防守"
 
-    # 模式选择：接力 / 低位试错 / 休息（贴近“等待确认/避免频繁交易”理念）
+    # 模式选择（4态）：接力 / 套利 / 低位试错 / 休息
     mode = "低位试错"
-    if stance == "防守" or stage_type == "fire":
+    if stance == "防守" or stage_type == "fire" or overlap_score >= 70:
         mode = "休息"
     else:
-        # 接力模式需要“承接确认 + 风险可控 + 有空间锚”
-        if fb >= 60 and jj >= 35 and zb <= 35 and loss <= 10 and leader["maxB"] >= 2:
+        # 接力模式需要“承接确认 + 风险可控 + 有空间锚 + 主线净强不差”
+        if fb >= 60 and jj >= 35 and zb <= 35 and loss <= 10 and leader["maxB"] >= 2 and theme_net >= 10:
             mode = "接力"
+        # 套利态：风险不高但承接不足，更多做“回封/容量/趋势”，不做高位硬接
+        elif risk <= 55 and zb <= 45 and loss <= 12:
+            mode = "套利"
         else:
             mode = "低位试错"
 
-    meta_title = f"🧩 盘面基调：{regime}｜模式：{mode}｜建议：{stance}"
+    meta_title = f"🧩 盘面基调：{regime}｜主线：{theme.get('name','主线')}｜模式：{mode}｜建议：{stance}"
     meta_detail = (
         f"涨停{zt_cnt}，封板{fb:.1f}%（早封{early:.0f}%），晋级{jj:.0f}%；"
         f"炸板{zb:.1f}%、亏钱扩散{int(loss)}；量能变化{vol_chg:+.2f}%。"
@@ -244,6 +312,19 @@ def build_action_guide_v2(market_data: Dict[str, Any]) -> Dict[str, Any]:
         },
         {
             "dot": "dot-safe",
+            "title": "确认门槛②：板块联动/共振（至少两只核心同向）",
+            "desc": (
+                f"不盯一只票：用“同题材两只辨识度”相互印证。"
+                f"主线样本可先盯：{theme.get('examples') or '—'}。"
+                "若同题材无法共振（强的强、弱的弱），宁可等待确认，不急于出手。"
+            ),
+            "tags": [
+                tag("两股验证", "ladder-chip-cool blue-text"),
+                tag("等确认", "ladder-chip-warn orange-text"),
+            ],
+        },
+        {
+            "dot": "dot-safe",
             "title": "确认门槛②：承接不掉速（关键点确认）",
             "desc": (
                 f"封板≥{max(0, fb - tol['fb']):.0f}%（今{fb:.1f}%），"
@@ -300,13 +381,31 @@ def build_action_guide_v2(market_data: Dict[str, Any]) -> Dict[str, Any]:
                 tag(f"重叠度 {overlap_score:.0f}", "ladder-chip-strong red-text" if overlap_score >= 60 else "ladder-chip-cool blue-text"),
             ],
         },
+        {
+            "dot": "dot-risk",
+            "title": "撤退条件④：仓位纪律（不摊平/快认错）",
+            "desc": "原则：不摊平亏损；买入后2-3天仍无正反馈则退出。单笔/单日亏损设上限（例如 10%），触发就先撤。",
+            "tags": [
+                tag("不摊平", "ladder-chip-strong red-text"),
+                tag("快认错", "ladder-chip-warn orange-text"),
+                tag("止损上限", "ladder-chip-cool blue-text"),
+            ],
+        },
     ]
 
     do_list = [
         {
             "dot": "dot-safe",
-            "title": "计划A（主线核心）：先做确认再加速",
-            "desc": f"若承接达标（封板/晋级不掉、炸板不放大），围绕{line_main_theme()}做“核心辨识度”。执行上以2板确认/分歧回封为主，避免尾盘一致追涨。",
+            "title": "计划A（主线核心）：先做确认再加速" if mode == "接力" else ("计划A（套利态）：回封/容量优先" if mode == "套利" else "计划A（低位试错）：换手确认优先"),
+            "desc": (
+                f"接力模式：承接达标后围绕{line_main_theme()}做核心辨识度，以2板确认/分歧回封为主，避免尾盘一致追涨。"
+                if mode == "接力"
+                else (
+                    f"套利态：围绕{line_main_theme()}做回封/容量/趋势的确定性，不做高位情绪硬接，优先“回封确认→隔日兑现”。"
+                    if mode == "套利"
+                    else f"低位试错：当承接一般时，围绕{line_main_theme()}只做低位换手确认与首板/1进2，小仓试错换信息。"
+                )
+            ),
             "tags": [
                 tag(f"主线 {theme.get('name','主线')}", "ladder-chip-cool blue-text"),
                 tag(f"封板≥{max(0, fb - tol['fb']):.0f}%", ""),
@@ -330,6 +429,7 @@ def build_action_guide_v2(market_data: Dict[str, Any]) -> Dict[str, Any]:
             "tags": [
                 tag(f"热度 {int(heat)}", "ladder-chip-strong red-text" if heat >= 70 else "ladder-chip-warn orange-text"),
                 tag(f"风险 {int(risk)}", "ladder-chip-strong red-text" if risk >= 60 else "ladder-chip-cool blue-text"),
+                tag("分批进场", "ladder-chip-cool blue-text"),
                 *(x for x in [dtag("heat"), dtag("risk")] if x),
             ],
         },
@@ -374,6 +474,61 @@ def build_action_guide_v2(market_data: Dict[str, Any]) -> Dict[str, Any]:
         "avoid": avoid,
     }
 
+
+def build_summary3(*, market_data: Dict[str, Any]) -> Dict[str, Any]:
+    """全站三句话（复盘口径统一）：今天是什么盘 / 主线与龙头 / 明天模式与触发条件"""
+    ag = (market_data.get("actionGuideV2") or {})
+    meta = (ag.get("meta") or {})
+
+    # 1) 今天是什么盘（取 meta.detail 的数字版 + stage）
+    stage = (market_data.get("moodStage") or {}).get("title") or "-"
+    line1 = f"今日：{stage}，{meta.get('detail','').strip()}"
+
+    # 2) 主线与龙头
+    theme = ((market_data.get("actionGuideV2") or {}).get("meta") or {}).get("title", "")
+    # meta.title 内含“主线：xx”，这里再提取一次更直白
+    main = (market_data.get("themePanels") or {}).get("ztTop") or []
+    main_name = ""
+    if "主线：" in str(meta.get("title", "")):
+        try:
+            main_name = str(meta.get("title")).split("主线：", 1)[1].split("｜", 1)[0].strip()
+        except Exception:
+            main_name = ""
+    if not main_name:
+        main_name = (main[0].get("name") if main else "主线")
+    leader = "龙头"
+    ladder = market_data.get("ladder") or []
+    if ladder:
+        maxb = max(int(float(r.get("badge", 0) or 0)) for r in ladder)
+        tops = [r for r in ladder if int(float(r.get("badge", 0) or 0)) == maxb]
+        leader = "、".join([str(r.get("name") or "") for r in tops[:2] if str(r.get("name") or "")]) or leader
+        leader = f"{leader}（{maxb}板）"
+    line2 = f"主线：{main_name}；空间锚：{leader}。"
+
+    # 3) 明天怎么做（模式 + 关键触发）
+    mode = ""
+    if "模式：" in str(meta.get("title", "")):
+        try:
+            mode = str(meta.get("title")).split("模式：", 1)[1].split("｜", 1)[0].strip()
+        except Exception:
+            mode = ""
+    if not mode:
+        mode = "低位试错"
+
+    # 从 confirm/retreat 抽一句最关键的阈值（尽量短）
+    cf = (ag.get("confirm") or [])
+    rt = (ag.get("retreat") or [])
+    cf_hint = ""
+    rt_hint = ""
+    if cf:
+        cf_hint = str((cf[1].get("desc") if len(cf) > 1 else cf[0].get("desc")) or "").strip()
+        cf_hint = cf_hint.split("；", 1)[0]
+    if rt:
+        rt_hint = str(rt[0].get("desc") or "").strip().split("，", 1)[0]
+    line3 = f"明日：{mode}。确认：{cf_hint or '承接确认'}；撤退：{rt_hint or '风险放大就降级'}。"
+
+    return {"lines": [line1, line2, line3]}
+
 def build_learning_notes(*, market_data: Dict[str, Any], cache_dir: Path) -> Dict[str, Any]:
     """
     学习短线的注意事项 + 1~2 句金句（偏复盘语气）。
@@ -400,24 +555,31 @@ def build_learning_notes(*, market_data: Dict[str, Any], cache_dir: Path) -> Dic
         ("t011", "价位是确认信号的核心：不等关键价位被市场确认，不轻举妄动。"),
         ("t012", "频繁交易是失败者的玩法：当市场缺乏大好机会，应缩手不动。"),
         ("t013", "集中火力做领先股：先确认谁是领头股，再集中，而不是分散。"),
+        ("t014", "两股验证：用同题材两只辨识度相互印证，减少“单票误判”。"),
+        ("t015", "先有盈利再加仓：没有浮盈，就不要谈格局与耐心。"),
+        ("t016", "成交量是危险信号：放量不涨、趋势不延续，要优先防守。"),
+        ("t017", "不靠消息下单：只看事实（强度、承接、联动、风险）。"),
     ]
     tips_good = [
         ("tg01", "高潮日更要克制：不追尾盘一致，优先分歧回封/换手确认。"),
         ("tg02", "高度打开≠随便追：盯龙头与主线扩散，别追补涨跟风。"),
         ("tg03", "高位一旦放量分歧，先减仓再谈接力。"),
         ("tg04", "重要趋势的利润多发生在最后阶段：但前提是你一直在场内、且仓位可控。"),
+        ("tg05", "强市也要分批：先试错确认，再加仓扩大利润段。"),
     ]
     tips_warn = [
         ("tw01", "分歧市先做减法：宁可少做，也不乱做。"),
         ("tw02", "主线不强就不硬接：用低位换手试错换信息。"),
         ("tw03", "炸板与扩散同步走高时，宁可空仓观望。"),
         ("tw04", "最小阻力线不一致就不做：先让市场本身证实你的判断。"),
+        ("tw05", "板块不联动就不强：同题材不共振，优先等待。"),
     ]
     tips_fire = [
         ("tf01", "退潮阶段先保命：不做高位接力，不做情绪硬接。"),
         ("tf02", "弱势只做模式内：小仓试错，错了就退。"),
         ("tf03", "亏钱效应不收敛前，优先休息而不是寻找机会。"),
         ("tf04", "看到危险信号就躲开：过几天再回来，省麻烦也省钱。"),
+        ("tf05", "退潮期少做：休息也是交易的一部分。"),
     ]
 
     quotes_good = [
@@ -426,6 +588,7 @@ def build_learning_notes(*, market_data: Dict[str, Any], cache_dir: Path) -> Dic
         ("qg03", "空间来自龙头，但利润来自纪律。"),
         ("qg04", "强市也会杀人：别在最高点证明自己勇敢。"),
         ("qg05", "能赚到钱靠的不是想法，真正赚到钱的是坐在那里等待机会的出现。"),
+        ("qg06", "趋势发动前的等待，胜过趋势发动后的追赶。"),
     ]
     quotes_warn = [
         ("qw01", "分歧市做减法：只做最强主线的最强辨识度。"),
@@ -434,6 +597,7 @@ def build_learning_notes(*, market_data: Dict[str, Any], cache_dir: Path) -> Dic
         ("qw04", "做对很难，少犯错更重要。"),
         ("qw05", "市场只有一个方向：不是多头也不是空头，而是做对的方向。"),
         ("qw06", "关键价位之上5%~10%才入场，往往已经错过最佳时机。"),
+        ("qw07", "没有共振的强，只是单点的热。"),
     ]
     quotes_fire = [
         ("qf01", "退潮先保命：不亏钱就是赢。"),
@@ -442,6 +606,7 @@ def build_learning_notes(*, market_data: Dict[str, Any], cache_dir: Path) -> Dic
         ("qf04", "等风来，不是赌风来。"),
         ("qf05", "当我看见危险信号时，我不跟它争执，我躲开。"),
         ("qf06", "绝不要平反亏损——亏损只会让判断失真。"),
+        ("qf07", "先躲开危险信号，机会永远会再来。"),
     ]
 
     if stage_type == "good":
@@ -541,6 +706,12 @@ if __name__ == "__main__":
         market_data.setdefault("actionGuideV2", build_action_guide_v2(market_data))
     except Exception:
         market_data.setdefault("actionGuideV2", {"observe": [], "do": [], "avoid": []})
+
+    # 离线增强：全站三句话（口径统一）
+    try:
+        market_data.setdefault("summary3", build_summary3(market_data=market_data))
+    except Exception:
+        market_data.setdefault("summary3", {"lines": []})
 
     # 离线增强：学习短线提醒 + 金句（随情绪阶段动态切换）
     try:

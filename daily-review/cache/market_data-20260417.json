@@ -831,26 +831,6 @@
         "riskClass": "green-text"
       },
       {
-        "name": "新能源车",
-        "zt": 14,
-        "zb": 4,
-        "dt": 0,
-        "net": 11.2,
-        "risk": 2.8,
-        "netClass": "red-text",
-        "riskClass": "orange-text"
-      },
-      {
-        "name": "新材料",
-        "zt": 14,
-        "zb": 4,
-        "dt": 0,
-        "net": 11.2,
-        "risk": 2.8,
-        "netClass": "red-text",
-        "riskClass": "orange-text"
-      },
-      {
         "name": "太阳能（光伏）",
         "zt": 14,
         "zb": 4,
@@ -861,7 +841,27 @@
         "riskClass": "orange-text"
       },
       {
+        "name": "新能源车",
+        "zt": 14,
+        "zb": 4,
+        "dt": 0,
+        "net": 11.2,
+        "risk": 2.8,
+        "netClass": "red-text",
+        "riskClass": "orange-text"
+      },
+      {
         "name": "5G",
+        "zt": 14,
+        "zb": 4,
+        "dt": 0,
+        "net": 11.2,
+        "risk": 2.8,
+        "netClass": "red-text",
+        "riskClass": "orange-text"
+      },
+      {
+        "name": "新材料",
         "zt": 14,
         "zb": 4,
         "dt": 0,
