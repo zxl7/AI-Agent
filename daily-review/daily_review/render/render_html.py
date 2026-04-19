@@ -205,6 +205,21 @@ def build_action_guide_v2(market_data: Dict[str, Any]) -> Dict[str, Any]:
             text = f"Δ{sign}{int(n) if float(n).is_integer() else n}{unit}"
         return tag(text, cls)
 
+    def delta_text(key: str, unit: str = "", digits: int = 0) -> str:
+        """返回更语义化的增量文本，如：+2 / -3 / +1.2pp；缺失则返回空字符串"""
+        v = delta.get(key)
+        if v is None:
+            return ""
+        n = to_num(v, None)  # type: ignore[arg-type]
+        if n is None:
+            return ""
+        sign = "+" if n > 0 else ""
+        if unit == "pp":
+            return f"{sign}{n:.1f}{unit}"
+        if digits > 0:
+            return f"{sign}{n:.{digits}f}{unit}"
+        return f"{sign}{int(n) if float(n).is_integer() else n}{unit}"
+
     # 盘面基调（给行动指南一个“像复盘”的总起）
     if stage_type == "good":
         regime = "强势偏高潮"
@@ -247,246 +262,70 @@ def build_action_guide_v2(market_data: Dict[str, Any]) -> Dict[str, Any]:
         f"多开板≥3占比{zbc_ge3_ratio:.1f}%（均开板{avg_zbc:.2f}）。"
     )
 
-    # 文案模块化：尽量贴合盘面，不用固定话术
-    def line_main_theme() -> str:
-        nm = theme.get("name", "主线")
-        ex = theme.get("examples") or ""
-        if ex:
-            return f"主线{nm}（样本：{ex}）"
-        return f"主线{nm}"
+    # === 纯数据驱动文案（避免固定话术堆料）===
+    def bar(*parts: str) -> str:
+        return "｜".join([p for p in parts if p])
 
-    def line_leader() -> str:
-        return f"空间锚定：{leader['names']}（{leader['maxB'] or '-'}板）"
+    main_name = str(theme.get("name") or "主线")
+    main_examples = str(theme.get("examples") or "—")
+    main_str = f"{main_name}（样本：{main_examples}）"
+    leader_name = str(leader.get("names") or "龙头")
+    leader_b = leader.get("maxB") or "-"
 
-    def style_hint() -> str:
-        if stage_type == "good" and leader["maxB"] >= 6:
-            return "高潮高位：更看“分歧回封/换手确认”，少追一致加速。"
-        if stage_type == "warn":
-            return "分歧震荡：以“主线辨识度+低位换手”为主，避免情绪硬接。"
-        return "退潮弱势：以防守与模式内试错为主，等待拐点信号。"
+    # 观察清单：你明确不需要（容易产生“滞后/空泛”观感），保持为空
+    observe: list[Dict[str, Any]] = []
 
-    observe = [
-        {
-            "dot": "dot-key",
-            "title": f"主线与龙头：{theme.get('name','主线')} · {leader['names']}（{leader['maxB'] or '-'}板）",
-            "desc": f"{line_main_theme()}；{line_leader()}。{style_hint()}",
-            "tags": [
-                tag(f"情绪：{stage}", stage_cls),
-                tag(f"主线：{theme.get('name','主线')} {theme.get('count',0)}家", "ladder-chip-cool blue-text"),
-                tag(f"高度：{leader['maxB'] or '-'}板", "ladder-chip-strong red-text" if leader["maxB"] >= 6 else "ladder-chip-warn orange-text"),
-                *(x for x in [dtag("max_lb")] if x),
-            ],
-        },
-        {
-            "dot": "dot-watch",
-            "title": "承接与一致性：封板/晋级是否掉速",
-            "desc": f"承接不掉速才谈接力：封板≥{max(0, fb - tol['fb']):.0f}%（今{fb:.1f}%），晋级≥{max(0, jj - tol['jj']):.0f}%（今{jj:.0f}%）。若早封占比走低，优先做回封确认。",
-            "tags": [
-                tag(f"封板 {fb:.1f}%", "ladder-chip-warn orange-text"),
-                *(x for x in [dtag("fb_rate", "pp")] if x),
-                tag(f"晋级 {jj:.0f}%", "ladder-chip-cool blue-text"),
-                *(x for x in [dtag("jj_rate", "pp")] if x),
-                tag(f"早封 {early:.0f}%", "ladder-chip-cool blue-text"),
-                *(x for x in [dtag("zt_early_ratio", "pp")] if x),
-            ],
-        },
-        {
-            "dot": "dot-watch",
-            "title": "分歧信号：炸板与亏钱扩散是否放大",
-            "desc": f"风险先行：炸板≤{(zb + tol['zb']):.1f}%（今{zb:.1f}%）；扩散≤{int(loss + tol['loss'])}（今{int(loss)}）。若两者同步走高，明日以“观察”为主。",
-            "tags": [
-                tag(f"炸板 {zb:.1f}%", "ladder-chip-warn orange-text"),
-                *(x for x in [dtag("zb_rate", "pp")] if x),
-                tag(f"扩散 {int(loss)}只", "ladder-chip-strong red-text"),
-                *(x for x in [dtag("loss")] if x),
-            ],
-        },
-    ]
-
-    # 双清单：开盘验证 & 盘中失效（把理念变成“现象级、可执行规则”，减少滞后感）
+    # 开盘2条：纯数据 + 阈值（不写“建议/观察/优先”这类空话）
     confirm = [
         {
             "dot": "dot-safe",
-            "title": "开盘验证①：主线仍强（仍在Top且净强不崩）",
-            "desc": (
-                f"主线「{theme.get('name','主线')}」净强度参考今{theme_net:.1f}（风险{theme_risk:.1f}）；"
-                "明早看它是否仍在涨停Top、且强分歧能修复（回封/承接）。不满足则从接力降级为套利/低位。"
+            "title": f"开盘① 定主线：{main_name}",
+            "desc": bar(
+                f"净强{theme_net:.1f} · 风险{theme_risk:.1f}",
+                f"拥挤(重叠){overlap_score:.0f}%",
+                f"保留底线：净强≥{max(theme_net-1.0,0):.1f}",
             ),
             "tags": [
-                tag(f"主线净强 {theme_net:.1f}", "ladder-chip-warn orange-text" if theme_net >= 10 else "ladder-chip-cool blue-text"),
-                tag(f"主线风险 {theme_risk:.1f}", "ladder-chip-warn orange-text" if theme_risk >= 4 else "ladder-chip-cool blue-text"),
-                tag(f"重叠度 {overlap_score:.0f}", "ladder-chip-strong red-text" if overlap_score >= 60 else "ladder-chip-cool blue-text"),
+                tag(f"样本{main_examples}", "ladder-chip-cool blue-text"),
             ],
         },
         {
             "dot": "dot-safe",
-            "title": "开盘验证②：板块联动/共振（两股验证）",
-            "desc": (
-                f"不盯一只票：用“同题材两只辨识度”相互印证。"
-                f"主线样本可先盯：{theme.get('examples') or '—'}。"
-                "若同题材无法共振（强的强、弱的弱），说明主线内部不稳：改做套利/低位，避免频繁追涨。"
+            "title": "开盘② 定节奏：承接 vs 分歧",
+            "desc": bar(
+                f"承接：封板{fb:.1f}% / 晋级{jj:.0f}% / 早封{early:.0f}%",
+                f"分歧：炸板{zb:.1f}% / ≥3开板{zbc_ge3_ratio:.0f}% / 均开板{avg_zbc:.2f}",
             ),
             "tags": [
-                tag("两股验证", "ladder-chip-cool blue-text"),
-                tag("不共振=降级", "ladder-chip-warn orange-text"),
-            ],
-        },
-        {
-            "dot": "dot-safe",
-            "title": "开盘验证③：龙头承接（空间锚是否还在）",
-            "desc": (
-                f"空间锚参考：{leader['names']}（{leader['maxB'] or '-'}板）。"
-                "明早看龙头是否断板/大分歧且无法修复。若龙头走弱，接力直接降级为套利或休息。"
-            ),
-            "tags": [
-                tag(f"高度 {leader['maxB'] or '-'}板", "ladder-chip-strong red-text" if leader["maxB"] >= 6 else "ladder-chip-warn orange-text"),
-                tag("断板=降级", "ladder-chip-warn orange-text"),
-            ],
-        },
-        {
-            "dot": "dot-safe",
-            "title": "开盘验证④：分歧修复（强分歧则只做回封）",
-            "desc": (
-                f"今日多开板≥3占比 {zbc_ge3_ratio:.1f}%（均开板{avg_zbc:.2f}）。"
-                "明日若强分歧继续放大：只做回封确认/容量，不追一致；若分歧收敛：允许接力加速。"
-            ),
-            "tags": [
-                tag(f"≥3开板 {zbc_ge3_ratio:.0f}%", "ladder-chip-warn orange-text" if zbc_ge3_ratio >= 18 else "ladder-chip-cool blue-text"),
-                tag(f"均开板 {avg_zbc:.2f}", "ladder-chip-warn orange-text" if avg_zbc >= 1.8 else "ladder-chip-cool blue-text"),
-                *(x for x in [dtag("zb_rate", "pp")] if x),
-            ],
-        },
-        {
-            "dot": "dot-safe",
-            "title": "开盘验证⑤：风险趋势（先看亏钱效应是否抬头）",
-            "desc": (
-                f"参考今日：炸板{zb:.1f}%、扩散{int(loss)}。"
-                "若明日出现风险抬头（亏钱扩散继续增加/炸板明显增多），立即从接力→套利/低位→休息（不硬扛）。"
-            ),
-            "tags": [
-                tag(f"炸板 {zb:.1f}%", "ladder-chip-warn orange-text"),
-                tag(f"扩散 {int(loss)}只", "ladder-chip-strong red-text" if loss >= 8 else "ladder-chip-cool blue-text"),
-                *(x for x in [dtag("loss")] if x),
+                *(x for x in [dtag("fb_rate", "pp"), dtag("jj_rate", "pp"), dtag("zb_rate", "pp"), dtag("loss")] if x),
             ],
         },
     ]
 
+    # 盘中2条失效：同样纯数据/阈值表达
     retreat = [
         {
             "dot": "dot-risk",
-            "title": "失效条件①：主线失效（跌出Top/不共振）",
-            "desc": "主线跌出涨停Top或同题材不再共振时：停止题材发散，降级为套利/低位；若同时风险抬头则直接休息。",
-            "tags": [
-                tag("不共振=降级", "ladder-chip-warn orange-text"),
-                tag(f"重叠度 {overlap_score:.0f}", "ladder-chip-strong red-text" if overlap_score >= 60 else "ladder-chip-cool blue-text"),
-            ],
-        },
-        {
-            "dot": "dot-risk",
-            "title": "失效条件②：龙头失效（断板/修复失败）",
-            "desc": f"空间锚（{leader['names']}）断板或大分歧修复失败：停止高位接力，转套利/低位；若叠加风险抬头则休息。",
-            "tags": [
-                tag(f"高度 {leader['maxB'] or '-'}板", "ladder-chip-strong red-text" if leader["maxB"] >= 6 else "ladder-chip-warn orange-text"),
-                tag("断板=停止追高", "ladder-chip-warn orange-text"),
-            ],
-        },
-        {
-            "dot": "dot-risk",
-            "title": "失效条件③：强分歧放大（多开板/炸板走高）",
-            "desc": "当强分歧继续放大（多开板、炸板显著走高）：只做回封确认，不做追一致；若回封失败则直接休息。",
-            "tags": [
-                tag(f"≥3开板 {zbc_ge3_ratio:.0f}%", "ladder-chip-warn orange-text" if zbc_ge3_ratio >= 18 else "ladder-chip-cool blue-text"),
-                tag(f"炸板 {zb:.1f}%", "ladder-chip-warn orange-text"),
-            ],
-        },
-        {
-            "dot": "dot-risk",
-            "title": "失效条件④：仓位纪律（不摊平/快认错）",
-            "desc": "原则：不摊平亏损；买入后2-3天仍无正反馈则退出。单笔/单日亏损设上限（例如10%），触发就先撤。",
-            "tags": [
-                tag("不摊平", "ladder-chip-strong red-text"),
-                tag("快认错", "ladder-chip-warn orange-text"),
-                tag("止损上限", "ladder-chip-cool blue-text"),
-            ],
-        },
-    ]
-
-    do_list = [
-        {
-            "dot": "dot-safe",
-            "title": (
-                "计划A（接力模式）：确认后加速" if mode == "接力"
-                else ("计划A（套利态）：回封/容量优先" if mode == "套利"
-                      else ("计划A（低位试错）：换手确认优先" if mode == "低位试错" else "计划A（休息）：等待确认"))
-            ),
-            "desc": (
-                f"接力模式：承接达标后围绕{line_main_theme()}做核心辨识度，以2板确认/分歧回封为主，避免尾盘一致追涨。"
-                if mode == "接力"
-                else (
-                    f"套利态：围绕{line_main_theme()}做回封/容量/趋势的确定性，不做高位情绪硬接，优先“回封确认→隔日兑现”。"
-                    if mode == "套利"
-                    else (
-                        f"低位试错：当承接一般时，围绕{line_main_theme()}只做低位换手确认与首板/1进2，小仓试错换信息。"
-                        if mode == "低位试错"
-                        else "休息：不为交易而交易，等待主线/龙头/承接给出明确确认信号。"
-                    )
-                )
+            "title": "盯盘红灯① 亏钱线抬头",
+            "desc": bar(
+                f"亏钱扩散{int(loss)}（休息阈值≥15）",
+                f"炸板{zb:.1f}%",
+                (f"扩散Δ{delta_text('loss')}" if delta_text("loss") else ""),
             ),
             "tags": [
-                tag(f"主线 {theme.get('name','主线')}", "ladder-chip-cool blue-text"),
-                tag(f"封板≥{max(0, fb - tol['fb']):.0f}%", ""),
-                tag(f"晋级≥{max(0, jj - tol['jj']):.0f}%", ""),
-                tag(f"炸板≤{(zb + tol['zb']):.0f}%", ""),
-            ],
-        },
-        {
-            "dot": "dot-safe",
-            "title": "计划B（低位试错）：分歧上升时切到低位换手",
-            "desc": "若分歧上升（炸板/扩散走高），立即把注意力从高位接力切到“低位换手+首板/1进2”，用小仓试错换确定性。",
-            "tags": [
-                tag(f"扩散≤{int(loss + tol['loss'])}只", ""),
-                tag(f"早封 {early:.0f}%", "ladder-chip-cool blue-text"),
-            ],
-        },
-        {
-            "dot": "dot-safe",
-            "title": "仓位建议：用热度/风险配仓",
-            "desc": f"热度{int(heat)}/风险{int(risk)}决定仓位：风险压过热度→防守为主；热度显著占优且承接达标→再进攻加仓。",
-            "tags": [
-                tag(f"热度 {int(heat)}", "ladder-chip-strong red-text" if heat >= 70 else "ladder-chip-warn orange-text"),
-                tag(f"风险 {int(risk)}", "ladder-chip-strong red-text" if risk >= 60 else "ladder-chip-cool blue-text"),
-                tag("分批进场", "ladder-chip-cool blue-text"),
-                *(x for x in [dtag("heat"), dtag("risk")] if x),
-            ],
-        },
-    ]
-
-    avoid = [
-        {
-            "dot": "dot-risk",
-            "title": "禁止追高：高潮/高位阶段不追一致末端",
-            "desc": f"若处于「{stage}」且高度 {leader['maxB'] or '-'} 板偏高，次日更易分化与回撤：不追尾盘一致，不做高位情绪票补涨。",
-            "tags": [
-                tag(f"阶段 {stage}", stage_cls),
-                tag(f"高度 {leader['maxB'] or '-'}板", "ladder-chip-strong red-text" if leader["maxB"] >= 6 else "ladder-chip-warn orange-text"),
+                tag(f"风险{int(risk)}", "ladder-chip-strong red-text" if risk >= 60 else "ladder-chip-cool blue-text"),
             ],
         },
         {
             "dot": "dot-risk",
-            "title": "禁止硬接分歧：炸板/扩散显著放大时先保命",
-            "desc": f"当炸板率 > {(zb + tol['zb']):.1f}% 或 亏钱扩散 > {int(loss + tol['loss'])} 只，优先保命，不做情绪硬接力。",
+            "title": "盯盘红灯② 主线断轴",
+            "desc": bar(
+                f"龙头{leader_name}({leader_b}板)",
+                f"主线{main_name}（净强{theme_net:.1f}/风险{theme_risk:.1f}）",
+                f"拥挤(重叠){overlap_score:.0f}%",
+            ),
             "tags": [
-                tag(f"炸板>{(zb + tol['zb']):.0f}%", "ladder-chip-warn orange-text"),
-                tag(f"扩散>{int(loss + tol['loss'])}只", "ladder-chip-strong red-text"),
-            ],
-        },
-        {
-            "dot": "dot-risk",
-            "title": "禁止脱离主线：主线退潮时不做题材发散",
-            "desc": f"若主线（{theme.get('name','主线')}）涨停家数明显缩减或板块内出现高位炸板扩散，减少题材发散，回到“主线核心/容量辨识度”。",
-            "tags": [
-                tag(f"主线 {theme.get('name','主线')}", "ladder-chip-cool blue-text"),
-                tag(f"样本 {theme.get('examples') or '—'}", ""),
+                tag(f"≥3开板{zbc_ge3_ratio:.0f}%", "ladder-chip-warn orange-text" if zbc_ge3_ratio >= 18 else "ladder-chip-cool blue-text"),
             ],
         },
     ]
@@ -495,9 +334,6 @@ def build_action_guide_v2(market_data: Dict[str, Any]) -> Dict[str, Any]:
         "meta": {"title": meta_title, "detail": meta_detail, "type": verdict_type},
         "confirm": confirm,
         "retreat": retreat,
-        "observe": observe,
-        "do": do_list,
-        "avoid": avoid,
     }
 
 

@@ -7,11 +7,12 @@
     <!-- CDN 优先（更轻），本地 vendor 兜底（离线可打开） -->
     <script src="https://fastly.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
     <script>
-      if (!window.echarts) document.write('<script src="../vendor/echarts.min.js"><\\/script>');
+      // 兼容离线/网络受限：HTML 输出在 html/ 下，依赖放在 html/vendor/ 下
+      if (!window.echarts) document.write('<script src="vendor/echarts.min.js"><\\/script>');
     </script>
     <script src="https://fastly.jsdelivr.net/npm/vue@3/dist/vue.global.prod.js"></script>
     <script>
-      if (!window.Vue) document.write('<script src="../vendor/vue.global.prod.js"><\\/script>');
+      if (!window.Vue) document.write('<script src="vendor/vue.global.prod.js"><\\/script>');
     </script>
     <style>
       [v-cloak] { display: none; }
@@ -594,6 +595,10 @@
       .zt-name{ font-size: 14px; font-weight: 950; color: var(--text-primary); }
       .zt-sub{ margin-top: 4px; font-size: 12px; color: var(--text-muted); font-weight: 650; line-height: 1.4; }
       .zt-tags{ margin-top: 10px; display:flex; gap: 6px; flex-wrap: wrap; }
+      .exp-pre{ color: var(--warning); font-weight: 900; }
+      .exp-hi{ color: var(--danger); font-weight: 950; }
+      /* 低预期固定用蓝色，避免与超预期（红色）混淆 */
+      .exp-lo{ color: var(--primary); font-weight: 950; }
 
       /* Action List */
       .action-list { list-style: none; }
@@ -610,22 +615,7 @@
       .action-desc{ margin-top: 4px; font-size: 13px; color: var(--text-secondary); line-height: 1.65; font-weight: 520; }
       .action-tags{ margin-top: 8px; display:flex; gap: 6px; flex-wrap: wrap; }
       .action-tags .ladder-chip{ padding: 2px 8px; }
-      .fold{
-        margin-top: 8px;
-        border: 1px dashed var(--border);
-        border-radius: var(--radius-md);
-        background: rgba(148, 163, 184, 0.06);
-        padding: 10px 12px;
-      }
-      .fold > summary{
-        cursor: pointer;
-        font-size: 12px;
-        color: var(--text-muted);
-        font-weight: 800;
-        list-style: none;
-      }
-      .fold > summary::-webkit-details-marker { display: none; }
-      .fold-hint{ margin-top: 8px; font-size: 12px; color: var(--text-muted); font-weight: 650; }
+      /* 明日计划：已取消折叠（只保留 2+2 核心条目） */
 
       /* Chart */
       .chart-container { width: 100%; height: 220px; margin-bottom: 16px; position: relative; }
@@ -1734,9 +1724,9 @@
         <div class="summary3" v-if="marketData.summary3?.lines && marketData.summary3.lines.length">
           <div class="summary3-line" v-for="(l, i) in marketData.summary3.lines" :key="'plan-s3-'+i"><strong>{{ i+1 }}.</strong> {{ l }}</div>
         </div>
-        <div class="section-header">开盘只盯 2 件事（其余折叠）</div>
+        <div class="section-header">开盘只盯 2 件事</div>
         <ul class="action-list">
-          <li class="action-item" v-for="(item, idx) in ((marketData.actionGuideV2?.confirm || []).slice(0, 2))" :key="'cf2-'+idx">
+          <li class="action-item" v-for="(item, idx) in (marketData.actionGuideV2?.confirm || [])" :key="'cf2-'+idx">
             <span class="action-dot" :class="item.dot"></span>
             <div class="action-body">
               <div class="action-title">{{ item.title }}</div>
@@ -1747,26 +1737,10 @@
             </div>
           </li>
         </ul>
-        <details class="fold" v-if="(marketData.actionGuideV2?.confirm || []).length > 2">
-          <summary>展开更多开盘验证（{{ (marketData.actionGuideV2?.confirm || []).length - 2 }} 条）</summary>
-          <div class="fold-hint">建议：只有当“默认模式”被触发降级时，再回来看这些补充条目。</div>
-          <ul class="action-list">
-            <li class="action-item" v-for="(item, idx) in ((marketData.actionGuideV2?.confirm || []).slice(2))" :key="'cfmore-'+idx">
-              <span class="action-dot" :class="item.dot"></span>
-              <div class="action-body">
-                <div class="action-title">{{ item.title }}</div>
-                <div class="action-desc">{{ item.desc }}</div>
-                <div class="action-tags" v-if="item.tags && item.tags.length">
-                  <span class="ladder-chip" v-for="(t, ti) in item.tags" :key="'cfmore-tag-'+idx+'-'+ti" :class="t.cls">{{ t.text }}</span>
-                </div>
-              </div>
-            </li>
-          </ul>
-        </details>
 
-        <div class="section-header">盘中只盯 2 个失效信号（其余折叠）</div>
+        <div class="section-header">盘中只盯 2 个失效信号</div>
         <ul class="action-list">
-          <li class="action-item" v-for="(item, idx) in ((marketData.actionGuideV2?.retreat || []).slice(0, 2))" :key="'rt2-'+idx">
+          <li class="action-item" v-for="(item, idx) in (marketData.actionGuideV2?.retreat || [])" :key="'rt2-'+idx">
             <span class="action-dot" :class="item.dot"></span>
             <div class="action-body">
               <div class="action-title">{{ item.title }}</div>
@@ -1777,66 +1751,10 @@
             </div>
           </li>
         </ul>
-        <details class="fold" v-if="(marketData.actionGuideV2?.retreat || []).length > 2">
-          <summary>展开更多失效条件（{{ (marketData.actionGuideV2?.retreat || []).length - 2 }} 条）</summary>
-          <div class="fold-hint">建议：一旦触发任意失效条件，先执行“降级/休息”，再复盘原因。</div>
-          <ul class="action-list">
-            <li class="action-item" v-for="(item, idx) in ((marketData.actionGuideV2?.retreat || []).slice(2))" :key="'rtmore-'+idx">
-              <span class="action-dot" :class="item.dot"></span>
-              <div class="action-body">
-                <div class="action-title">{{ item.title }}</div>
-                <div class="action-desc">{{ item.desc }}</div>
-                <div class="action-tags" v-if="item.tags && item.tags.length">
-                  <span class="ladder-chip" v-for="(t, ti) in item.tags" :key="'rtmore-tag-'+idx+'-'+ti" :class="t.cls">{{ t.text }}</span>
-                </div>
-              </div>
-            </li>
-          </ul>
-        </details>
-        <div class="section-header">观察清单</div>
-        <ul class="action-list">
-          <li class="action-item" v-for="(item, idx) in (marketData.actionGuideV2?.observe || [])" :key="'obs-'+idx">
-            <span class="action-dot" :class="item.dot"></span>
-            <div class="action-body">
-              <div class="action-title">{{ item.title }}</div>
-              <div class="action-desc">{{ item.desc }}</div>
-              <div class="action-tags" v-if="item.tags && item.tags.length">
-                <span class="ladder-chip" v-for="(t, ti) in item.tags" :key="'obs-tag-'+idx+'-'+ti" :class="t.cls">{{ t.text }}</span>
-              </div>
-            </div>
-          </li>
-        </ul>
-
-        <div class="section-header">出手清单</div>
-        <ul class="action-list">
-          <li class="action-item" v-for="(item, idx) in (marketData.actionGuideV2?.do || [])" :key="'do-'+idx">
-            <span class="action-dot" :class="item.dot"></span>
-            <div class="action-body">
-              <div class="action-title">{{ item.title }}</div>
-              <div class="action-desc">{{ item.desc }}</div>
-              <div class="action-tags" v-if="item.tags && item.tags.length">
-                <span class="ladder-chip" v-for="(t, ti) in item.tags" :key="'do-tag-'+idx+'-'+ti" :class="t.cls">{{ t.text }}</span>
-              </div>
-            </div>
-          </li>
-        </ul>
-
-        <div class="section-header">禁止清单</div>
-        <ul class="action-list">
-          <li class="action-item" v-for="(item, idx) in (marketData.actionGuideV2?.avoid || [])" :key="'avoid-'+idx">
-            <span class="action-dot" :class="item.dot"></span>
-            <div class="action-body">
-              <div class="action-title">{{ item.title }}</div>
-              <div class="action-desc">{{ item.desc }}</div>
-              <div class="action-tags" v-if="item.tags && item.tags.length">
-                <span class="ladder-chip" v-for="(t, ti) in item.tags" :key="'avoid-tag-'+idx+'-'+ti" :class="t.cls">{{ t.text }}</span>
-              </div>
-            </div>
-          </li>
-        </ul>
+        <!-- 观察清单已移除：避免“滞后数据 + 固定话术”占版面 -->
 
         <div class="summary-box" v-if="(!marketData.actionGuideV2) && marketData.actionGuide">
-          <div class="summary-text">提示：旧版行动指南数据仍存在，但已切换为新版三段式（观察/出手/禁止）。</div>
+          <div class="summary-text">提示：已切换为新版“开盘2条 + 盘中2条 + 观察清单”，不再展示“出手/禁止”清单。</div>
         </div>
       </div>
 
@@ -1854,7 +1772,7 @@
                 <div class="zt-top">
                   <div>
                     <div class="zt-name">{{ row.name }}</div>
-                    <div class="zt-sub">{{ row.reason }}</div>
+                    <div class="zt-sub" v-html="row.reason"></div>
                   </div>
                   <div style="text-align:right;">
                     <div style="font-weight:950; color: var(--text-primary); font-variant-numeric: tabular-nums;">{{ row.score }}</div>
@@ -1874,7 +1792,7 @@
                 <div class="zt-top">
                   <div>
                     <div class="zt-name">{{ row.name }}</div>
-                    <div class="zt-sub">{{ row.reason }}</div>
+                    <div class="zt-sub" v-html="row.reason"></div>
                   </div>
                   <div style="text-align:right;">
                     <div style="font-weight:950; color: var(--text-primary); font-variant-numeric: tabular-nums;">{{ row.score }}</div>
@@ -3083,13 +3001,16 @@
             );
             const score = clamp(base * 0.82 + envBoost * 0.18 + mainBonus + leaderBonus - highPenalty - multiPenalty - themePenalty);
 
+            const cjeYi = toNum(s.cje, 0) / 1e8;
+
             const tags = [
               ...(isMain ? [tag('主线', 'ladder-chip-strong red-text')] : []),
               ...(leaderBonus >= 10 ? [tag('龙头梯队', 'ladder-chip-strong red-text')] : (leaderBonus > 0 ? [tag('核心梯队', 'ladder-chip-warn orange-text')] : [])),
               tag(`${lbc}板`, lbc >= 6 ? 'ladder-chip-strong red-text' : (lbc >= 4 ? 'ladder-chip-warn orange-text' : 'ladder-chip-cool blue-text')),
               tag(`封单${fundYi ? (fundYi >= 10 ? fundYi.toFixed(0) : fundYi.toFixed(1)) : '-'}亿`, fundYi >= 3 ? 'ladder-chip-strong red-text' : (fundYi >= 1 ? 'ladder-chip-warn orange-text' : 'ladder-chip-cool blue-text')),
-              open ? tag(open >= 3 ? `${open}次开板` : '回封', open >= 3 ? 'ladder-chip-warn orange-text' : 'ladder-chip-cool blue-text') : tag('一字/未开', 'ladder-chip-cool blue-text'),
+              open ? tag(`${open}次开板`, open >= 3 ? 'ladder-chip-warn orange-text' : 'ladder-chip-cool blue-text') : tag('未开', 'ladder-chip-cool blue-text'),
               fmtHhmm(s.fbt) ? tag(`首封${fmtHhmm(s.fbt)}`, timeScore >= 70 ? 'ladder-chip-strong red-text' : 'ladder-chip-cool blue-text') : null,
+              cjeYi ? tag(`成交额${cjeYi >= 10 ? cjeYi.toFixed(0) : cjeYi.toFixed(1)}亿`, cjeYi >= 10 ? 'ladder-chip-warn orange-text' : '') : null,
               ...(topThemes.length
                 ? topThemes.map(t => tag(`题材${t.name}`, t.net >= 12 ? 'ladder-chip-warn orange-text' : ''))
                 : [tag(`${hy}×${hyCnt.get(hy) || 1}`, hyScore >= 60 ? 'ladder-chip-warn orange-text' : '')]
@@ -3110,11 +3031,54 @@
             else if (open >= 3) reasonBits.push('分歧偏大');
             if (stageType === 'good' && lbc >= 5) reasonBits.push('高位谨慎');
 
-            const observePoint = (open >= 8)
-              ? '明日：只看回封与封单回补，不追一致。'
-              : (open >= 3)
-                ? '明日：分歧回封确认后再动。'
-                : '明日：盯开盘承接，强则可接力/确认。';
+            // 明日观察点：必须包含“可量化条件”，避免固定话术
+            // 说明：使用今日 成交额(亿) + 封单(亿) + 开板次数 + 首封时间 来构建
+            // 明日 3态推测：超预期 / 符合 / 低预期（用于管理预期，而不是一句空话）
+            const fundRef = fundYi > 0 ? fundYi : 0; // 亿
+            const fundNeed = (k) => (fundRef ? (fundRef * k) : 0);
+            const fundStr = (x) => (x ? (x >= 10 ? x.toFixed(0) : x.toFixed(1)) : '-');
+            // 首封时间只保留在标签里，不拼到“预期管理”末尾，避免冗余
+
+            const gapRange = (() => {
+              // score 越高，预期开盘溢价越高（经验分段）
+              if (score >= 82) return { lo: 3, hi: 6 };
+              if (score >= 70) return { lo: 1, hi: 4 };
+              if (score >= 58) return { lo: 0, hi: 2 };
+              if (score >= 45) return { lo: -1, hi: 1 };
+              return { lo: -3, hi: 0 };
+            })();
+            const pct = (x) => `${x >= 0 ? '+' : ''}${x}%`;
+            const gapLabel = (lo, hi) => {
+              if (hi <= 0) return '绿开';
+              if (lo >= 0) return '红开';
+              return '平开';
+            };
+            const aucRatio = (() => {
+              // 用“竞价成交额(估) / 今日成交额”做明日开盘量能预期（比“竞价封单”更有意义）
+              if (score >= 82) return 0.08;
+              if (score >= 70) return 0.06;
+              if (score >= 58) return 0.045;
+              return 0.03;
+            })();
+            const aucNeed = cjeYi ? Math.max(0.15, cjeYi * aucRatio) : 0; // 亿，最低给个小门槛
+            const aucStr = (x) => (x ? (x >= 10 ? x.toFixed(0) : x.toFixed(1)) : '-');
+            const observePoint = (() => {
+              // 强分歧：只做“回封+封单回补”这一件事
+              if (open >= 8) {
+                const need = fundNeed(0.50);
+                const lo = Math.min(gapRange.lo, 0), hi = Math.min(gapRange.hi, 2);
+                return `<span class="exp-pre">预期</span>：${gapLabel(lo,hi)}（${pct(lo)}~${pct(hi)}）。<span class="exp-hi">超预期</span>：回封后封单回补≥${fundStr(need)}亿（≈今${fundStr(fundRef)}亿×50%）且竞价成交额≥${aucStr(aucNeed)}亿（≈今${aucStr(cjeYi)}亿×${Math.round(aucRatio*100)}%）；<span class="exp-pre">符合</span>：回封但低于门槛；<span class="exp-lo">低预期</span>：不回封或继续多开板。`.trim();
+              }
+              // 中分歧：回封 + 封单/量能门槛
+              if (open >= 3) {
+                const need = fundNeed(0.35);
+                const lo = Math.min(gapRange.lo, 0), hi = gapRange.hi;
+                return `<span class="exp-pre">预期</span>：${gapLabel(lo,hi)}（${pct(lo)}~${pct(hi)}）。<span class="exp-hi">超预期</span>：高开≥${pct(hi)}且回封后封单≥${fundStr(need)}亿（≈今${fundStr(fundRef)}亿×35%）+ 竞价成交额≥${aucStr(aucNeed)}亿；<span class="exp-pre">符合</span>：落在区间且开板≤2；<span class="exp-lo">低预期</span>：低开≤${pct(gapRange.lo)}或开板继续放大。`.trim();
+              }
+              // 稳定票：用“竞价成交额(估)”+“高开区间”管理预期
+              const lo = gapRange.lo, hi = gapRange.hi;
+              return `<span class="exp-pre">预期</span>：${gapLabel(lo,hi)}（${pct(lo)}~${pct(hi)}）。<span class="exp-hi">超预期</span>：高开≥${pct(hi)}且竞价成交额≥${aucStr(aucNeed)}亿（≈今${aucStr(cjeYi)}亿×${Math.round(aucRatio*100)}%）+ 开板≤1；<span class="exp-pre">符合</span>：落在区间且开板≤2；<span class="exp-lo">低预期</span>：低于${pct(lo)}或竞价量能<${aucStr(aucNeed*0.7)}亿。`.trim();
+            })();
             const reason = (reasonBits.length ? `${reasonBits.join(' · ')}；${observePoint}` : `综合条件一般；${observePoint}`);
             return { name, code, lbc, hy, fundYi, open, score: Math.round(score), tags, reason };
           });
