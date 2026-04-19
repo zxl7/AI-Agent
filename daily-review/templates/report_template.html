@@ -580,6 +580,21 @@
       .sector-detail { font-size: 11px; color: var(--text-muted); margin-top: 2px; font-weight: 500; }
       .sector-pct { font-size: 15px; font-weight: 800; min-width: 55px; text-align: right; }
 
+      /* 涨停个股分析 */
+      .zt-panel { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+      @media (max-width: 900px){ .zt-panel { grid-template-columns: 1fr; } }
+      .zt-list { display: grid; gap: 10px; }
+      .zt-item{
+        background: var(--bg-elevated);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-md);
+        padding: 12px 14px;
+      }
+      .zt-top{ display:flex; align-items:flex-start; justify-content:space-between; gap: 10px; }
+      .zt-name{ font-size: 14px; font-weight: 950; color: var(--text-primary); }
+      .zt-sub{ margin-top: 4px; font-size: 12px; color: var(--text-muted); font-weight: 650; line-height: 1.4; }
+      .zt-tags{ margin-top: 10px; display:flex; gap: 6px; flex-wrap: wrap; }
+
       /* Action List */
       .action-list { list-style: none; }
       .action-item { display: flex; gap: 14px; padding: 14px 0; border-bottom: 1px solid var(--border); }
@@ -590,6 +605,11 @@
       .dot-watch { background: var(--warning); box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.15); }
       .dot-safe { background: var(--success); box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15); }
       .action-text { font-size: 13.5px; color: var(--text-secondary); line-height: 1.65; font-weight: 500; }
+      .action-body{ flex: 1; min-width: 0; }
+      .action-title{ font-size: 13.5px; color: var(--text-primary); font-weight: 900; }
+      .action-desc{ margin-top: 4px; font-size: 13px; color: var(--text-secondary); line-height: 1.65; font-weight: 520; }
+      .action-tags{ margin-top: 8px; display:flex; gap: 6px; flex-wrap: wrap; }
+      .action-tags .ladder-chip{ padding: 2px 8px; }
 
       /* Chart */
       .chart-container { width: 100%; height: 220px; margin-bottom: 16px; position: relative; }
@@ -693,11 +713,13 @@
       body[data-page="sentiment"] .card[data-page="sentiment"] { display: block; }
       body[data-page="themes"] .card[data-page="themes"] { display: block; }
       body[data-page="ladder"] .card[data-page="ladder"] { display: block; }
+      body[data-page="plan"] .card[data-page="plan"] { display: block; }
 
       /* Page blocks（非 card 的页面块，如 summary/toc） */
       .page-block[data-page] { display: none; }
       body[data-page="sentiment"] .page-block[data-page="sentiment"] { display: block; }
       body[data-page="themes"] .page-block[data-page="themes"] { display: block; }
+      body[data-page="plan"] .page-block[data-page="plan"] { display: block; }
 
       /* Summary Bar（首屏情绪总控） */
       .summarybar {
@@ -744,6 +766,50 @@
       /* Footer */
       .footer { text-align: center; padding: 32px 20px; color: var(--text-muted); font-size: 12px; font-weight: 500; }
       .footer p { margin-bottom: 4px; }
+      .footer-learning{
+        max-width: 980px;
+        margin: 0 auto 14px;
+        text-align: left;
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        padding: 14px 16px;
+        box-shadow: var(--shadow-sm);
+      }
+      .footer-learning-title{
+        font-size: 12px;
+        font-weight: 950;
+        color: var(--text-primary);
+        margin-bottom: 8px;
+        display:flex;
+        align-items:center;
+        gap: 8px;
+      }
+      .footer-learning ul{ margin: 0; padding-left: 18px; }
+      .footer-learning li{
+        margin: 6px 0;
+        font-size: 12px;
+        color: var(--text-secondary);
+        line-height: 1.65;
+        font-weight: 560;
+      }
+      .footer-quotes{
+        margin-top: 10px;
+        padding-top: 10px;
+        border-top: 1px dashed var(--border);
+        display: grid;
+        gap: 6px;
+      }
+      .footer-quote{
+        font-size: 12px;
+        color: var(--text-primary);
+        font-weight: 800;
+      }
+      .footer-quote span{
+        color: var(--theme-accent);
+        font-weight: 950;
+        margin-right: 6px;
+      }
 
       @media (max-width: 600px) {
         .hero { padding: 24px 20px; }
@@ -789,6 +855,7 @@
         <button class="tab-btn active" data-page="sentiment" type="button">短线情绪</button>
         <button class="tab-btn" data-page="themes" type="button">板块题材</button>
         <button class="tab-btn" data-page="ladder" type="button">连板天梯</button>
+        <button class="tab-btn" data-page="plan" type="button">明日计划</button>
       </div>
 
       <!-- 首屏：情绪总控（仅短线情绪页显示） -->
@@ -1624,20 +1691,149 @@
       </div>
 
       <!-- 明日行动指南 -->
-      <div class="card" data-page="sentiment" id="sec-action">
+      <div class="card" data-page="plan" id="sec-action">
         <div class="card-title">明日行动指南</div>
+        <div class="verdict-box" v-if="marketData.actionGuideV2?.meta" :class="'verdict-' + (marketData.actionGuideV2.meta.type || 'warn')" style="margin-top: 10px;">
+          <strong>{{ marketData.actionGuideV2.meta.title }}</strong>
+          {{ marketData.actionGuideV2.meta.detail }}
+        </div>
+        <div class="section-header">确认门槛（满足才进入接力模式）</div>
         <ul class="action-list">
-          <li class="action-item" v-for="(item, idx) in marketData.actionGuide" :key="idx">
-            <span class="action-dot" :class="item.dot_class"></span>
-            <span class="action-text" :style="item.style">
-              <strong>{{ item.strong_text }}</strong>
-              {{ item.text }}
-            </span>
+          <li class="action-item" v-for="(item, idx) in (marketData.actionGuideV2?.confirm || [])" :key="'cf-'+idx">
+            <span class="action-dot" :class="item.dot"></span>
+            <div class="action-body">
+              <div class="action-title">{{ item.title }}</div>
+              <div class="action-desc">{{ item.desc }}</div>
+              <div class="action-tags" v-if="item.tags && item.tags.length">
+                <span class="ladder-chip" v-for="(t, ti) in item.tags" :key="'cf-tag-'+idx+'-'+ti" :class="t.cls">{{ t.text }}</span>
+              </div>
+            </div>
           </li>
         </ul>
+
+        <div class="section-header">撤退条件（触发即降级/停止）</div>
+        <ul class="action-list">
+          <li class="action-item" v-for="(item, idx) in (marketData.actionGuideV2?.retreat || [])" :key="'rt-'+idx">
+            <span class="action-dot" :class="item.dot"></span>
+            <div class="action-body">
+              <div class="action-title">{{ item.title }}</div>
+              <div class="action-desc">{{ item.desc }}</div>
+              <div class="action-tags" v-if="item.tags && item.tags.length">
+                <span class="ladder-chip" v-for="(t, ti) in item.tags" :key="'rt-tag-'+idx+'-'+ti" :class="t.cls">{{ t.text }}</span>
+              </div>
+            </div>
+          </li>
+        </ul>
+        <div class="section-header">观察清单</div>
+        <ul class="action-list">
+          <li class="action-item" v-for="(item, idx) in (marketData.actionGuideV2?.observe || [])" :key="'obs-'+idx">
+            <span class="action-dot" :class="item.dot"></span>
+            <div class="action-body">
+              <div class="action-title">{{ item.title }}</div>
+              <div class="action-desc">{{ item.desc }}</div>
+              <div class="action-tags" v-if="item.tags && item.tags.length">
+                <span class="ladder-chip" v-for="(t, ti) in item.tags" :key="'obs-tag-'+idx+'-'+ti" :class="t.cls">{{ t.text }}</span>
+              </div>
+            </div>
+          </li>
+        </ul>
+
+        <div class="section-header">出手清单</div>
+        <ul class="action-list">
+          <li class="action-item" v-for="(item, idx) in (marketData.actionGuideV2?.do || [])" :key="'do-'+idx">
+            <span class="action-dot" :class="item.dot"></span>
+            <div class="action-body">
+              <div class="action-title">{{ item.title }}</div>
+              <div class="action-desc">{{ item.desc }}</div>
+              <div class="action-tags" v-if="item.tags && item.tags.length">
+                <span class="ladder-chip" v-for="(t, ti) in item.tags" :key="'do-tag-'+idx+'-'+ti" :class="t.cls">{{ t.text }}</span>
+              </div>
+            </div>
+          </li>
+        </ul>
+
+        <div class="section-header">禁止清单</div>
+        <ul class="action-list">
+          <li class="action-item" v-for="(item, idx) in (marketData.actionGuideV2?.avoid || [])" :key="'avoid-'+idx">
+            <span class="action-dot" :class="item.dot"></span>
+            <div class="action-body">
+              <div class="action-title">{{ item.title }}</div>
+              <div class="action-desc">{{ item.desc }}</div>
+              <div class="action-tags" v-if="item.tags && item.tags.length">
+                <span class="ladder-chip" v-for="(t, ti) in item.tags" :key="'avoid-tag-'+idx+'-'+ti" :class="t.cls">{{ t.text }}</span>
+              </div>
+            </div>
+          </li>
+        </ul>
+
+        <div class="summary-box" v-if="(!marketData.actionGuideV2) && marketData.actionGuide">
+          <div class="summary-text">提示：旧版行动指南数据仍存在，但已切换为新版三段式（观察/出手/禁止）。</div>
+        </div>
+      </div>
+
+      <!-- 涨停个股数据分析 -->
+      <div class="card" data-page="plan" id="sec-zt-analysis">
+        <div class="card-header">
+          <div class="card-title">涨停个股数据分析（明日接力 / 观察）</div>
+          <div class="card-badge">封单 · 板块情绪 · 量能 · 炸板 · 梯队</div>
+        </div>
+        <div class="zt-panel">
+          <div>
+            <div class="section-header">接力候选（更偏“明日可接”）</div>
+            <div class="zt-list">
+              <div class="zt-item" v-for="(row, i) in (marketData.ztAnalysis?.relay || [])" :key="'relay-'+i">
+                <div class="zt-top">
+                  <div>
+                    <div class="zt-name">{{ row.name }}</div>
+                    <div class="zt-sub">{{ row.reason }}</div>
+                  </div>
+                  <div style="text-align:right;">
+                    <div style="font-weight:950; color: var(--text-primary); font-variant-numeric: tabular-nums;">{{ row.score }}</div>
+                    <div style="font-size:11px; color: var(--text-muted); font-weight:700;">综合分</div>
+                  </div>
+                </div>
+                <div class="zt-tags">
+                  <span class="ladder-chip" v-for="(t, ti) in row.tags" :key="'relay-tag-'+i+'-'+ti" :class="t.cls">{{ t.text }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div>
+            <div class="section-header">观察池（更偏“先看再动”）</div>
+            <div class="zt-list">
+              <div class="zt-item" v-for="(row, i) in (marketData.ztAnalysis?.watch || [])" :key="'watch-'+i">
+                <div class="zt-top">
+                  <div>
+                    <div class="zt-name">{{ row.name }}</div>
+                    <div class="zt-sub">{{ row.reason }}</div>
+                  </div>
+                  <div style="text-align:right;">
+                    <div style="font-weight:950; color: var(--text-primary); font-variant-numeric: tabular-nums;">{{ row.score }}</div>
+                    <div style="font-size:11px; color: var(--text-muted); font-weight:700;">综合分</div>
+                  </div>
+                </div>
+                <div class="zt-tags">
+                  <span class="ladder-chip" v-for="(t, ti) in row.tags" :key="'watch-tag-'+i+'-'+ti" :class="t.cls">{{ t.text }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="summary-box" v-if="!marketData.ztgc || !marketData.ztgc.length">
+          <div class="summary-text">未注入当日涨停池明细（ztgc）。请用渲染脚本从 pools_cache.json 注入后再查看本模块。</div>
+        </div>
       </div>
 
       <div class="footer">
+        <div class="footer-learning" v-if="marketData.learningNotes">
+          <div class="footer-learning-title">📌 学习短线提醒</div>
+          <ul v-if="marketData.learningNotes.tips && marketData.learningNotes.tips.length">
+            <li v-for="(t, i) in marketData.learningNotes.tips" :key="'tip-'+i">{{ t }}</li>
+          </ul>
+          <div class="footer-quotes" v-if="marketData.learningNotes.quotes && marketData.learningNotes.quotes.length">
+            <div class="footer-quote" v-for="(q, i) in marketData.learningNotes.quotes" :key="'q-'+i"><span>金句</span>{{ q }}</div>
+          </div>
+        </div>
         <p>📊 生成时间：__REPORT_DATE__ 收盘</p>
         <p>数据来源：实时查询 | Claw Daily v11</p>
         <p>K线为王 · 数据即事实 · 零ST · 不编造不猜测</p>
@@ -1921,6 +2117,12 @@
           if (styleChart) { styleChart.dispose(); styleChart = null; }
           renderHeightTrend(marketData.heightTrend);
           renderLadder(marketData.ladder);
+        } else if (page === 'plan') {
+          // 明日计划页不渲染图表，释放所有图表实例避免隐藏容器尺寸问题
+          if (themeTrendChart) { themeTrendChart.dispose(); themeTrendChart = null; }
+          if (volumeChart) { volumeChart.dispose(); volumeChart = null; }
+          if (heightChart) { heightChart.dispose(); heightChart = null; }
+          if (styleChart) { styleChart.dispose(); styleChart = null; }
         }
       };
 
@@ -2137,6 +2339,12 @@
         if (styleChart) styleChart.dispose();
         styleChart = echarts.init(chartDom, document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : null);
         const colors = data.palette?.length ? data.palette : ['#2563eb', '#60a5fa'];
+        // ECharts Canvas 不会自动解析 CSS var()，这里手动取计算后的主题色，避免文字发灰/过浅
+        const css = getComputedStyle(document.documentElement);
+        const textPrimary = (css.getPropertyValue('--text-primary') || '#1e293b').trim();
+        const textSecondary = (css.getPropertyValue('--text-secondary') || '#475569').trim();
+        const border = (css.getPropertyValue('--border') || 'rgba(148, 163, 184, 0.18)').trim();
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
 
         const option = {
           backgroundColor: 'transparent',
@@ -2145,18 +2353,18 @@
             radius: '62%',
             splitNumber: 5,
             indicator: data.indicators.map(name => ({ name, max: 100 })),
-            axisName: {
-              color: 'var(--text-primary)',
-              fontSize: 12,
-              fontWeight: 700
-            },
+            // 指标名（你反馈“文字有点浅”主要是这里）
+            name: { color: textSecondary, fontSize: 12, fontWeight: 800 },
+            axisName: { color: textSecondary, fontSize: 12, fontWeight: 800 },
             splitArea: {
               areaStyle: {
-                color: ['rgba(37, 99, 235, 0.03)', 'rgba(37, 99, 235, 0.06)']
+                color: isDark
+                  ? ['rgba(255, 255, 255, 0.02)', 'rgba(255, 255, 255, 0.04)']
+                  : ['rgba(37, 99, 235, 0.03)', 'rgba(37, 99, 235, 0.06)']
               }
             },
-            splitLine: { lineStyle: { color: 'rgba(148, 163, 184, 0.28)' } },
-            axisLine: { lineStyle: { color: 'rgba(148, 163, 184, 0.28)' } }
+            splitLine: { lineStyle: { color: border } },
+            axisLine: { lineStyle: { color: border } }
           },
           series: [
             {
@@ -2521,6 +2729,334 @@
           marketData.heatmap = buildHeatmap(marketData);
         } catch (e) {
           marketData.heatmap = { score: '-', summary: '热力图生成失败', cells: [] };
+        }
+
+        // 明日行动指南 V2：围绕“短线情绪 / 市场主线 / 核心龙头”动态生成（不写死）
+        const buildActionGuideV2 = (md) => {
+          const mi = md?.features?.mood_inputs || {};
+          const delta = md?.delta || {};
+          const toNum = (v, d=0) => {
+            const n = Number(String(v ?? '').replace('%',''));
+            return Number.isFinite(n) ? n : d;
+          };
+          const pct0 = (v) => `${Math.round(toNum(v, 0))}%`;
+          const pct1 = (v) => `${toNum(v, 0).toFixed(1)}%`;
+          const pickTheme = () => {
+            const t = md?.themePanels?.ztTop?.[0];
+            if (!t) return { name: '主线', count: 0, examples: '' };
+            return t;
+          };
+          const pickLeader = () => {
+            const rows = md?.ladder || [];
+            const maxB = rows.reduce((m, r) => Math.max(m, Number(r.badge ?? 0)), 0);
+            const names = rows.filter(r => Number(r.badge ?? 0) === maxB).slice(0, 3).map(r => r.name).filter(Boolean);
+            return { maxB, names: names.length ? names.join('、') : '龙头', count: rows.filter(r => Number(r.badge ?? 0) === maxB).length };
+          };
+          const tag = (text, cls='') => ({ text, cls });
+          const dtag = (k, unit='') => {
+            const v = delta?.[k];
+            if (v === undefined || v === null || v === '') return null;
+            const n = Number(v);
+            if (!Number.isFinite(n)) return null;
+            const cls = n > 0 ? 'ladder-chip-strong red-text' : (n < 0 ? 'ladder-chip-cool blue-text' : '');
+            const sign = n > 0 ? '+' : '';
+            return tag(`Δ${sign}${n}${unit}`, cls);
+          };
+
+          const fb = toNum(mi.fb_rate, toNum(md?.panorama?.ratio, 0));
+          const jj = toNum(mi.jj_rate, 0);
+          const zb = toNum(mi.zb_rate, toNum(md?.fear?.broken, 0));
+          const early = toNum(mi.zt_early_ratio, 0);
+          const loss = toNum(mi.bf_count, 0) + toNum(mi.dt_count, 0);
+          const heat = toNum(md?.mood?.heat, 0);
+          const risk = toNum(md?.mood?.risk, 0);
+
+          const stage = md?.moodStage?.title || '-';
+          const stageType = md?.moodStage?.type || 'warn';
+          const theme = pickTheme();
+          const leader = pickLeader();
+
+          // 容忍度：根据阶段动态调整，不采用固定“绝对阈值”
+          const tol = (() => {
+            if (stageType === 'good') return { fb: 8, jj: 10, zb: 10, loss: 3 };
+            if (stageType === 'fire') return { fb: 6, jj: 8, zb: 8, loss: 2 };
+            return { fb: 5, jj: 8, zb: 8, loss: 2 };
+          })();
+
+          const observe = [
+            {
+              dot: 'dot-key',
+              title: `主线与龙头：${theme.name} · ${leader.names}（${leader.maxB || '-'}板）`,
+              desc: `明日先验证主线是否继续扩散/分歧回封；龙头能否继续晋级决定短线空间与风格（高潮更易分化）。`,
+              tags: [
+                tag(`情绪：${stage}`, stageType === 'good' ? 'ladder-chip-strong red-text' : (stageType === 'warn' ? 'ladder-chip-warn orange-text' : 'ladder-chip-cool blue-text')),
+                tag(`主线：${theme.name} ${theme.count || 0}家`, 'ladder-chip-cool blue-text'),
+                tag(`高度：${leader.maxB || '-'}板`, leader.maxB >= 6 ? 'ladder-chip-strong red-text' : 'ladder-chip-warn orange-text'),
+                dtag('max_lb'),
+              ].filter(Boolean),
+            },
+            {
+              dot: 'dot-watch',
+              title: '承接与一致性：封板/晋级是否掉速',
+              desc: `关注封板率不低于今日 ${Math.max(0, fb - tol.fb).toFixed(0)}%（今日${fb.toFixed(1)}%），晋级率不低于今日 ${Math.max(0, jj - tol.jj).toFixed(0)}%（今日${jj.toFixed(0)}%）。`,
+              tags: [
+                tag(`封板 ${fb.toFixed(1)}%`, 'ladder-chip-warn orange-text'),
+                dtag('fb_rate', 'pp'),
+                tag(`晋级 ${jj.toFixed(0)}%`, 'ladder-chip-cool blue-text'),
+                dtag('jj_rate', 'pp'),
+                tag(`早封 ${early.toFixed(0)}%`, 'ladder-chip-cool blue-text'),
+                dtag('zt_early_ratio', 'pp'),
+              ].filter(Boolean),
+            },
+            {
+              dot: 'dot-watch',
+              title: '分歧信号：炸板与亏钱扩散是否放大',
+              desc: `关注炸板率不高于今日 ${ (zb + tol.zb).toFixed(1) }%（今日${zb.toFixed(1)}%）；亏钱扩散（大面+跌停）不高于今日 ${loss + tol.loss} 只（今日${loss}）。`,
+              tags: [
+                tag(`炸板 ${zb.toFixed(1)}%`, 'ladder-chip-warn orange-text'),
+                dtag('zb_rate', 'pp'),
+                tag(`扩散 ${loss}只`, 'ladder-chip-strong red-text'),
+                dtag('loss'),
+              ].filter(Boolean),
+            },
+          ];
+
+          const doList = [
+            {
+              dot: 'dot-safe',
+              title: '计划A（主线核心）：先做确认再加速',
+              desc: `若封板/晋级维持且炸板不放大，优先围绕主线「${theme.name}」做核心辨识度：以 2板确认/分歧回封为主，不追尾盘一致。`,
+              tags: [
+                tag(`主线 ${theme.name}`, 'ladder-chip-cool blue-text'),
+                tag(`封板≥${Math.max(0, fb - tol.fb).toFixed(0)}%`, ''),
+                tag(`晋级≥${Math.max(0, jj - tol.jj).toFixed(0)}%`, ''),
+                tag(`炸板≤${(zb + tol.zb).toFixed(0)}%`, ''),
+              ],
+            },
+            {
+              dot: 'dot-safe',
+              title: '计划B（低位试错）：当分歧上升时切到低位换手',
+              desc: `若主线分歧扩大（炸板/扩散走高），风格切换到“低位换手+首板/1进2”，减少高位追涨。`,
+              tags: [
+                tag(`亏钱扩散≤${loss + tol.loss}只`, ''),
+                tag(`早封 ${early.toFixed(0)}%`, 'ladder-chip-cool blue-text'),
+              ],
+            },
+            {
+              dot: 'dot-safe',
+              title: '仓位建议：用热度/风险配仓',
+              desc: `热度 ${heat} / 风险 ${risk}：风险高于热度时只做防守试错；热度明显占优时再做进攻加仓。`,
+              tags: [
+                tag(`热度 ${heat}`, heat >= 70 ? 'ladder-chip-strong red-text' : 'ladder-chip-warn orange-text'),
+                tag(`风险 ${risk}`, risk >= 60 ? 'ladder-chip-strong red-text' : 'ladder-chip-cool blue-text'),
+                dtag('heat'),
+                dtag('risk'),
+              ].filter(Boolean),
+            },
+          ];
+
+          const avoid = [
+            {
+              dot: 'dot-risk',
+              title: '禁止追高：高潮/高位阶段不追一致末端',
+              desc: `若处于「${stage}」且高度 ${leader.maxB || '-'} 板偏高，次日更易分化与回撤：不追尾盘一致，不做高位情绪票“补涨”。`,
+              tags: [
+                tag(`阶段 ${stage}`, stageType === 'good' ? 'ladder-chip-strong red-text' : 'ladder-chip-warn orange-text'),
+                tag(`高度 ${leader.maxB || '-'}板`, leader.maxB >= 6 ? 'ladder-chip-strong red-text' : 'ladder-chip-warn orange-text'),
+              ],
+            },
+            {
+              dot: 'dot-risk',
+              title: '禁止硬接分歧：当炸板/扩散显著放大',
+              desc: `当炸板率 > ${(zb + tol.zb).toFixed(1)}% 或 亏钱扩散 > ${loss + tol.loss} 只，优先保命，不做“情绪硬接力”。`,
+              tags: [
+                tag(`炸板>${(zb + tol.zb).toFixed(0)}%`, 'ladder-chip-warn orange-text'),
+                tag(`扩散>${loss + tol.loss}只`, 'ladder-chip-strong red-text'),
+              ],
+            },
+            {
+              dot: 'dot-risk',
+              title: '禁止脱离主线：主线退潮时不做题材发散',
+              desc: `若主线（${theme.name}）涨停家数明显缩减或板块内出现高位炸板扩散，减少题材发散，回到“主线核心/容量辨识度”。`,
+              tags: [
+                tag(`主线 ${theme.name}`, 'ladder-chip-cool blue-text'),
+                tag(`样本 ${theme.examples || '—'}`, ''),
+              ],
+            },
+          ];
+
+          return { observe, do: doList, avoid };
+        };
+        // 若渲染器（Python）已注入 actionGuideV2，则不覆盖；否则使用前端算法兜底生成
+        try {
+          if (!marketData.actionGuideV2) {
+            marketData.actionGuideV2 = buildActionGuideV2(marketData);
+          }
+        } catch (e) {
+          marketData.actionGuideV2 = marketData.actionGuideV2 || { observe: [], do: [], avoid: [] };
+        }
+
+        // 涨停个股数据分析：结合 封单大小 + 题材情绪(优先用题材映射，其次行业集中度) + 量能 + 炸板次数 + 连板梯队
+        const buildZtAnalysis = (md) => {
+          const zt = Array.isArray(md?.ztgc) ? md.ztgc : [];
+          if (!zt.length) return { relay: [], watch: [] };
+
+          const mi = md?.features?.mood_inputs || {};
+          const stageType = md?.moodStage?.type || 'warn';
+          const codeThemes = md?.zt_code_themes || {};
+          const mainTheme = md?.themePanels?.ztTop?.[0]?.name || '';
+          const leaderMaxB = Number(mi.max_lb ?? 0) || 0;
+
+          // 题材强度表：来自 themePanels.strengthRows（net 越高=净强越强；risk 越高=风险越大）
+          const themeStrength = new Map((md?.themePanels?.strengthRows || []).map(r => [String(r.name), r]));
+
+          const toNum = (v, d=0) => {
+            const n = Number(String(v ?? '').replace('%',''));
+            return Number.isFinite(n) ? n : d;
+          };
+          const fmtHhmm = (fbt) => {
+            const s = String(fbt || '').trim();
+            if (!s) return '';
+            if (s.includes(':')) return s.slice(0, 5);
+            if (s.length >= 4) return `${s.slice(0,2)}:${s.slice(2,4)}`;
+            return s;
+          };
+          const minutes = (hhmm) => {
+            const s = String(hhmm || '');
+            if (!s.includes(':')) return 0;
+            const [hh, mm] = s.split(':').map(x => Number(x));
+            return hh * 60 + mm;
+          };
+          const clamp = (v, lo=0, hi=100) => Math.max(lo, Math.min(hi, v));
+          const norm = (x, lo, hi) => hi === lo ? 50 : clamp((x - lo) / (hi - lo) * 100);
+          const invNorm = (x, lo, hi) => 100 - norm(x, lo, hi);
+          const tag = (text, cls='') => ({ text, cls });
+
+          // 行业热度：用“同一行业涨停数”近似（板块情绪 proxy）
+          const hyCnt = new Map();
+          zt.forEach(s => {
+            const hy = String(s.hy || '其他');
+            hyCnt.set(hy, (hyCnt.get(hy) || 0) + 1);
+          });
+          const maxHy = Math.max(...Array.from(hyCnt.values()));
+
+          // 预计算区间（归一化）
+          const fundArr = zt.map(s => toNum(s.zj, 0) / 1e8).filter(v => v > 0);
+          const openArr = zt.map(s => toNum(s.zbc, 0));
+          const timeArr = zt.map(s => minutes(fmtHhmm(s.fbt))).filter(v => v > 0);
+
+          const fundLo = Math.min(...fundArr), fundHi = Math.max(...fundArr);
+          const openLo = Math.min(...openArr), openHi = Math.max(...openArr);
+          const timeLo = Math.min(...timeArr), timeHi = Math.max(...timeArr);
+
+          // 市场环境因子（量能/炸板）
+          const volChg = toNum(md?.volume?.change, 0);     // %
+          const zbRate = toNum(mi.zb_rate, toNum(md?.fear?.broken, 0)); // %
+          const highOpenRatio = toNum(mi.zt_zbc_ge3_ratio, 0); // %
+
+          // 环境越强，允许更积极；环境越弱，分数整体收敛
+          const envBoost = clamp(50 + volChg * 2 - (zbRate - 20) * 0.6);
+
+          const ladderMap = new Map((md?.ladder || []).map(r => [String(r.code || r.dm || r.name), r]));
+
+          const scored = zt.map(s => {
+            const name = s.mc || s.name || '';
+            const code = String(s.dm || s.code || '');
+            const lbc = toNum(s.lbc, 1);
+            const hy = String(s.hy || '其他');
+            const fundYi = toNum(s.zj, 0) / 1e8;
+            const open = toNum(s.zbc, 0);
+            const t = minutes(fmtHhmm(s.fbt));
+
+            const fundScore = norm(fundYi, fundLo, fundHi);
+            const openScore = invNorm(open, openLo, openHi);
+            const timeScore = t ? invNorm(t, timeLo, timeHi) : 50; // 越早越好
+            const hyScore = maxHy ? clamp(hyCnt.get(hy) / maxHy * 100) : 0;
+
+            // 题材：优先用 theme_cache 注入的题材列表；并与 strengthRows 对齐选出“更像主线”的前2个
+            const themes = Array.isArray(codeThemes?.[code]) ? codeThemes[code] : [];
+            const themed = themes
+              .filter(t => themeStrength.has(String(t)))
+              .map(t => ({ name: String(t), net: toNum(themeStrength.get(String(t))?.net, 0), risk: toNum(themeStrength.get(String(t))?.risk, 0) }))
+              .sort((a,b) => b.net - a.net);
+            const topThemes = themed.slice(0, 2);
+            const themeNet = topThemes.length ? topThemes[0].net : 0;
+            const themeRisk = topThemes.length ? topThemes[0].risk : 0;
+            const themeScore = topThemes.length ? clamp(themeNet * 8) : 0; // net 通常 0~15，放大到 0~100
+
+            // 主线/龙头加权：尽量贴合“集中火力做领先股”
+            const isMain = !!mainTheme && (
+              topThemes.some(t => t.name === mainTheme) ||
+              themes.includes(mainTheme)
+            );
+            const mainBonus = isMain ? 10 : 0;
+            const leaderBonus = leaderMaxB ? (lbc === leaderMaxB ? 12 : (lbc === (leaderMaxB - 1) ? 6 : 0)) : 0;
+
+            // 梯队：2-4板偏利于接力；过高在高潮日需保守
+            const boardScore = clamp(20 + (lbc - 1) * 22);
+            const highPenalty = (stageType === 'good' && lbc >= 5) ? 12 : 0;
+
+            // 多开板惩罚（尤其高开板）
+            const multiPenalty = open >= 3 ? 18 : (open === 2 ? 8 : 0);
+
+            // 题材风险惩罚：同题材 risk 越高，回避倾向越强（轻量）
+            const themePenalty = topThemes.length ? clamp(themeRisk * 2.0, 0, 12) : 0;
+
+            const base = (
+              fundScore * 0.34 +
+              openScore * 0.24 +
+              timeScore * 0.16 +
+              // 题材优先，其次行业集中度兜底
+              (topThemes.length ? themeScore : hyScore) * 0.14 +
+              boardScore * 0.12
+            );
+            const score = clamp(base * 0.82 + envBoost * 0.18 + mainBonus + leaderBonus - highPenalty - multiPenalty - themePenalty);
+
+            const tags = [
+              ...(isMain ? [tag('主线', 'ladder-chip-strong red-text')] : []),
+              ...(leaderBonus >= 10 ? [tag('龙头梯队', 'ladder-chip-strong red-text')] : (leaderBonus > 0 ? [tag('核心梯队', 'ladder-chip-warn orange-text')] : [])),
+              tag(`${lbc}板`, lbc >= 6 ? 'ladder-chip-strong red-text' : (lbc >= 4 ? 'ladder-chip-warn orange-text' : 'ladder-chip-cool blue-text')),
+              tag(`封单${fundYi ? (fundYi >= 10 ? fundYi.toFixed(0) : fundYi.toFixed(1)) : '-'}亿`, fundYi >= 3 ? 'ladder-chip-strong red-text' : (fundYi >= 1 ? 'ladder-chip-warn orange-text' : 'ladder-chip-cool blue-text')),
+              open ? tag(open >= 3 ? `${open}次开板` : '回封', open >= 3 ? 'ladder-chip-warn orange-text' : 'ladder-chip-cool blue-text') : tag('一字/未开', 'ladder-chip-cool blue-text'),
+              fmtHhmm(s.fbt) ? tag(`首封${fmtHhmm(s.fbt)}`, timeScore >= 70 ? 'ladder-chip-strong red-text' : 'ladder-chip-cool blue-text') : null,
+              ...(topThemes.length
+                ? topThemes.map(t => tag(`题材${t.name}`, t.net >= 12 ? 'ladder-chip-warn orange-text' : ''))
+                : [tag(`${hy}×${hyCnt.get(hy) || 1}`, hyScore >= 60 ? 'ladder-chip-warn orange-text' : '')]
+              ),
+            ].filter(Boolean);
+
+            // 解释：尽量复盘化（“因何推荐/观察”）
+            const reasonBits = [];
+            if (fundYi >= (fundLo + (fundHi - fundLo) * 0.6)) reasonBits.push('封单偏强');
+            if (open <= 1) reasonBits.push('开板少/封板稳');
+            if (timeScore >= 70) reasonBits.push('早封');
+            if (topThemes.length) reasonBits.push(`题材更像：${topThemes.map(x=>x.name).join('、')}`);
+            else if (hyScore >= 60) reasonBits.push('行业内涨停集中');
+            if (isMain) reasonBits.push('主线加成');
+            if (leaderBonus >= 10) reasonBits.push('龙头梯队');
+            if (lbc >= 2) reasonBits.push('梯队内有辨识度');
+            if (open >= 3) reasonBits.push('分歧偏大');
+            if (stageType === 'good' && lbc >= 5) reasonBits.push('高位谨慎');
+
+            return { name, code, lbc, hy, fundYi, open, score: Math.round(score), tags, reason: reasonBits.join(' · ') || '综合条件一般' };
+          });
+
+          const relay = scored
+            .filter(r => r.lbc >= 2)
+            .sort((a, b) => b.score - a.score)
+            .slice(0, 8);
+
+          const watch = scored
+            .filter(r => r.lbc <= 2 || r.open >= 2)
+            .sort((a, b) => b.score - a.score)
+            .slice(0, 8);
+
+          return { relay, watch };
+        };
+        try {
+          marketData.ztAnalysis = buildZtAnalysis(marketData);
+        } catch (e) {
+          marketData.ztAnalysis = { relay: [], watch: [] };
         }
 
         mountVueApp();
