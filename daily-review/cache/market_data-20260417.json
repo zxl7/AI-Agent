@@ -831,16 +831,6 @@
         "riskClass": "green-text"
       },
       {
-        "name": "新材料",
-        "zt": 14,
-        "zb": 4,
-        "dt": 0,
-        "net": 11.2,
-        "risk": 2.8,
-        "netClass": "red-text",
-        "riskClass": "orange-text"
-      },
-      {
         "name": "新能源车",
         "zt": 14,
         "zb": 4,
@@ -851,7 +841,7 @@
         "riskClass": "orange-text"
       },
       {
-        "name": "太阳能（光伏）",
+        "name": "5G",
         "zt": 14,
         "zb": 4,
         "dt": 0,
@@ -861,7 +851,17 @@
         "riskClass": "orange-text"
       },
       {
-        "name": "5G",
+        "name": "新材料",
+        "zt": 14,
+        "zb": 4,
+        "dt": 0,
+        "net": 11.2,
+        "risk": 2.8,
+        "netClass": "red-text",
+        "riskClass": "orange-text"
+      },
+      {
+        "name": "太阳能（光伏）",
         "zt": 14,
         "zb": 4,
         "dt": 0,
@@ -896,8 +896,14 @@
     "zb": 23,
     "dt": 1,
     "fb_rate": 77.45098039215686,
+    "jj_rate": 27.27272727272727,
     "zb_rate": 22.54901960784314,
-    "zt_early_ratio": 64.55696202531645
+    "zt_early_ratio": 64.55696202531645,
+    "bf_count": 9,
+    "top3_theme_ratio": 74.68354430379746,
+    "max_lb": 6,
+    "heat": 66.0,
+    "risk": 27.0
   },
   "delta": {
     "date": "2026-04-16",
@@ -905,13 +911,13 @@
     "zb": -3,
     "dt": 2,
     "fb_rate": 0.6,
-    "jj_rate": null,
+    "jj_rate": 35.2,
     "zb_rate": -0.6,
     "zt_early_ratio": 1.6,
-    "loss": null,
-    "top3_theme_ratio": null,
-    "max_lb": null,
-    "heat": null,
-    "risk": null
+    "loss": -3,
+    "top3_theme_ratio": -0.0,
+    "max_lb": 1,
+    "heat": 7.0,
+    "risk": -9.0
   }
 }

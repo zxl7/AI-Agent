@@ -1,0 +1,849 @@
+{
+  "date": "2026-04-16",
+  "dateNote": "",
+  "features": {
+    "chart_palette": [
+      "#f59e0b",
+      "#fb7185",
+      "#2563eb",
+      "#10b981"
+    ],
+    "style_inputs": {
+      "jj_rate": 27.27272727272727,
+      "first_board_count": 71,
+      "zt_count": 79,
+      "gem_today_count": 4,
+      "gem_height": 1,
+      "top3_theme_ratio": 74.68354430379746,
+      "top10_concentration": 5.3594275450215765,
+      "high_level_ratio": 1.2658227848101267,
+      "max_lb": 6
+    },
+    "mood_inputs": {
+      "fb_rate": 77.45098039215686,
+      "jj_rate": 27.27272727272727,
+      "zt_count": 79,
+      "zt_early_ratio": 64.55696202531645,
+      "zb_rate": 22.54901960784314,
+      "dt_count": 1,
+      "bf_count": 9,
+      "zb_high_ratio": 0.0,
+      "broken_lb_rate": 72.72727272727273,
+      "rate_2to3": 12.5,
+      "rate_3to4": 50.0,
+      "height_gap": 2,
+      "zt_early_count": 51,
+      "avg_seal_fund_yi": 0.9838205903797469,
+      "top_seal_names": "世运电路5亿、昂利康3亿、美利云3亿",
+      "hs_median": 8.192648887634277,
+      "hs_ge15_ratio": 20.253164556962027,
+      "yest_2b_count": 8,
+      "succ_2to3": 1,
+      "yest_3b_count": 2,
+      "succ_3to4": 1,
+      "max_lb": 6,
+      "second_lb": 4,
+      "zb_high_count": 0,
+      "zb_count": 23,
+      "zb_high_names": "哈药股份、瑞康医药、普邦股份",
+      "avg_zt_zbc": 3.3544303797468356,
+      "zt_zbc_ge3_ratio": 29.11392405063291,
+      "smallcap_ratio": 31.645569620253166,
+      "smallcap_cnt": 25,
+      "yest_lb_count": 11,
+      "duanban_count": 8,
+      "effect_verdict_type": "warn",
+      "qs_avg_zf": 5.029090757526102,
+      "qs_best_name": "锦鸡股份",
+      "qs_best_zf": 20.035778045654297,
+      "qs_worst_name": "天邦食品",
+      "qs_worst_zf": -6.6878981590271
+    },
+    "style_strengths": {
+      "relay_strength": 35,
+      "low_trial_strength": 100,
+      "elastic_strength": 58,
+      "theme_focus_strength": 90,
+      "capital_focus_strength": 32,
+      "high_game_strength": 66
+    }
+  },
+  "indices": [
+    {
+      "name": "上证指数",
+      "val": "4051.43",
+      "chg": "-0.10%",
+      "up": true,
+      "highlight": false
+    },
+    {
+      "name": "深证成指",
+      "val": "14885.42",
+      "chg": "+0.60%",
+      "up": true,
+      "highlight": false
+    },
+    {
+      "name": "创业板指",
+      "val": "3678.29",
+      "chg": "+1.43%",
+      "up": true,
+      "highlight": false
+    },
+    {
+      "name": "科创50",
+      "val": "1423.35",
+      "chg": "+0.08%",
+      "up": true,
+      "highlight": false
+    }
+  ],
+  "panorama": {
+    "limitUp": 79,
+    "broken": 23,
+    "limitDown": 1,
+    "ratio": "77.5%"
+  },
+  "mood": {
+    "heat": 66,
+    "risk": 27,
+    "score": 68
+  },
+  "volume": {
+    "total": "24255.84亿",
+    "change": "-3.05%",
+    "increase": "小幅缩量 735.54亿",
+    "dates": [
+      "0410",
+      "0413",
+      "0414",
+      "0415",
+      "0416"
+    ],
+    "values": [
+      0.0,
+      21503.68,
+      23837.24,
+      24152.45,
+      23416.9
+    ]
+  },
+  "effect": {
+    "ratio": "10%",
+    "ratioDetail": "(昨日首板46只→今晋级5只)",
+    "prop": "71:8",
+    "propDetail": "(首板71,连板8)",
+    "ladder": "6→4→3→2",
+    "ladderDetail": "(最高6板)",
+    "limit": "79:1",
+    "limitDetail": "(79.0:1)",
+    "verdict": "📋 综合判断：冰点修复期，赚钱效应偏弱但结构性机会存在。",
+    "verdictDetail": "今日连板梯队完整度尚可（6板龙头存活），但高位股断板率高，分歧较大。操作上以低位首板为主，高位接力需谨慎。",
+    "verdictType": "warn"
+  },
+  "fear": {
+    "bigFace": "9只",
+    "bigFaceNote": "信立泰, 奥尼电子, 泰金新能",
+    "limitDown": "1只",
+    "limitDownNote": "信立泰-10.0%",
+    "risk": "偏高",
+    "broken": "22.5%",
+    "brokenNote": "23/(79+23)=22.5%",
+    "success": "77.5%",
+    "successNote": "封板质量尚可",
+    "yesterday": "良好"
+  },
+  "styleRadar": {
+    "indicators": [
+      "连板接力",
+      "低位试错",
+      "20cm弹性",
+      "题材集中",
+      "资金抱团",
+      "高位博弈"
+    ],
+    "values": [
+      35,
+      100,
+      58,
+      90,
+      32,
+      66
+    ],
+    "palette": [
+      "#f59e0b",
+      "#fb7185",
+      "#2563eb",
+      "#10b981"
+    ]
+  },
+  "themeTrend": {
+    "dates": [
+      "04-10",
+      "04-13",
+      "04-14",
+      "04-15",
+      "04-16"
+    ],
+    "palette": [
+      "#f59e0b",
+      "#fb7185",
+      "#2563eb",
+      "#10b981"
+    ],
+    "series": [
+      {
+        "name": "龙虎榜热门",
+        "values": [
+          4,
+          4,
+          4,
+          3,
+          6
+        ]
+      },
+      {
+        "name": "锂电池",
+        "values": [
+          2,
+          2,
+          2,
+          1,
+          1
+        ]
+      },
+      {
+        "name": "机器人概念",
+        "values": [
+          1,
+          0,
+          1,
+          2,
+          2
+        ]
+      }
+    ]
+  },
+  "heightTrend": {
+    "dates": [
+      "04-08",
+      "04-09",
+      "04-10",
+      "04-13",
+      "04-14",
+      "04-15",
+      "04-16"
+    ],
+    "main": [
+      4,
+      5,
+      4,
+      5,
+      6,
+      5,
+      6
+    ],
+    "sub": [
+      3,
+      3,
+      3,
+      4,
+      4,
+      3,
+      4
+    ],
+    "gem": [
+      1,
+      1,
+      1,
+      0,
+      1,
+      0,
+      1
+    ],
+    "palette": [
+      "#f59e0b",
+      "#fb7185",
+      "#2563eb",
+      "#10b981"
+    ],
+    "labels": {
+      "main": [
+        "汇源通信",
+        "汇源通信",
+        "华远控股",
+        "华远控股",
+        "华远控股",
+        "圣阳股份",
+        "圣阳股份"
+      ],
+      "sub": [
+        "中安科",
+        "华远控股",
+        "中嘉博创",
+        "长源东谷",
+        "中恒电气",
+        "博云新材",
+        "博云新材"
+      ],
+      "gem": [
+        "行云科技",
+        "光智科技",
+        "英唐智控",
+        "",
+        "协创数据",
+        "",
+        "华谊兄弟"
+      ]
+    }
+  },
+  "ladder": [
+    {
+      "badge": 6,
+      "name": "👑 圣阳股份",
+      "code": "002580",
+      "zf": 10.011872291564941,
+      "zbc": 3,
+      "zj": 220877644.0,
+      "hs": 14.820497512817383,
+      "cje": 1830774752.0,
+      "fbt": "093724",
+      "note": "",
+      "status": "晋级"
+    },
+    {
+      "badge": 4,
+      "name": "博云新材",
+      "code": "002297",
+      "zf": 9.986320495605469,
+      "zbc": 4,
+      "zj": 230969887.0,
+      "hs": 22.644498825073242,
+      "cje": 2086259744.0,
+      "fbt": "092500",
+      "note": "",
+      "status": "晋级"
+    },
+    {
+      "badge": 3,
+      "name": "盛视科技",
+      "code": "002990",
+      "zf": 9.997625350952148,
+      "zbc": 7,
+      "zj": 43582765.0,
+      "hs": 17.6329288482666,
+      "cje": 1080677392.0,
+      "fbt": "094439",
+      "note": "",
+      "status": "晋级"
+    },
+    {
+      "badge": 2,
+      "name": "申通快递",
+      "code": "002468",
+      "zf": 10.006101608276367,
+      "zbc": 11,
+      "zj": 39433557.0,
+      "hs": 8.753814697265625,
+      "cje": 2307604160.0,
+      "fbt": "093354",
+      "note": "",
+      "status": "新晋"
+    },
+    {
+      "badge": 2,
+      "name": "京投发展",
+      "code": "600683",
+      "zf": 9.989909172058105,
+      "zbc": 1,
+      "zj": 63045055.0,
+      "hs": 3.278261661529541,
+      "cje": 261611125.0,
+      "fbt": "093105",
+      "note": "",
+      "status": "新晋"
+    },
+    {
+      "badge": 2,
+      "name": "大胜达",
+      "code": "603687",
+      "zf": 9.977827072143555,
+      "zbc": 62,
+      "zj": 26422912.0,
+      "hs": 28.769437789916992,
+      "cje": 3121749744.0,
+      "fbt": "093156",
+      "note": "",
+      "status": "新晋"
+    },
+    {
+      "badge": 2,
+      "name": "丽江股份",
+      "code": "002033",
+      "zf": 9.959758758544922,
+      "zbc": 0,
+      "zj": 56079818.0,
+      "hs": 19.48934555053711,
+      "cje": 1104413728.0,
+      "fbt": "130906",
+      "note": "",
+      "status": "新晋"
+    },
+    {
+      "badge": 2,
+      "name": "均瑶健康",
+      "code": "605388",
+      "zf": 9.959073066711426,
+      "zbc": 2,
+      "zj": 52460323.0,
+      "hs": 9.955740928649902,
+      "cje": 463711616.0,
+      "fbt": "100042",
+      "note": "",
+      "status": "新晋"
+    }
+  ],
+  "broken": "航天工程(2板) / 汇通能源(2板) / 中工国际(2板) / 天邦食品(3板) / 奥尼电子(2板) / 哈药股份(2板) / 利通电子(2板) / 中嘉博创(2板)",
+  "sectors": [
+    {
+      "rank": 1,
+      "name": "龙虎榜热门",
+      "detail": "博云新材·华谊兄弟·京投发展",
+      "eval": "最强",
+      "eval_color": "red-text"
+    },
+    {
+      "rank": 2,
+      "name": "锂电池",
+      "detail": "龙蟠科技·大东南·圣阳股份",
+      "eval": "爆发",
+      "eval_color": "success"
+    },
+    {
+      "rank": 3,
+      "name": "机器人概念",
+      "detail": "世运电路·大胜达·长城科技",
+      "eval": "活跃",
+      "eval_color": "primary"
+    },
+    {
+      "rank": 4,
+      "name": "东数西算",
+      "detail": "真视通·美利云·达实智能",
+      "eval": "活跃",
+      "eval_color": "warning"
+    },
+    {
+      "rank": 5,
+      "name": "华为概念",
+      "detail": "真视通·盈峰环境·达实智能",
+      "eval": "活跃",
+      "eval_color": "text-muted"
+    }
+  ],
+  "top10": [
+    {
+      "rank": 1,
+      "mc": "宁德时代",
+      "zf_str": "+5.33%",
+      "pct_class": "red-text",
+      "cje_yi": "285亿",
+      "weight": 900,
+      "sector": "历史新高"
+    },
+    {
+      "rank": 2,
+      "mc": "中际旭创",
+      "zf_str": "+3.80%",
+      "pct_class": "red-text",
+      "cje_yi": "227亿",
+      "weight": 800,
+      "sector": "谷歌概念"
+    },
+    {
+      "rank": 3,
+      "mc": "新易盛",
+      "zf_str": "+8.15%",
+      "pct_class": "red-text",
+      "cje_yi": "219亿",
+      "weight": 800,
+      "sector": "预盈预增"
+    },
+    {
+      "rank": 4,
+      "mc": "协创数据",
+      "zf_str": "+13.65%",
+      "pct_class": "red-text",
+      "cje_yi": "103亿",
+      "weight": 700,
+      "sector": "预盈预增"
+    },
+    {
+      "rank": 5,
+      "mc": "神剑股份",
+      "zf_str": "+3.88%",
+      "pct_class": "red-text",
+      "cje_yi": "90亿",
+      "weight": 700,
+      "sector": "磁悬浮"
+    },
+    {
+      "rank": 6,
+      "mc": "天华新能",
+      "zf_str": "+11.37%",
+      "pct_class": "red-text",
+      "cje_yi": "89亿",
+      "weight": 700,
+      "sector": "预盈预增"
+    },
+    {
+      "rank": 7,
+      "mc": "德明利",
+      "zf_str": "+3.11%",
+      "pct_class": "red-text",
+      "cje_yi": "86亿",
+      "weight": 700,
+      "sector": "预盈预增"
+    },
+    {
+      "rank": 8,
+      "mc": "永鼎股份",
+      "zf_str": "+5.14%",
+      "pct_class": "red-text",
+      "cje_yi": "78亿",
+      "weight": 700,
+      "sector": "预盈预增"
+    },
+    {
+      "rank": 9,
+      "mc": "东方电气",
+      "zf_str": "+9.99%",
+      "pct_class": "red-text",
+      "cje_yi": "63亿",
+      "weight": 700,
+      "sector": "燃气轮机"
+    },
+    {
+      "rank": 10,
+      "mc": "中钨高新",
+      "zf_str": "+10.00%",
+      "pct_class": "red-text",
+      "cje_yi": "61亿",
+      "weight": 700,
+      "sector": "盾构机"
+    }
+  ],
+  "top10Summary": {
+    "top5_sum_yi": "924亿",
+    "top5_sectors": "历史新高, 谷歌概念, 预盈预增, 预盈预增, 磁悬浮"
+  },
+  "actionGuide": [
+    {
+      "dot_class": "dot-key",
+      "strong_text": "关键看点①：",
+      "text": "圣阳股份6→7板能否晋级？决定空间是否打开。",
+      "style": ""
+    },
+    {
+      "dot_class": "dot-key",
+      "strong_text": "关键看点②：",
+      "text": "龙虎榜热门持续性！",
+      "style": ""
+    },
+    {
+      "dot_class": "dot-watch",
+      "strong_text": "观察：",
+      "text": "锂电池是否分化。",
+      "style": ""
+    },
+    {
+      "dot_class": "dot-watch",
+      "strong_text": "主线应对：",
+      "text": "围绕龙虎榜热门做核心辨识度，当前风格偏高低切，优先看低位换手首板 / 2板确认。",
+      "style": ""
+    },
+    {
+      "dot_class": "dot-risk",
+      "strong_text": "风险提示：",
+      "text": "高潮次日分化风险！今日涨停79只是近期峰值，不追涨。",
+      "style": ""
+    },
+    {
+      "dot_class": "dot-safe",
+      "strong_text": "策略建议：轻仓试错",
+      "text": "— 有结构性机会，以低位首板为主。",
+      "style": "color: var(--theme-positive)"
+    }
+  ],
+  "moodStage": {
+    "title": "弱修复",
+    "type": "warn",
+    "detail": "有修复但承接一般，适合轻仓试错，重点观察2进3/3进4能否走强。"
+  },
+  "moodCards": [
+    {
+      "value": "65%",
+      "label": "早盘封板占比",
+      "note": "10点前首封 51 / 涨停 79",
+      "valueClass": "red-text"
+    },
+    {
+      "value": "1.0亿",
+      "label": "平均封板资金",
+      "note": "TOP3：世运电路5亿、昂利康3亿、美利云3亿",
+      "valueClass": "green-text"
+    },
+    {
+      "value": "8.2%",
+      "label": "涨停换手(中位)",
+      "note": "高换手(≥15%) 20%",
+      "valueClass": "orange-text"
+    },
+    {
+      "value": "12%",
+      "label": "2进3成功率",
+      "note": "昨日2板 8 → 今3板+ 1",
+      "valueClass": "green-text"
+    },
+    {
+      "value": "50%",
+      "label": "3进4成功率",
+      "note": "昨日3板 2 → 今4板+ 1",
+      "valueClass": "red-text"
+    },
+    {
+      "value": "2",
+      "label": "高度差",
+      "note": "最高6板 / 次高4板",
+      "valueClass": "blue-text"
+    },
+    {
+      "value": "0.0%",
+      "label": "高位炸板占比(4板+)",
+      "note": "高位炸板 0 / 炸板 23（哈药股份、瑞康医药、普邦股份）",
+      "valueClass": "green-text"
+    },
+    {
+      "value": "3.4",
+      "label": "涨停炸板次数(均)",
+      "note": "高炸板(≥3次) 29%",
+      "valueClass": "red-text"
+    },
+    {
+      "value": "32%",
+      "label": "小票活跃度(<50亿)",
+      "note": "小票 25 / 涨停 79",
+      "valueClass": "green-text"
+    },
+    {
+      "value": "73%",
+      "label": "连板断板率",
+      "note": "昨日连板 11 → 断板 8",
+      "valueClass": "red-text"
+    }
+  ],
+  "themePanels": {
+    "ztTop": [
+      {
+        "name": "昨日涨停",
+        "count": 63,
+        "examples": "龙大美食·华谊兄弟·世运电路"
+      },
+      {
+        "name": "龙虎榜热门",
+        "count": 22,
+        "examples": "博云新材·华谊兄弟·京投发展"
+      },
+      {
+        "name": "锂电池",
+        "count": 20,
+        "examples": "龙蟠科技·大东南·圣阳股份"
+      }
+    ],
+    "zbTop": [
+      {
+        "name": "华为概念",
+        "count": 10,
+        "examples": "嘉环科技·蜂助手·浙文互联"
+      },
+      {
+        "name": "低价",
+        "count": 6,
+        "examples": "哈药股份·瑞康医药·普邦股份"
+      },
+      {
+        "name": "人工智能",
+        "count": 6,
+        "examples": "瑞康医药·嘉环科技·浙文互联"
+      }
+    ],
+    "dtTop": [
+      {
+        "name": "创新药",
+        "count": 1,
+        "examples": "信立泰"
+      },
+      {
+        "name": "高血压防治",
+        "count": 1,
+        "examples": "信立泰"
+      },
+      {
+        "name": "养老产业",
+        "count": 1,
+        "examples": "信立泰"
+      }
+    ],
+    "strengthRows": [
+      {
+        "name": "昨日涨停",
+        "zt": 63,
+        "zb": 0,
+        "dt": 0,
+        "net": 63.0,
+        "risk": 0.0,
+        "netClass": "red-text",
+        "riskClass": "green-text"
+      },
+      {
+        "name": "龙虎榜热门",
+        "zt": 22,
+        "zb": 2,
+        "dt": 0,
+        "net": 20.6,
+        "risk": 1.4,
+        "netClass": "red-text",
+        "riskClass": "orange-text"
+      },
+      {
+        "name": "锂电池",
+        "zt": 20,
+        "zb": 5,
+        "dt": 0,
+        "net": 16.5,
+        "risk": 3.5,
+        "netClass": "red-text",
+        "riskClass": "red-text"
+      },
+      {
+        "name": "机器人概念",
+        "zt": 17,
+        "zb": 5,
+        "dt": 0,
+        "net": 13.5,
+        "risk": 3.5,
+        "netClass": "red-text",
+        "riskClass": "red-text"
+      },
+      {
+        "name": "IDC概念（数据中心）",
+        "zt": 14,
+        "zb": 1,
+        "dt": 0,
+        "net": 13.3,
+        "risk": 0.7,
+        "netClass": "red-text",
+        "riskClass": "green-text"
+      },
+      {
+        "name": "东数西算",
+        "zt": 15,
+        "zb": 3,
+        "dt": 0,
+        "net": 12.9,
+        "risk": 2.1,
+        "netClass": "red-text",
+        "riskClass": "orange-text"
+      },
+      {
+        "name": "国资改革",
+        "zt": 14,
+        "zb": 3,
+        "dt": 0,
+        "net": 11.9,
+        "risk": 2.1,
+        "netClass": "red-text",
+        "riskClass": "orange-text"
+      },
+      {
+        "name": "一带一路",
+        "zt": 12,
+        "zb": 1,
+        "dt": 0,
+        "net": 11.3,
+        "risk": 0.7,
+        "netClass": "red-text",
+        "riskClass": "green-text"
+      },
+      {
+        "name": "新能源车",
+        "zt": 14,
+        "zb": 4,
+        "dt": 0,
+        "net": 11.2,
+        "risk": 2.8,
+        "netClass": "red-text",
+        "riskClass": "orange-text"
+      },
+      {
+        "name": "新材料",
+        "zt": 12,
+        "zb": 2,
+        "dt": 0,
+        "net": 10.6,
+        "risk": 1.4,
+        "netClass": "red-text",
+        "riskClass": "orange-text"
+      },
+      {
+        "name": "储能",
+        "zt": 11,
+        "zb": 1,
+        "dt": 0,
+        "net": 10.3,
+        "risk": 0.7,
+        "netClass": "red-text",
+        "riskClass": "green-text"
+      },
+      {
+        "name": "光伏玻璃",
+        "zt": 13,
+        "zb": 4,
+        "dt": 0,
+        "net": 10.2,
+        "risk": 2.8,
+        "netClass": "red-text",
+        "riskClass": "orange-text"
+      }
+    ],
+    "overlap": {
+      "themes": [],
+      "score": "0%",
+      "note": "涨停主线与炸板主杀题材的重叠度（越高越提示主线在分歧/退潮）"
+    }
+  },
+  "prev": {
+    "date": "2026-04-15",
+    "zt": 57,
+    "zb": 24,
+    "dt": 8,
+    "fb_rate": 70.37037037037037,
+    "zb_rate": 29.629629629629626,
+    "zt_early_ratio": 64.91228070175438
+  },
+  "delta": {
+    "date": "2026-04-15",
+    "zt": 22,
+    "zb": -1,
+    "dt": -7,
+    "fb_rate": 7.1,
+    "jj_rate": null,
+    "zb_rate": -7.1,
+    "zt_early_ratio": -0.4,
+    "loss": null,
+    "top3_theme_ratio": null,
+    "max_lb": null,
+    "heat": null,
+    "risk": null
+  }
+}

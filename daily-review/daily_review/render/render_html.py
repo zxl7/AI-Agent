@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 import hashlib
+import re
 from pathlib import Path
 from typing import Any, Dict
 
@@ -538,6 +539,80 @@ def build_learning_notes(*, market_data: Dict[str, Any], cache_dir: Path) -> Dic
     date = str(market_data.get("date") or "").strip() or "unknown-date"
     stage_type = ((market_data.get("moodStage") or {}).get("type") or "warn").strip()
 
+    def _norm_line(s: str) -> str:
+        s = s.strip()
+        # 去掉常见编号/标题前缀
+        s = re.sub(r"^\s*[（(]?\s*\d+\s*[）)]\s*", "", s)
+        s = re.sub(r"^\s*\d+\s*[\.、]\s*", "", s)
+        s = re.sub(r"^\s*[一二三四五六七八九十]+\s*[、.．]\s*", "", s)
+        s = s.replace("—", "—").strip()
+        return s
+
+    def _split_sentences(text: str) -> list[str]:
+        # 按中文标点粗切分
+        parts = re.split(r"[。！？!?\n]+", text)
+        out: list[str] = []
+        for p in parts:
+            p = p.strip()
+            if not p:
+                continue
+            # 再按分号/冒号轻切
+            out.extend([x.strip() for x in re.split(r"[；;]+", p) if x.strip()])
+        return out
+
+    def _load_user_pool() -> tuple[list[tuple[str, str]], list[tuple[str, str]], list[tuple[str, str]]]:
+        """
+        从工作区的 ocr_识别结果.md 中提炼候选：
+        - 返回 (tips_add, quotes_add, fire_quotes_add)
+        说明：这里只做“短句提炼”，不搬运长段落；且不引用外部链接内容。
+        """
+        workspace_root = cache_dir.parent
+        md_path = workspace_root / "ocr_识别结果.md"
+        if not md_path.exists():
+            return ([], [], [])
+
+        raw = md_path.read_text(encoding="utf-8", errors="ignore")
+        lines = [ln for ln in raw.splitlines() if ln.strip() and not ln.strip().startswith("#")]
+        sentences: list[str] = []
+        for ln in lines:
+            ln = _norm_line(ln)
+            if not ln or ln == "图片":
+                continue
+            # 过滤明显标题
+            if re.match(r"^(利弗莫尔|经典|整理|一、|二、|三\.|四、|五、|六\.|七\.|八\.|九\.|十\.)", ln):
+                continue
+            sentences.extend(_split_sentences(ln))
+
+        # 去重 + 长度控制
+        seen: set[str] = set()
+        cand: list[str] = []
+        for s in sentences:
+            s = _norm_line(s)
+            s = re.sub(r"\s+", "", s)
+            if len(s) < 12 or len(s) > 44:
+                continue
+            if s in seen:
+                continue
+            seen.add(s)
+            cand.append(s)
+
+        tips_add: list[tuple[str, str]] = []
+        quotes_add: list[tuple[str, str]] = []
+        fire_quotes_add: list[tuple[str, str]] = []
+        for s in cand:
+            _id = "u" + hashlib.md5(s.encode("utf-8")).hexdigest()[:8]
+            # 归类：更短的当“金句”，稍长的当“提醒”
+            if len(s) <= 26:
+                # 退潮/防守类句子放到 fire_quotes
+                if any(k in s for k in ["止损", "亏损", "认赔", "危险", "躲开", "不摊", "不平摊", "保命"]):
+                    fire_quotes_add.append((_id, s))
+                else:
+                    quotes_add.append((_id, s))
+            else:
+                tips_add.append((_id, s))
+
+        return (tips_add, quotes_add, fire_quotes_add)
+
     # 展示强度 A：每天仅 1 条注意事项 + 1 句金句，并做近 7 日去重
     # 候选池尽量丰富，避免两三天就重复
     tips_general = [
@@ -608,6 +683,15 @@ def build_learning_notes(*, market_data: Dict[str, Any], cache_dir: Path) -> Dic
         ("qf06", "绝不要平反亏损——亏损只会让判断失真。"),
         ("qf07", "先躲开危险信号，机会永远会再来。"),
     ]
+
+    # 追加：从你维护的 ocr_识别结果.md 中提炼的“理念句子”
+    user_tips_add, user_quotes_add, user_fire_quotes_add = _load_user_pool()
+    if user_tips_add:
+        tips_general = user_tips_add + tips_general
+    if user_quotes_add:
+        quotes_warn = user_quotes_add + quotes_warn
+    if user_fire_quotes_add:
+        quotes_fire = user_fire_quotes_add + quotes_fire
 
     if stage_type == "good":
         tip_pool = tips_good + tips_general
