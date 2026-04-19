@@ -153,6 +153,9 @@ def cache_paths() -> dict:
         "pools": cache_dir / "pools_cache.json",
         "height": cache_dir / "height_trend_cache.json",
         "themes": cache_dir / "theme_cache.json",
+        "index_klines": cache_dir / "index_kline_cache.json",
+        "trade_days": cache_dir / "trade_days_cache.json",
+        "theme_trend": cache_dir / "theme_trend_cache.json",
     }
 
 def load_pools_cache() -> dict:
@@ -230,13 +233,35 @@ def get_trading_days_from_volume_k(n=7):
                     out.append(t[:10])
         return out
 
+    # ───────────────────────────────
+    # 交易日缓存：确认过的最近交易日直接复用，避免重复推断
+    # ───────────────────────────────
+    try:
+        paths = cache_paths()
+        paths["dir"].mkdir(parents=True, exist_ok=True)
+        td_cache = read_json_file(paths["trade_days"])
+        if isinstance(td_cache, dict):
+            as_of = td_cache.get("as_of", "")
+            days = td_cache.get("days", [])
+            if as_of == DATE and isinstance(days, list) and len(days) >= n:
+                return days[-n:]
+    except Exception:
+        pass
+
     try:
         # 规则：n<=5 用 latest；n>5 用 history（避免 latest 的 lt 上限/不稳定问题）
         if n <= 5:
             sh = api_get(f"{BASE}/hsindex/latest/000001.SH/d/{TOKEN}?lt={n}")
             sz = api_get(f"{BASE}/hsindex/latest/399001.SZ/d/{TOKEN}?lt={n}")
             uniq = sorted(set(_extract_dates(sh) + _extract_dates(sz)))
-            return uniq[-n:] if len(uniq) >= n else uniq
+            result = uniq[-n:] if len(uniq) >= n else uniq
+            # 写回缓存（至少保存最近5个交易日）
+            try:
+                paths = cache_paths()
+                write_json_file(paths["trade_days"], {"version": 1, "as_of": DATE, "days": uniq})
+            except Exception:
+                pass
+            return result
 
         et = DATE.replace("-", "")
         # 给一个足够大的窗口（过去 40 个自然日），再截取最后 n 个交易日
@@ -246,14 +271,26 @@ def get_trading_days_from_volume_k(n=7):
         uniq = sorted(set(_extract_dates(sh) + _extract_dates(sz)))
         # 仅保留 <= DATE 的交易日（稳妥）
         uniq = [d for d in uniq if d <= DATE]
-        return uniq[-n:] if len(uniq) >= n else uniq
+        result = uniq[-n:] if len(uniq) >= n else uniq
+        try:
+            paths = cache_paths()
+            write_json_file(paths["trade_days"], {"version": 1, "as_of": DATE, "days": uniq})
+        except Exception:
+            pass
+        return result
     except Exception:
         # 兜底：至少给出 latest 5 个交易日
         try:
             sh = api_get(f"{BASE}/hsindex/latest/000001.SH/d/{TOKEN}?lt=5")
             sz = api_get(f"{BASE}/hsindex/latest/399001.SZ/d/{TOKEN}?lt=5")
             uniq = sorted(set(_extract_dates(sh) + _extract_dates(sz)))
-            return uniq[-min(n, 5):]
+            result = uniq[-min(n, 5):]
+            try:
+                paths = cache_paths()
+                write_json_file(paths["trade_days"], {"version": 1, "as_of": DATE, "days": uniq})
+            except Exception:
+                pass
+            return result
         except Exception:
             return []
 
@@ -344,9 +381,26 @@ indices_data = []
 for code, name in [("000001.SH","上证指数"), ("399001.SZ","深证成指"),
                     ("399006.SZ","创业板指"), ("000688.SH","科创50")]:
     try:
-        d = api_get(f"{BASE}/hsindex/latest/{code}/d/{TOKEN}?lt=5")
-        k = d[-1] if isinstance(d, list) and len(d) > 0 else {}
-        prev = d[-2] if isinstance(d, list) and len(d) > 1 else {}
+        # 指数快照合并数据源：复用 index_kline_cache（最近5根），避免重复请求
+        paths = cache_paths()
+        paths["dir"].mkdir(parents=True, exist_ok=True)
+        idx_cache = read_json_file(paths["index_klines"])
+        codes_map = idx_cache.get("codes", {}) if isinstance(idx_cache, dict) else {}
+        entry = codes_map.get(code, {}) if isinstance(codes_map, dict) else {}
+        kl = entry.get("items", []) if isinstance(entry, dict) else []
+
+        # 缓存不满足则请求一次并写回（仅保留5根）
+        cached_dates = [it.get("t", "")[:10] for it in kl if isinstance(it, dict) and isinstance(it.get("t", ""), str)]
+        if not (entry.get("as_of") == DATE and len(kl) >= 2 and any(d == DATE for d in cached_dates)):
+            kl = api_get(f"{BASE}/hsindex/latest/{code}/d/{TOKEN}?lt=5")
+            if isinstance(kl, list):
+                if not isinstance(codes_map, dict):
+                    codes_map = {}
+                codes_map[code] = {"as_of": DATE, "items": kl[-5:]}
+                write_json_file(paths["index_klines"], {"version": 1, "codes": codes_map})
+
+        k = kl[-1] if isinstance(kl, list) and len(kl) > 0 else {}
+        prev = kl[-2] if isinstance(kl, list) and len(kl) > 1 else {}
         close = k.get('c', 0)
         prev_close = prev.get('c', k.get('pc', 0))
         chg_pct = (close - prev_close) / prev_close * 100 if prev_close else 0
@@ -424,9 +478,28 @@ zb_high_names = '、'.join(
 print("\n[3/12] 获取近5日量能...")
 
 def fetch_index_klines(code, n=5):
-    """获取指数最近n根K线，返回 {日期: 成交额} 字典"""
+    """获取指数最近n根K线，返回 {日期: 成交额} 字典（带本地缓存）"""
     try:
-        d = api_get(f"{BASE}/hsindex/latest/{code}/d/{TOKEN}?lt={n}")
+        # 指数数据变化不大，做 5 日缓存复用，减少重复请求
+        paths = cache_paths()
+        paths["dir"].mkdir(parents=True, exist_ok=True)
+        idx_cache = read_json_file(paths["index_klines"])
+        codes_map = idx_cache.get("codes", {}) if isinstance(idx_cache, dict) else {}
+        entry = codes_map.get(code, {}) if isinstance(codes_map, dict) else {}
+        items = entry.get("items", []) if isinstance(entry, dict) else []
+        as_of = entry.get("as_of", "")
+
+        # 如果缓存包含请求日期（DATE）并且条数够用，直接复用
+        cached_dates = [it.get("t", "")[:10] for it in items if isinstance(it, dict) and isinstance(it.get("t", ""), str)]
+        if as_of == DATE and len(items) >= n and any(d == DATE for d in cached_dates):
+            d = items[-n:]
+        else:
+            d = api_get(f"{BASE}/hsindex/latest/{code}/d/{TOKEN}?lt={max(n, 5)}")
+            # 写回缓存（只缓存最近5根，避免文件膨胀）
+            if isinstance(d, list):
+                codes_map = codes_map if isinstance(codes_map, dict) else {}
+                codes_map[code] = {"as_of": DATE, "items": d[-5:]}
+                write_json_file(paths["index_klines"], {"version": 1, "codes": codes_map})
         if isinstance(d, list):
             result = {}
             for k in d:
@@ -1006,16 +1079,11 @@ top10_with_theme = []
 for t in top10:
     themes_for_this = []
     try:
-        req = urllib.request.Request(f"{BASE}/hszg/zg/{t['dm']}/{TOKEN}")
-        with urllib.request.urlopen(req, timeout=10) as r:
-            data = json.loads(r.read())
-        if isinstance(data, list):
-            for item in data:
-                ct = clean_theme(item.get('name', ''))
-                if ct and ct not in NOISE_THEMES:
-                    themes_for_this.append(ct)
-        time.sleep(0.03)
-    except:
+        # 复用题材缓存 + 代码归一化（避免每次全量都重复打 10 次接口）
+        code6 = normalize_stock_code(t.get("dm", ""))
+        themes_for_this = fetch_stock_themes(code6)
+        time.sleep(0.003)
+    except Exception:
         pass
     top10_with_theme.append({
         **t,
@@ -1228,24 +1296,62 @@ for idx, (start, end) in enumerate(layer_ranges):
     })
 
 # 主线题材持续性（近5个交易日）
-def get_theme_daily_count(trade_date, target_themes):
-    """统计指定交易日中目标题材出现的涨停家数。"""
-    day_counts = {theme: 0 for theme in target_themes}
-    # 优化：用 7 日池子缓存取当日涨停池，避免重复请求
-    day_zt_all = fetch_pool_data("ztgc", trade_date, use_cache_first=True, cache=pool_cache)
+# 优化策略：
+# 1) 只统计 2 连板及以上（减少当日需要查询题材的股票数量）
+# 2) 按日期缓存最近 5 个交易日的“题材计数 map”，5 天之外自动丢弃
+def get_theme_daily_count_map(trade_date, cache_days_keep):
+    """
+    返回：{题材名: 连板(>=2)涨停家数}
+    """
+    # 读缓存
+    try:
+        paths = cache_paths()
+        trend_cache = read_json_file(paths["theme_trend"])
+        by_day = trend_cache.get("by_day", {}) if isinstance(trend_cache, dict) else {}
+        if isinstance(by_day, dict) and trade_date in by_day and isinstance(by_day[trade_date], dict):
+            return by_day[trade_date]
+    except Exception:
+        pass
 
+    # 计算：只取 2 连板及以上
+    day_zt_all = fetch_pool_data("ztgc", trade_date, use_cache_first=True, cache=pool_cache)
+    day_counts = {}
     for stock in day_zt_all:
+        try:
+            lbc = int(stock.get("lbc", 1) or 1)
+        except Exception:
+            lbc = 1
+        if lbc < 2:
+            continue
         code6 = normalize_stock_code(stock.get('dm', ''))
         if not code6:
             continue
         try:
-            themes = set(fetch_stock_themes(code6))
-            for theme in target_themes:
-                if theme in themes:
-                    day_counts[theme] += 1
-            time.sleep(0.003)
+            themes = fetch_stock_themes(code6)
+            for t in themes:
+                day_counts[t] = day_counts.get(t, 0) + 1
+            time.sleep(0.002)
         except Exception:
             continue
+
+    # 写缓存并裁剪到最近 5 个交易日
+    try:
+        paths = cache_paths()
+        trend_cache = read_json_file(paths["theme_trend"])
+        if not isinstance(trend_cache, dict):
+            trend_cache = {}
+        by_day = trend_cache.get("by_day", {})
+        if not isinstance(by_day, dict):
+            by_day = {}
+        by_day[trade_date] = day_counts
+        # prune
+        keep = set(cache_days_keep or [])
+        by_day = {d: v for d, v in by_day.items() if d in keep}
+        trend_cache.update({"version": 1, "as_of": DATE, "by_day": by_day})
+        write_json_file(paths["theme_trend"], trend_cache)
+    except Exception:
+        pass
+
     return day_counts
 
 theme_trend_days = get_trading_days_from_volume_k(5) or [DATE]
@@ -1256,7 +1362,8 @@ if focus_theme_names:
     print("\n[附加分析] 统计主线题材持续性...")
     theme_history_map = {theme: [] for theme in focus_theme_names}
     for trade_date in theme_trend_days:
-        day_counts = get_theme_daily_count(trade_date, focus_theme_names)
+        day_map = get_theme_daily_count_map(trade_date, theme_trend_days)
+        day_counts = {theme: int(day_map.get(theme, 0) or 0) for theme in focus_theme_names}
         print(f"   {trade_date[5:]}: " + " | ".join([f"{theme}{day_counts.get(theme, 0)}只" for theme in focus_theme_names]))
         for theme in focus_theme_names:
             theme_history_map[theme].append(day_counts.get(theme, 0))
@@ -1430,6 +1537,45 @@ sentiment_note = (
     f"封板率 {fb_rate:.1f}% 、晋级率 {jj_rate:.0f}% 、炸板率 {zb_rate:.1f}% 、跌停 {dt_count} 只。"
 )
 
+# 开发/模块化复用：情绪模块输入（用于 partial 重算 mood/moodStage/moodCards）
+mood_inputs = {
+    # scoring
+    "fb_rate": fb_rate,
+    "jj_rate": jj_rate,
+    "zt_count": zt_count,
+    "zt_early_ratio": zt_early_ratio,
+    "zb_rate": zb_rate,
+    "dt_count": dt_count,
+    "bf_count": bf_count,
+    "zb_high_ratio": zb_high_ratio,
+    "broken_lb_rate": broken_lb_rate,
+    # stage extra
+    "rate_2to3": rate_2to3,
+    "rate_3to4": rate_3to4,
+    "height_gap": height_gap,
+    # cards
+    "zt_early_count": zt_early_count,
+    "avg_seal_fund_yi": avg_seal_fund_yi,
+    "top_seal_names": top_seal_names,
+    "hs_median": hs_median,
+    "hs_ge15_ratio": hs_ge15_ratio,
+    "yest_2b_count": len(yest_2b_codes),
+    "succ_2to3": succ_2to3,
+    "yest_3b_count": len(yest_3b_codes),
+    "succ_3to4": succ_3to4,
+    "max_lb": max_lb,
+    "second_lb": second_lb,
+    "zb_high_count": zb_high_count,
+    "zb_count": zb_count,
+    "zb_high_names": zb_high_names,
+    "avg_zt_zbc": avg_zt_zbc,
+    "zt_zbc_ge3_ratio": zt_zbc_ge3_ratio,
+    "smallcap_ratio": smallcap_ratio,
+    "smallcap_cnt": smallcap_cnt,
+    "yest_lb_count": len(yest_lb_stocks),
+    "duanban_count": len(duanban_list),
+}
+
 top10_concentration = top10_total / today_total_vol * 100 if today_total_vol else 0
 limitup_absorb_ratio = zt_total_cje / today_total_vol * 100 if today_total_vol else 0
 capital_style = (
@@ -1508,14 +1654,28 @@ for theme_name, theme_count in real_themes[:3]:
         'elastic': pick_theme_elastic(theme_name),
     })
 
-# 风格雷达
-gem_today_count = len([s for s in zt_all if s.get('dm', '').startswith('300')])
-relay_strength = round(clamp(jj_rate * 1.3, 0, 100))
-low_trial_strength = round(clamp(first_board_count / zt_count * 120 if zt_count else 0, 0, 100))
-elastic_strength = round(clamp(gem_today_count * 12 + height_trend['gem'][-1] * 10 if height_trend['gem'] else 0, 0, 100))
-theme_focus_strength = round(clamp(top3_theme_ratio * 1.2, 0, 100))
-capital_focus_strength = round(clamp(top10_concentration * 6, 0, 100))
-high_game_strength = round(clamp(high_level_ratio * 5 + max_lb * 8, 0, 100))
+# 风格雷达（拆分：强度计算逻辑迁移到 daily_review.metrics.style_radar）
+from daily_review.metrics.style_radar import calc_style_strengths
+gem_today_count = len([s for s in zt_all if str(s.get('dm', '')).startswith('300')])
+gem_height = height_trend["gem"][-1] if height_trend.get("gem") else 0
+style_inputs = {
+    "jj_rate": jj_rate,
+    "first_board_count": first_board_count,
+    "zt_count": zt_count,
+    "gem_today_count": gem_today_count,
+    "gem_height": gem_height,
+    "top3_theme_ratio": top3_theme_ratio,
+    "top10_concentration": top10_concentration,
+    "high_level_ratio": high_level_ratio,
+    "max_lb": max_lb,
+}
+style_strengths = calc_style_strengths(style_inputs)
+relay_strength = style_strengths["relay_strength"]
+low_trial_strength = style_strengths["low_trial_strength"]
+elastic_strength = style_strengths["elastic_strength"]
+theme_focus_strength = style_strengths["theme_focus_strength"]
+capital_focus_strength = style_strengths["capital_focus_strength"]
+high_game_strength = style_strengths["high_game_strength"]
 
 # ══════════════════════════
 # 输出汇总
@@ -3717,8 +3877,131 @@ if KEEP_ONLY_LATEST_PER_DATE:
 now = datetime.datetime.now()
 output_filename = build_report_filename(DATE, now)
 output_path = os.path.join(OUTPUT_DIR, output_filename)
-with open(output_path, "w", encoding="utf-8") as f:
-    f.write(html)
+
+# A 方案（模板外置）：优先用模板注入 marketData 生成最终 HTML，保证页面结构/样式不被业务代码污染
+try:
+    from pathlib import Path as _Path
+    from daily_review.render.render_html import render_html_template
+
+    template_path = _Path(__file__).resolve().parent / "templates" / "report_template.html"
+    if not template_path.exists():
+        raise FileNotFoundError(f"模板不存在: {template_path}")
+
+    # 将各类 JSON 字符串恢复为 Python 对象，便于统一注入
+    mood_stage = json.loads(mood_stage_json)
+    mood_cards = json.loads(mood_cards_json)
+    theme_panels = json.loads(theme_panels_json)
+    sectors = json.loads(sectors_json)
+    top10_rows = json.loads(top10_rows_json)
+    top10_summary = json.loads(top10_summary_json)
+    action_guide = json.loads(action_guide_json)
+
+    market_data = {
+        "date": DATE,
+        "dateNote": DATE_NOTE,
+        # 开发/模块化复用：存放各模块可复用的“中间特征”，用于部分更新（只重算某个模块）
+        "features": {
+            "chart_palette": chart_palette,
+            "style_inputs": style_inputs,
+            "mood_inputs": mood_inputs,
+            "style_strengths": {
+                **style_strengths
+            },
+        },
+        "indices": [
+            {
+                "name": i["name"],
+                "val": f'{i["close"]:.2f}',
+                "chg": f'{i["pct"]:+.2f}%',
+                "up": True,
+                "highlight": (i.get("name") == "创业板指" and i.get("pct", 0) > 2),
+            }
+            for i in indices_data
+        ],
+        "panorama": {"limitUp": zt_count, "broken": zb_count, "limitDown": dt_count, "ratio": f"{fb_rate:.1f}%"},
+        "mood": {"heat": heat_score, "risk": risk_score, "score": sentiment_score},
+        "volume": {
+            "total": f"{today_total_vol:.2f}亿",
+            "change": f"{vol_chg_pct:+.2f}%",
+            "increase": volume_shift["detail"],
+            "dates": [v["date"] for v in vol_history],
+            "values": [round(v["vol"], 2) for v in vol_history],
+        },
+        "effect": {
+            "ratio": effect_ratio_val,
+            "ratioDetail": effect_ratio_detail,
+            "prop": effect_prop_val,
+            "propDetail": effect_prop_detail,
+            "ladder": effect_ladder_val,
+            "ladderDetail": effect_ladder_detail,
+            "limit": limit_ratio,
+            "limitDetail": limit_ratio_detail,
+            "verdict": effect_verdict_title,
+            "verdictDetail": effect_verdict_detail,
+            "verdictType": effect_verdict_type,
+        },
+        "fear": {
+            "bigFace": f"{bf_count}只",
+            "bigFaceNote": bf_names if bf_names else "无大面股",
+            "limitDown": f"{dt_count}只",
+            "limitDownNote": dt_names,
+            "risk": fear_risk,
+            "broken": f"{zb_rate:.1f}%",
+            "brokenNote": f"{zb_count}/({zt_count}+{zb_count})={zb_rate:.1f}%",
+            "success": f"{fb_rate:.1f}%",
+            "successNote": f"封板质量{'极高' if fb_rate>=80 else ('尚可' if fb_rate>=70 else '偏低')}",
+            "yesterday": yesterday_perf,
+        },
+        "styleRadar": {
+            "indicators": ["连板接力", "低位试错", "20cm弹性", "题材集中", "资金抱团", "高位博弈"],
+            "values": [relay_strength, low_trial_strength, elastic_strength, theme_focus_strength, capital_focus_strength, high_game_strength],
+            "palette": chart_palette,
+        },
+        "themeTrend": {
+            "dates": theme_trend["dates"],
+            "palette": chart_palette,
+            "series": [{"name": it["name"], "values": it["counts"]} for it in theme_trend.get("series", [])],
+        },
+        "heightTrend": {
+            "dates": height_trend["dates"],
+            "main": height_trend["main"],
+            "sub": height_trend["sub"],
+            "gem": height_trend["gem"],
+            "palette": chart_palette,
+            "labels": {"main": height_trend["labels_main"], "sub": height_trend["labels_sub"], "gem": height_trend["labels_gem"]},
+        },
+        "ladder": ladder_rows,
+        "broken": broken_text.replace("❌ 昨日断板：", "").replace("✅ 昨日无断板", ""),
+        "sectors": sectors,
+        "top10": top10_rows,
+        "top10Summary": top10_summary,
+        "actionGuide": action_guide,
+        "moodStage": mood_stage,
+        "moodCards": mood_cards,
+        "themePanels": theme_panels,
+    }
+
+    render_html_template(
+        template_path=template_path,
+        output_path=_Path(output_path),
+        market_data=market_data,
+        report_date=DATE,
+        date_note=DATE_NOTE,
+    )
+
+    # 产物缓存：给“部分更新”复用（不需要重跑全量抓取）
+    cache_dir = _Path(__file__).resolve().parent / "cache"
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    date_compact = DATE.replace("-", "")
+    (_Path(cache_dir) / f"market_data-{date_compact}.json").write_text(
+        json.dumps(market_data, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+except Exception as e:
+    # 模板渲染失败则回退到旧逻辑（确保可用性）
+    with open(output_path, "w", encoding="utf-8") as f:
+        f.write(html)
+    print(f"⚠️ 模板渲染失败，已回退旧HTML拼接方式：{e}")
 
 print(f"\n✅ HTML已生成: {os.path.abspath(output_path) if 'os' in globals() else output_path}")
 print(f"\n--- 报告摘要 ---")
