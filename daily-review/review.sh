@@ -16,13 +16,19 @@ set -euo pipefail
 DATE_ARG="${1:-}"
 
 pick_latest_cache_date() {
-  # 从 cache/market_data-*.json 中找最新日期
-  local latest
-  latest="$(ls -1 cache/market_data-*.json 2>/dev/null | sed -E 's/.*market_data-([0-9]{8})\\.json/\\1/' | sort | tail -n 1 || true)"
-  if [[ -z "${latest}" ]]; then
+  # 从 cache/market_data-*.json 中找最新日期（按文件修改时间）
+  local latest_file base date8
+  latest_file="$(ls -1t cache/market_data-*.json 2>/dev/null | head -n 1 || true)"
+  if [[ -z "${latest_file}" ]]; then
     return 1
   fi
-  echo "${latest:0:4}-${latest:4:2}-${latest:6:2}"
+  base="$(basename "${latest_file}")"               # market_data-YYYYMMDD.json
+  date8="${base#market_data-}"                      # YYYYMMDD.json
+  date8="${date8%.json}"                            # YYYYMMDD
+  if [[ ! "${date8}" =~ ^[0-9]{8}$ ]]; then
+    return 1
+  fi
+  echo "${date8:0:4}-${date8:4:2}-${date8:6:2}"
 }
 
 if [[ -z "${DATE_ARG}" ]]; then
@@ -49,4 +55,3 @@ PYTHONPATH=. python3 daily_review/render/render_html.py \
   --date "${DATE_ARG}"
 
 echo "✅ 离线渲染完成: ${OUT_HTML}"
-
