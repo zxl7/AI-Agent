@@ -44,7 +44,8 @@ def calc_style_strengths(style_inputs: Dict[str, Any]) -> Dict[str, int]:
     elastic_strength = round(clamp(gem_today_count * 12 + gem_height * 10, 0, 100))
     theme_focus_strength = round(clamp(top3_theme_ratio * 1.2, 0, 100))
     capital_focus_strength = round(clamp(top10_concentration * 6, 0, 100))
-    high_game_strength = round(clamp(high_level_ratio * 5 + max_lb * 8, 0, 100))
+    # 短线高度突破：适当提高“高度”权重（max_lb）
+    high_game_strength = round(clamp(high_level_ratio * 5 + max_lb * 10, 0, 100))
 
     return {
         "relay_strength": int(relay_strength),
@@ -54,4 +55,3 @@ def calc_style_strengths(style_inputs: Dict[str, Any]) -> Dict[str, int]:
         "capital_focus_strength": int(capital_focus_strength),
         "high_game_strength": int(high_game_strength),
     }
-

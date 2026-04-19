@@ -4,8 +4,15 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>A股收盘简报 | __REPORT_DATE__</title>
-    <script src="../vendor/echarts.min.js"></script>
-    <script src="../vendor/vue.global.prod.js"></script>
+    <!-- CDN 优先（更轻），本地 vendor 兜底（离线可打开） -->
+    <script src="https://fastly.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <script>
+      if (!window.echarts) document.write('<script src="../vendor/echarts.min.js"><\\/script>');
+    </script>
+    <script src="https://fastly.jsdelivr.net/npm/vue@3/dist/vue.global.prod.js"></script>
+    <script>
+      if (!window.Vue) document.write('<script src="../vendor/vue.global.prod.js"><\\/script>');
+    </script>
     <style>
       [v-cloak] { display: none; }
       :root {
@@ -582,6 +589,52 @@
       body[data-page="sentiment"] .card[data-page="sentiment"] { display: block; }
       body[data-page="themes"] .card[data-page="themes"] { display: block; }
 
+      /* Page blocks（非 card 的页面块，如 summary/toc） */
+      .page-block[data-page] { display: none; }
+      body[data-page="sentiment"] .page-block[data-page="sentiment"] { display: block; }
+      body[data-page="themes"] .page-block[data-page="themes"] { display: block; }
+
+      /* Summary Bar（首屏情绪总控） */
+      .summarybar {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-sm);
+        padding: 14px 14px;
+        margin: 0 0 14px;
+      }
+      /* SummaryBar 情绪主题色（跟随 moodStage.type） */
+      .summarybar.mood-good { border-color: rgba(239,68,68,0.25); box-shadow: 0 0 0 5px rgba(239,68,68,0.08), var(--shadow-sm); }
+      .summarybar.mood-warn { border-color: rgba(245,158,11,0.28); box-shadow: 0 0 0 5px rgba(245,158,11,0.08), var(--shadow-sm); }
+      .summarybar.mood-fire { border-color: rgba(14,165,233,0.28); box-shadow: 0 0 0 5px rgba(14,165,233,0.08), var(--shadow-sm); }
+      .summarybar-grid{
+        display: grid;
+        grid-template-columns: repeat(6, minmax(0, 1fr));
+        gap: 10px;
+      }
+      @media (max-width: 980px){
+        .summarybar-grid{ grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      }
+      .summary-item{
+        background: var(--bg-elevated);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-md);
+        padding: 10px 12px;
+        min-height: 60px;
+        display:flex;
+        flex-direction: column;
+        justify-content: space-between;
+      }
+      .summary-item[data-target] { cursor: pointer; }
+      .summary-item[data-target]:hover { transform: translateY(-1px); border-color: rgba(37,99,235,0.35); box-shadow: 0 0 0 3px rgba(37,99,235,0.08); }
+      .summary-k{ font-size: 11px; font-weight: 800; color: var(--text-muted); letter-spacing: 0.4px; }
+      .summary-v{ font-size: 16px; font-weight: 900; color: var(--text-primary); font-variant-numeric: tabular-nums; }
+      .summary-sub{ font-size: 11px; color: var(--text-secondary); font-weight: 650; opacity: 0.9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .card.flash {
+        outline: 2px solid rgba(37,99,235,0.55);
+        box-shadow: 0 0 0 5px rgba(37,99,235,0.12), var(--shadow-sm);
+      }
+
       /* Footer */
       .footer { text-align: center; padding: 32px 20px; color: var(--text-muted); font-size: 12px; font-weight: 500; }
       .footer p { margin-bottom: 4px; }
@@ -631,8 +684,100 @@
         <button class="tab-btn" data-page="themes" type="button">板块题材</button>
       </div>
 
+      <!-- 首屏：情绪总控（仅短线情绪页显示） -->
+      <div class="page-block summarybar"
+           :class="'mood-' + ((marketData.moodStage && marketData.moodStage.type) ? marketData.moodStage.type : 'warn')"
+           data-page="sentiment">
+        <div class="summarybar-grid">
+          <div class="summary-item" data-target="sec-panorama">
+            <div class="summary-k">情绪阶段</div>
+            <div class="summary-v">{{ marketData.moodStage?.title || '-' }}</div>
+            <div class="summary-sub">{{ marketData.moodStage?.detail || '' }}</div>
+          </div>
+          <div class="summary-item" data-target="sec-panorama">
+            <div class="summary-k">热度 / 风险</div>
+            <div class="summary-v">
+              <span :class="heatClass(marketData.mood?.heat)">{{ marketData.mood?.heat ?? '-' }}</span>
+              /
+              <span :class="riskClass(marketData.mood?.risk)">{{ marketData.mood?.risk ?? '-' }}</span>
+            </div>
+            <div class="summary-sub">综合 {{ marketData.mood?.score ?? '-' }} 分</div>
+          </div>
+          <div class="summary-item" data-target="sec-panorama">
+            <div class="summary-k">全景</div>
+            <div class="summary-v">
+              <span class="red-text">{{ marketData.panorama?.limitUp ?? '-' }}</span>
+              /
+              <span class="orange-text">{{ marketData.panorama?.broken ?? '-' }}</span>
+              /
+              <span class="green-text">{{ marketData.panorama?.limitDown ?? '-' }}</span>
+            </div>
+            <div class="summary-sub">涨停 / 炸板 / 跌停</div>
+          </div>
+          <div class="summary-item" data-target="sec-structure">
+            <div class="summary-k">封板率 / 晋级率</div>
+            <div class="summary-v">
+              <span :class="boardRateClass(marketData.panorama?.ratio)">{{ marketData.panorama?.ratio ?? '-' }}</span>
+              /
+              <span :class="jjClass(getMoodInput('jj_rate', 0))">{{ getMoodInput('jj_rate', '-') }}%</span>
+            </div>
+            <div class="summary-sub">封板质量与连板承接</div>
+          </div>
+          <div class="summary-item" data-target="sec-volume">
+            <div class="summary-k">量能</div>
+            <div class="summary-v">{{ marketData.volume?.total ?? '-' }}</div>
+            <div class="summary-sub">
+              较昨日
+              <span :class="signedClass(marketData.volume?.change)">{{ marketData.volume?.change ?? '-' }}</span>
+            </div>
+          </div>
+          <div class="summary-item" data-target="sec-ladder">
+            <div class="summary-k">高度</div>
+            <div class="summary-v">
+              <span :class="heightClass(marketData.ladder?.[0]?.badge)">{{ marketData.ladder?.[0]?.badge ?? '-' }}</span> 板
+            </div>
+            <div class="summary-sub">最高板（天梯首位）</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 市场量能 -->
+      <div class="card" data-page="sentiment" id="sec-volume">
+        <div class="card-header"><div class="card-title">市场量能</div></div>
+        <!-- 按你的要求：删除上面的数值条（volume-info-box），保留下面的模块内容 -->
+
+        <div class="chart-container">
+          <div id="volume-trend-echart" style="width: 100%; height: 100%;"></div>
+        </div>
+
+        <div class="section-header">资金抱团度</div>
+        <div class="fear-grid">
+
+          <div class="fear-card">
+            <div class="fear-val blue-text">1.5%</div>
+            <div class="fear-label">TOP10 成交集中度</div>
+            <div class="fear-note">成交额前十占两市总成交比例</div>
+          </div>
+          <div class="fear-card">
+            <div class="fear-val red-text">3.5%</div>
+            <div class="fear-label">涨停池吸金占比</div>
+            <div class="fear-note">涨停股成交额占两市总成交比例</div>
+          </div>
+          <div class="fear-card">
+            <div class="fear-val purple-text">分散轮动</div>
+            <div class="fear-label">资金风格</div>
+            <div class="fear-note">成交额 TOP10 占两市 1.5% ，涨停池吸金占比 3.5% 。</div>
+          </div>
+        </div>
+
+        <div class="summary-box">
+          <div class="summary-text" id="summaryText">📊 涨停<span class="summary-highlight">71家</span>、封板率<span class="summary-highlight">78.0%</span>显示短线情绪<span class="summary-highlight">良好</span>。<br />量能<span class="summary-highlight">小幅放量839亿(+3.58%)</span>，增量资金有回流，但力度相对温和。</div>
+          
+        </div>
+      </div>
+
       <!-- 市场全景 -->
-      <div class="card" data-page="sentiment">
+      <div class="card" data-page="sentiment" id="sec-panorama">
         <div class="card-header"><div class="card-title">市场全景</div><div class="card-badge">非ST股</div></div>
         <div class="panorama-grid">
           <div class="panorama-box pulse">
@@ -655,33 +800,43 @@
 
         <div class="insight-banner">
           <div class="insight-score">
-            <span class="insight-score-num">73</span>
+            <span class="insight-score-num">{{ marketData.mood?.heat ?? '-' }}</span>
             <span class="insight-score-unit">热度</span>
           </div>
           <div class="insight-main">
-            <div class="insight-title">情绪温度 · 强修复</div>
-            <div class="insight-desc">热度 73 / 风险 17；封板率 78.0% 、晋级率 62% 、炸板率 22.0% 、跌停 3 只。</div>
+            <div class="insight-title">情绪温度 · {{ marketData.moodStage?.title || '-' }}</div>
+            <div class="insight-desc">
+              热度 {{ marketData.mood?.heat ?? '-' }} / 风险 {{ marketData.mood?.risk ?? '-' }}；
+              封板率 {{ marketData.panorama?.ratio ?? '-' }}、
+              晋级率 {{ getMoodInput('jj_rate', '-') }}%、
+              炸板率 {{ getMoodInput('zb_rate', '-') }}%、
+              跌停 {{ marketData.panorama?.limitDown ?? '-' }} 只。
+            </div>
           </div>
           <div class="insight-side">
-            <div class="insight-chip">风险 17</div>
+            <div class="insight-chip">风险 {{ marketData.mood?.risk ?? '-' }}</div>
             <div class="insight-side-note">高度集中 · 主线集中度</div>
           </div>
           <div style="grid-column: 1 / -1;">
             <div style="display:grid; gap:8px;">
               <div>
                 <div style="display:flex; justify-content:space-between; font-size:12px; color:var(--text-muted); margin-bottom:4px;">
-                  <span>热度</span><span>73</span>
+                  <span>热度</span><span>{{ marketData.mood?.heat ?? '-' }}</span>
                 </div>
                 <div class="insight-meter">
-                  <div class="insight-meter-fill" style="width: 73%;"></div>
+                  <div class="insight-meter-fill" :style="{ width: String(marketData.mood?.heat ?? 0) + '%' }"></div>
                 </div>
               </div>
               <div>
                 <div style="display:flex; justify-content:space-between; font-size:12px; color:var(--text-muted); margin-bottom:4px;">
-                  <span>风险</span><span>17</span>
+                  <span>风险</span><span>{{ marketData.mood?.risk ?? '-' }}</span>
                 </div>
                 <div class="insight-meter" style="background: rgba(239, 68, 68, 0.12);">
-                  <div class="insight-meter-fill" style="width: 17%; background: linear-gradient(90deg, rgba(34,197,94,0.6) 0%, rgba(249,115,22,0.85) 45%, rgba(239,68,68,0.95) 100%);"></div>
+                  <div class="insight-meter-fill"
+                       :style="{
+                         width: String(marketData.mood?.risk ?? 0) + '%',
+                         background: 'linear-gradient(90deg, rgba(34,197,94,0.6) 0%, rgba(249,115,22,0.85) 45%, rgba(239,68,68,0.95) 100%)'
+                       }"></div>
                 </div>
               </div>
             </div>
@@ -702,7 +857,7 @@
       </div>
 
       <!-- 短线结构拆解 -->
-      <div class="card" data-page="sentiment">
+      <div class="card" data-page="sentiment" id="sec-structure">
         <div class="card-title">短线结构拆解</div>
         <div class="section-header">涨停结构</div>
         <div class="fear-grid">
@@ -784,51 +939,6 @@
           <div class="tier-title">机器人概念 / 储能 / 专精特新</div>
           <div class="tier-desc">45只涨停 · 天通股份·共进股份·盛视科技</div>
         </div>
-        </div>
-      </div>
-
-      <!-- 市场量能 -->
-      <div class="card" data-page="sentiment">
-        <div class="card-header"><div class="card-title">市场量能</div></div>
-        <div class="volume-info-box">
-          <div class="volume-icon-circle">⇄</div>
-          <div class="volume-main-val">
-            <div class="volume-label-row"><span>沪深合计 · 实际量能</span><span>较昨日</span></div>
-            <div class="volume-data-row">
-              <span class="volume-total" id="volTotal">24255.84亿</span>
-              <span class="volume-change red-text" id="volChange">+3.58%</span>
-              <span class="volume-increase orange-text" id="volIncrease">小幅放量 838.93亿</span>
-            </div>
-          </div>
-        </div>
-
-        <div class="chart-container">
-          <div id="volume-trend-echart" style="width: 100%; height: 100%;"></div>
-        </div>
-
-        <div class="section-header">资金抱团度</div>
-        <div class="fear-grid">
-
-          <div class="fear-card">
-            <div class="fear-val blue-text">1.5%</div>
-            <div class="fear-label">TOP10 成交集中度</div>
-            <div class="fear-note">成交额前十占两市总成交比例</div>
-          </div>
-          <div class="fear-card">
-            <div class="fear-val red-text">3.5%</div>
-            <div class="fear-label">涨停池吸金占比</div>
-            <div class="fear-note">涨停股成交额占两市总成交比例</div>
-          </div>
-          <div class="fear-card">
-            <div class="fear-val purple-text">分散轮动</div>
-            <div class="fear-label">资金风格</div>
-            <div class="fear-note">成交额 TOP10 占两市 1.5% ，涨停池吸金占比 3.5% 。</div>
-          </div>
-        </div>
-
-        <div class="summary-box">
-          <div class="summary-text" id="summaryText">📊 涨停<span class="summary-highlight">71家</span>、封板率<span class="summary-highlight">78.0%</span>显示短线情绪<span class="summary-highlight">良好</span>。<br />量能<span class="summary-highlight">小幅放量839亿(+3.58%)</span>，增量资金有回流，但力度相对温和。</div>
-          
         </div>
       </div>
 
@@ -1003,7 +1113,7 @@
       </div>
 
       <!-- 今日热点板块解读 -->
-      <div class="card" data-page="themes">
+      <div class="card" data-page="themes" id="sec-hot">
         <div class="card-title">今日热点板块解读</div>
 
         <div class="hot-topic fire">
@@ -1117,7 +1227,7 @@
       </div>
 
       <!-- 风格雷达图 -->
-      <div class="card" data-page="sentiment">
+      <div class="card" data-page="sentiment" id="sec-style">
         <div class="card-title">市场风格雷达</div>
         <div class="radar-chart-container">
           <div id="style-radar-echart" style="width: 100%; height: 100%;"></div>
@@ -1125,7 +1235,7 @@
       </div>
 
       <!-- 近7日高度趋势 -->
-      <div class="card" data-page="sentiment">
+      <div class="card" data-page="sentiment" id="sec-height">
         <div class="card-title">近7日高度趋势</div>
         <div class="chart-container" style="height: 260px;">
           <div id="height-trend-echart" style="width: 100%; height: 100%;"></div>
@@ -1133,7 +1243,7 @@
       </div>
 
       <!-- 连板天梯 -->
-      <div class="card" data-page="sentiment">
+      <div class="card" data-page="sentiment" id="sec-ladder">
         <div class="card-header"><div class="card-title">连板天梯</div><div class="card-badge">非ST</div></div>
         <div class="ladder-steps" id="ladderBody">
 
@@ -1280,7 +1390,7 @@
       </div>
 
       <!-- 板块强度TOP5 -->
-      <div class="card" data-page="themes">
+      <div class="card" data-page="themes" id="sec-sector-top5">
         <div class="card-title">板块强度 TOP5</div>
         <ul class="sector-list">
           <li class="sector-item" v-for="sec in marketData.sectors" :key="sec.rank">
@@ -1295,7 +1405,7 @@
       </div>
 
       <!-- 题材归因（涨停/炸板/强势 三视角） -->
-      <div class="card" data-page="themes">
+      <div class="card" data-page="themes" id="sec-theme-panels">
         <div class="card-title">题材归因</div>
         <div class="tier-grid">
           <div class="tier-card">
@@ -1356,7 +1466,7 @@
       </div>
 
       <!-- 成交额TOP10 -->
-      <div class="card" data-page="themes">
+      <div class="card" data-page="themes" id="sec-top10">
         <div class="card-title">成交额 TOP10</div>
         <table class="ladder-table">
           <thead><tr><th>#</th><th>个股</th><th>涨幅</th><th>成交额</th><th>板块</th></tr></thead>
@@ -1377,7 +1487,7 @@
       </div>
 
       <!-- 明日行动指南 -->
-      <div class="card" data-page="sentiment">
+      <div class="card" data-page="sentiment" id="sec-action">
         <div class="card-title">明日行动指南</div>
         <ul class="action-list">
           <li class="action-item" v-for="(item, idx) in marketData.actionGuide" :key="idx">
@@ -1524,6 +1634,70 @@
           },
           methods: {
             /**
+             * 从 features.mood_inputs 里取值（用于 SummaryBar 等快速读盘）
+             */
+            getMoodInput(key, fallback = '-') {
+              const v = this.marketData?.features?.mood_inputs?.[key];
+              if (v === undefined || v === null || v === '') return fallback;
+              // 小数展示控制交给模板，此处仅返回值
+              return v;
+            },
+            /**
+             * 纯函数：对“正负号”类数值给主题色
+             * - 红：正（上涨/放量）
+             * - 绿：负（下跌/缩量）
+             * - 橙：零/无法解析
+             */
+            signedClass(val) {
+              if (val === undefined || val === null) return 'orange-text';
+              const s = String(val).replace('%', '').trim();
+              const n = Number(s);
+              if (Number.isNaN(n)) return 'orange-text';
+              if (n > 0) return 'red-text';
+              if (n < 0) return 'green-text';
+              return 'orange-text';
+            },
+            /**
+             * 热度（越高越红）
+             */
+            heatClass(v) {
+              const n = Number(v);
+              if (Number.isNaN(n)) return 'orange-text';
+              if (n >= 75) return 'red-text';
+              if (n >= 55) return 'orange-text';
+              return 'green-text';
+            },
+            /**
+             * 风险（越高越红）
+             */
+            riskClass(v) {
+              const n = Number(v);
+              if (Number.isNaN(n)) return 'orange-text';
+              if (n >= 60) return 'red-text';
+              if (n >= 35) return 'orange-text';
+              return 'green-text';
+            },
+            /**
+             * 晋级率（越高越红）
+             */
+            jjClass(v) {
+              const n = Number(v);
+              if (Number.isNaN(n)) return 'orange-text';
+              if (n >= 60) return 'red-text';
+              if (n >= 40) return 'orange-text';
+              return 'green-text';
+            },
+            /**
+             * 高度（越高越红）
+             */
+            heightClass(v) {
+              const n = Number(v);
+              if (Number.isNaN(n)) return 'orange-text';
+              if (n >= 6) return 'red-text';
+              if (n >= 4) return 'orange-text';
+              return 'green-text';
+            },
+            /**
              * 纯函数：根据涨跌幅字符串（如 +1.23%）返回样式类名
              */
             indexChgClass(chgStr) {
@@ -1556,6 +1730,45 @@
 
       // 核心图表实例
       let volumeChart, heightChart, styleChart, themeTrendChart;
+      let currentPage = document.body.getAttribute('data-page') || 'sentiment';
+
+      /**
+       * Tabs：切换页面（单文件双页）
+       */
+      const setActiveTab = (page) => {
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+          btn.classList.toggle('active', btn.getAttribute('data-page') === page);
+        });
+      };
+
+      const renderChartsForPage = (page) => {
+        // 注意：ECharts 在 display:none 容器里初始化会拿到 0 宽高，因此按页懒渲染
+        if (page === 'sentiment') {
+          if (themeTrendChart) { themeTrendChart.dispose(); themeTrendChart = null; }
+          renderVolumeTrend(marketData.volume);
+          renderHeightTrend(marketData.heightTrend);
+          renderStyleRadar(marketData.styleRadar);
+          renderLadder(marketData.ladder);
+        } else {
+          if (volumeChart) { volumeChart.dispose(); volumeChart = null; }
+          if (heightChart) { heightChart.dispose(); heightChart = null; }
+          if (styleChart) { styleChart.dispose(); styleChart = null; }
+          renderThemeTrend(marketData.themeTrend);
+        }
+      };
+
+      const switchPage = (page) => {
+        currentPage = page || 'sentiment';
+        document.body.setAttribute('data-page', currentPage);
+        setActiveTab(currentPage);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        // 等待 DOM 完成显示隐藏后再渲染
+        setTimeout(() => {
+          renderChartsForPage(currentPage);
+          // 主动触发 resize 以适配容器尺寸
+          window.dispatchEvent(new Event('resize'));
+        }, 30);
+      };
 
       /**
        * 渲染量能趋势图 (ECharts 实现)
@@ -1906,20 +2119,32 @@
         updateThemeToggleLabel();
         
         // 重新初始化图表以适配主题
-        renderVolumeTrend(marketData.volume);
-        renderHeightTrend(marketData.heightTrend);
-        renderStyleRadar(marketData.styleRadar);
-        renderThemeTrend(marketData.themeTrend);
+        renderChartsForPage(currentPage);
       };
 
       document.addEventListener("DOMContentLoaded", () => {
         mountVueApp();
-        renderVolumeTrend(marketData.volume);
-        renderHeightTrend(marketData.heightTrend);
-        renderStyleRadar(marketData.styleRadar);
-        renderThemeTrend(marketData.themeTrend);
-        renderLadder(marketData.ladder);
+        // Tabs 初始化
+        setActiveTab(currentPage);
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+          btn.addEventListener('click', () => switchPage(btn.getAttribute('data-page')));
+        });
+
+        // 首屏只渲染当前页图表
+        renderChartsForPage(currentPage);
         updateThemeToggleLabel();
+
+        // Summary Bar 内置跳转（不单独做 TOC）
+        document.querySelectorAll('.summary-item[data-target]').forEach(item => {
+          item.addEventListener('click', () => {
+            const id = item.getAttribute('data-target');
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            el.classList.add('flash');
+            setTimeout(() => el.classList.remove('flash'), 900);
+          });
+        });
         
         // 响应式处理
         window.addEventListener('resize', () => {

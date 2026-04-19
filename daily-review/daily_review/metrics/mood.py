@@ -45,6 +45,9 @@ def calc_stage(*, heat_score: float, risk_score: float, inputs: Dict[str, Any]) 
     broken_lb_rate = float(inputs.get("broken_lb_rate", 0) or 0)
     zb_high_ratio = float(inputs.get("zb_high_ratio", 0) or 0)
     zt_early_ratio = float(inputs.get("zt_early_ratio", 0) or 0)
+    max_lb = int(inputs.get("max_lb", 0) or 0)
+    zt_count = int(inputs.get("zt_count", 0) or 0)
+    effect_verdict_type = str(inputs.get("effect_verdict_type", "") or "")
 
     # 风险/退潮信号
     risk_hits = 0
@@ -62,9 +65,18 @@ def calc_stage(*, heat_score: float, risk_score: float, inputs: Dict[str, Any]) 
     strong_hits += 1 if rate_3to4 >= 35 else 0
     strong_hits += 1 if zt_early_ratio >= 55 else 0
     strong_hits += 1 if heat_score >= 75 else 0
+    # 短线高度突破：提高强势判定权重（6板及以上视为“空间打开”）
+    strong_hits += 1 if max_lb >= 6 else 0
 
     if heat_score <= 35 or (fb_rate < 55 and dt_count >= 15) or risk_score >= 80:
         return {"title": "冰点", "type": "fire", "detail": "跌停与断板压力大，短线生态偏弱，等待情绪修复信号。"}
+
+    # 赚钱效应兜底：如果“赚钱效应”模块明确给出 good，则情绪阶段不应过弱
+    # 目的：避免出现“赚钱效应极好，但情绪阶段却偏弱”的割裂感（你反馈的场景）
+    if effect_verdict_type == "good" and dt_count <= 5 and risk_score < 60:
+        if zt_count >= 70 and max_lb >= 6:
+            return {"title": "高潮", "type": "good", "detail": "赚钱效应强且空间打开，注意高潮次日分化与高位回撤。"}
+        return {"title": "强修复", "type": "good", "detail": "赚钱效应良好，封板与承接偏强，适合围绕主线做低位/核心。"}
     if risk_hits >= 3 and strong_hits <= 1:
         return {"title": "退潮", "type": "fire", "detail": "高位/连板承接走弱，风险信号集中，优先防守，少做接力。"}
     if strong_hits >= 4 and risk_hits <= 1:
@@ -206,4 +218,3 @@ def rebuild_mood(inputs: Dict[str, Any]) -> Dict[str, Any]:
         "moodStage": stage,
         "moodCards": cards,
     }
-

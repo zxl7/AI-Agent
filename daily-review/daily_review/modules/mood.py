@@ -14,7 +14,10 @@ from daily_review.metrics.mood import rebuild_mood
 
 def rebuild_mood_panel(market_data: Dict[str, Any]) -> Dict[str, Any]:
     features = market_data.get("features") or {}
-    inputs = features.get("mood_inputs") or {}
+    inputs = dict(features.get("mood_inputs") or {})
+    # 补齐“赚钱效应”口径（更贴近你主观体感：赚钱生态好/坏）
+    # 兼容旧缓存：mood_inputs 里可能还没有 effect_verdict_type
+    if "effect_verdict_type" not in inputs:
+        inputs["effect_verdict_type"] = (market_data.get("effect") or {}).get("verdictType", "")
     patch = rebuild_mood(inputs)
     return patch
-

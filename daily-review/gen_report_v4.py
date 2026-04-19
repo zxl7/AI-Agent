@@ -1574,6 +1574,8 @@ mood_inputs = {
     "smallcap_cnt": smallcap_cnt,
     "yest_lb_count": len(yest_lb_stocks),
     "duanban_count": len(duanban_list),
+    # 与“赚钱效应综合判断”对齐（用于修正情绪阶段割裂感）
+    "effect_verdict_type": effect_verdict_type,
 }
 
 top10_concentration = top10_total / today_total_vol * 100 if today_total_vol else 0
@@ -2321,6 +2323,7 @@ def calc_mood_stage(
     broken_lb_rate: float,
     zb_high_ratio: float,
     zt_early_ratio: float,
+    max_lb: int,
 ) -> dict:
     """
     纯函数：根据多维指标给出“情绪阶段”与原因说明。
@@ -2346,6 +2349,8 @@ def calc_mood_stage(
     strong_hits += 1 if rate_3to4 >= 35 else 0
     strong_hits += 1 if zt_early_ratio >= 55 else 0
     strong_hits += 1 if heat_score >= 75 else 0
+    # 短线高度突破：提高强势判定权重（6板及以上视为“空间打开”）
+    strong_hits += 1 if max_lb >= 6 else 0
 
     # 阶段判定（优先识别极端）
     if heat_score <= 35 or (fb_rate < 55 and dt_count >= 15) or risk_score >= 80:
@@ -2379,6 +2384,7 @@ mood_stage_json = json.dumps(
         broken_lb_rate=broken_lb_rate,
         zb_high_ratio=zb_high_ratio,
         zt_early_ratio=zt_early_ratio,
+        max_lb=max_lb,
     ),
     ensure_ascii=False,
 )
