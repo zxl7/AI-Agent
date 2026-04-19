@@ -7,6 +7,7 @@
 
 import json, urllib.request, time, sys, datetime, os
 from pathlib import Path
+from daily_review.metrics.mood import calc_stage as calc_mood_stage_unified
 
 TOKEN = "60D084A7-FF4A-4B42-9E1C-45F0B719F33C"
 REQUEST_DATE = sys.argv[1] if len(sys.argv) > 1 else datetime.date.today().strftime("%Y-%m-%d")
@@ -55,6 +56,20 @@ def safe_rate(numer, denom):
     返回：0~100 的 float
     """
     return (numer / denom * 100) if denom else 0.0
+
+def try_load_cached_market_data(date_str: str):
+    """
+    从 cache/market_data-YYYYMMDD.json 读取上一交易日的已生成数据，用于计算“昨日对比Δ”。
+    返回 dict 或 None
+    """
+    try:
+        cache_dir = Path(__file__).resolve().parent / "cache"
+        p = cache_dir / f"market_data-{date_str.replace('-', '')}.json"
+        if not p.exists():
+            return None
+        return json.loads(p.read_text(encoding="utf-8"))
+    except Exception:
+        return None
 
 def class_for_good_rate(rate, hi=60, mid=40):
     """
@@ -443,19 +458,21 @@ zt_all = fetch_pool_data("ztgc", DATE, use_cache_first=False, cache=pool_cache)
 dt_all = fetch_pool_data("dtgc", DATE, use_cache_first=False, cache=pool_cache)
 zb_all = fetch_pool_data("zbgc", DATE, use_cache_first=False, cache=pool_cache)
 
-# 强势股池：按你的要求先不查询（后续如需再打开）
-qs_all = []
+# 强势股池（qsgc）：用于“昨日涨停今表现/强势反馈/热力图”等模块
+# 说明：只增加 1 次接口调用（当日），并写入 pools_cache.json，便于后续调试复用缓存。
+qs_all = fetch_pool_data("qsgc", DATE, use_cache_first=False, cache=pool_cache)
 
 # 缓存裁剪 + 写回
 pool_cache["pools"]["ztgc"] = prune_cache_days(pool_cache["pools"]["ztgc"], keep_days)
 pool_cache["pools"]["dtgc"] = prune_cache_days(pool_cache["pools"]["dtgc"], keep_days)
 pool_cache["pools"]["zbgc"] = prune_cache_days(pool_cache["pools"]["zbgc"], keep_days)
+pool_cache["pools"]["qsgc"] = prune_cache_days(pool_cache["pools"].get("qsgc", {}), keep_days)
 save_pools_cache(pool_cache)
 
 zt_count = len(zt_all)
 dt_count = len(dt_all)
 zb_count = len(zb_all)
-qs_count = 0
+qs_count = len(qs_all) if qs_all else 0
 fb_rate = zt_count / (zt_count + zb_count) * 100 if (zt_count + zb_count) > 0 else 0
 zb_rate = zb_count / (zt_count + zb_count) * 100 if (zt_count + zb_count) > 0 else 0
 
@@ -603,6 +620,57 @@ try:
         print("   警告: 无法确定昨日交易日")
 except Exception as e:
     print(f"   获取昨日数据失败: {e}")
+
+# ───────────────────────────────
+# 昨日对比Δ：优先读取昨日 market_data 缓存；缺失则用 pools_cache 推算
+# ───────────────────────────────
+prev_snapshot = None
+prev_metrics = {}
+day_delta = {}
+try:
+    if yest_date:
+        prev_snapshot = try_load_cached_market_data(yest_date)
+
+    if prev_snapshot:
+        prev_metrics = {
+            "date": prev_snapshot.get("date", yest_date),
+            "zt": int((prev_snapshot.get("panorama") or {}).get("limitUp", 0) or 0),
+            "zb": int((prev_snapshot.get("panorama") or {}).get("broken", 0) or 0),
+            "dt": int((prev_snapshot.get("panorama") or {}).get("limitDown", 0) or 0),
+            "fb_rate": float(((prev_snapshot.get("features") or {}).get("mood_inputs") or {}).get("fb_rate", 0) or 0),
+            "jj_rate": float(((prev_snapshot.get("features") or {}).get("mood_inputs") or {}).get("jj_rate", 0) or 0),
+            "zb_rate": float(((prev_snapshot.get("features") or {}).get("mood_inputs") or {}).get("zb_rate", 0) or 0),
+            "zt_early_ratio": float(((prev_snapshot.get("features") or {}).get("mood_inputs") or {}).get("zt_early_ratio", 0) or 0),
+            "bf_count": int(((prev_snapshot.get("features") or {}).get("mood_inputs") or {}).get("bf_count", 0) or 0),
+            "top3_theme_ratio": float(((prev_snapshot.get("features") or {}).get("style_inputs") or {}).get("top3_theme_ratio", 0) or 0),
+            "max_lb": int(((prev_snapshot.get("features") or {}).get("style_inputs") or {}).get("max_lb", 0) or 0),
+            "heat": float((prev_snapshot.get("mood") or {}).get("heat", 0) or 0),
+            "risk": float((prev_snapshot.get("mood") or {}).get("risk", 0) or 0),
+        }
+    elif yest_date:
+        # fallback：用 pools_cache 轻量推算（不再额外请求题材）
+        yest_zt2 = yest_zt or fetch_pool_data("ztgc", yest_date, use_cache_first=True, cache=pool_cache)
+        yest_zb2 = fetch_pool_data("zbgc", yest_date, use_cache_first=True, cache=pool_cache)
+        yest_dt2 = fetch_pool_data("dtgc", yest_date, use_cache_first=True, cache=pool_cache)
+        y_zt = len(yest_zt2)
+        y_zb = len(yest_zb2)
+        y_dt = len(yest_dt2)
+        y_fb = safe_rate(y_zt, y_zt + y_zb)
+        y_zb_rate = safe_rate(y_zb, y_zt + y_zb)
+        y_early = safe_rate(sum(1 for s in yest_zt2 if is_hms_leq(s.get("fbt", ""), "10:00:00")), y_zt)
+        prev_metrics = {
+            "date": yest_date,
+            "zt": y_zt,
+            "zb": y_zb,
+            "dt": y_dt,
+            "fb_rate": y_fb,
+            "zb_rate": y_zb_rate,
+            "zt_early_ratio": y_early,
+        }
+
+except Exception as _e:
+    prev_metrics = {}
+    day_delta = {}
 
 yest_lb_stocks = {}  # code -> {lbc, mc}
 for s in yest_zt:
@@ -1104,13 +1172,13 @@ for t in top10_with_theme[:5]:
 # ══════════════════════════
 print("\n[9/12] 昨日涨停今表现...")
 # qsgc是今日强势股池，里面包含昨日涨停今涨幅分布
-avg_zf_qs = 0
+avg_zf_qs = 0.0
 best_qs = []
 worst_qs = []
 if qs_all:
     zs = [(s.get('zf', 0), s.get('mc', '')) for s in qs_all]
     zs.sort(key=lambda x: x[0], reverse=True)
-    avg_zf_qs = sum(z[0] for z in zs) / len(zs) if zs else 0
+    avg_zf_qs = float(sum(z[0] for z in zs) / len(zs)) if zs else 0.0
     best_qs = zs[:5]
     worst_qs = zs[-5:] if len(zs) >= 5 else zs
     print(f"   强势股均涨: {avg_zf_qs:+.2f}%")
@@ -1582,6 +1650,12 @@ mood_inputs = {
     "duanban_count": len(duanban_list),
     # 与“赚钱效应综合判断”对齐（用于修正情绪阶段割裂感）
     "effect_verdict_type": effect_verdict_type,
+    # 强势股池（qsgc）派生：昨日涨停今表现（用于热力图“赚钱效应”）
+    "qs_avg_zf": avg_zf_qs,
+    "qs_best_name": (best_qs[0][1] if best_qs else ""),
+    "qs_best_zf": (float(best_qs[0][0]) if best_qs else 0.0),
+    "qs_worst_name": (worst_qs[0][1] if worst_qs else ""),
+    "qs_worst_zf": (float(worst_qs[0][0]) if worst_qs else 0.0),
 }
 
 top10_concentration = top10_total / today_total_vol * 100 if today_total_vol else 0
@@ -2378,19 +2452,11 @@ def calc_mood_stage(
     return {"title": "弱修复", "type": "warn", "detail": "有修复但承接一般，适合轻仓试错，重点观察2进3/3进4能否走强。"}
 
 mood_stage_json = json.dumps(
-    calc_mood_stage(
+    # 统一口径：使用 daily_review/metrics/mood.py 的阶段判定（避免“正常复盘”和“只重算mood”输出不一致）
+    calc_mood_stage_unified(
         heat_score=heat_score,
         risk_score=risk_score,
-        fb_rate=fb_rate,
-        zb_rate=zb_rate,
-        dt_count=dt_count,
-        rate_2to3=rate_2to3,
-        rate_3to4=rate_3to4,
-        height_gap=height_gap,
-        broken_lb_rate=broken_lb_rate,
-        zb_high_ratio=zb_high_ratio,
-        zt_early_ratio=zt_early_ratio,
-        max_lb=max_lb,
+        inputs=mood_inputs,
     ),
     ensure_ascii=False,
 )
@@ -3908,6 +3974,24 @@ try:
     top10_summary = json.loads(top10_summary_json)
     action_guide = json.loads(action_guide_json)
 
+    # 在所有当日指标都计算完成后，再生成“昨日对比Δ”（避免前置计算时变量未定义）
+    if prev_metrics:
+        day_delta = {
+            "date": prev_metrics.get("date"),
+            "zt": zt_count - int(prev_metrics.get("zt", 0) or 0),
+            "zb": zb_count - int(prev_metrics.get("zb", 0) or 0),
+            "dt": dt_count - int(prev_metrics.get("dt", 0) or 0),
+            "fb_rate": round(fb_rate - float(prev_metrics.get("fb_rate", 0) or 0), 1),
+            "jj_rate": (round(jj_rate - float(prev_metrics.get("jj_rate", 0) or 0), 1) if "jj_rate" in prev_metrics else None),
+            "zb_rate": round(zb_rate - float(prev_metrics.get("zb_rate", 0) or 0), 1),
+            "zt_early_ratio": round(zt_early_ratio - float(prev_metrics.get("zt_early_ratio", 0) or 0), 1),
+            "loss": ((bf_count + dt_count) - (int(prev_metrics.get("bf_count", 0) or 0) + int(prev_metrics.get("dt", 0) or 0)) if "bf_count" in prev_metrics else None),
+            "top3_theme_ratio": round(top3_theme_ratio - float(prev_metrics.get("top3_theme_ratio", 0) or 0), 1) if "top3_theme_ratio" in prev_metrics else None,
+            "max_lb": max_lb - int(prev_metrics.get("max_lb", 0) or 0) if "max_lb" in prev_metrics else None,
+            "heat": round(heat_score - float(prev_metrics.get("heat", 0) or 0), 0) if "heat" in prev_metrics else None,
+            "risk": round(risk_score - float(prev_metrics.get("risk", 0) or 0), 0) if "risk" in prev_metrics else None,
+        }
+
     market_data = {
         "date": DATE,
         "dateNote": DATE_NOTE,
@@ -3991,6 +4075,8 @@ try:
         "moodStage": mood_stage,
         "moodCards": mood_cards,
         "themePanels": theme_panels,
+        "prev": prev_metrics,
+        "delta": day_delta,
     }
 
     render_html_template(

@@ -15,7 +15,7 @@
       "gem_today_count": 3,
       "gem_height": 2,
       "top3_theme_ratio": 74.64788732394366,
-      "top10_concentration": 1.5297985781083752,
+      "top10_concentration": 5.949127878868649,
       "high_level_ratio": 2.8169014084507045,
       "max_lb": 7
     },
@@ -26,7 +26,7 @@
       "zt_early_ratio": 66.19718309859155,
       "zb_rate": 21.978021978021978,
       "dt_count": 3,
-      "bf_count": 3,
+      "bf_count": 4,
       "zb_high_ratio": 0.0,
       "broken_lb_rate": 37.5,
       "rate_2to3": 40.0,
@@ -52,14 +52,19 @@
       "smallcap_cnt": 18,
       "yest_lb_count": 8,
       "duanban_count": 3,
-      "effect_verdict_type": "good"
+      "effect_verdict_type": "good",
+      "qs_avg_zf": 4.217657245222037,
+      "qs_best_name": "优利德",
+      "qs_best_zf": 20.00617027282715,
+      "qs_worst_name": "华新科技",
+      "qs_worst_zf": -4.081632614135742
     },
     "style_strengths": {
       "relay_strength": 81,
       "low_trial_strength": 98,
       "elastic_strength": 56,
       "theme_focus_strength": 90,
-      "capital_focus_strength": 9,
+      "capital_focus_strength": 36,
       "high_game_strength": 84
     }
   },
@@ -101,7 +106,7 @@
   },
   "mood": {
     "heat": 73,
-    "risk": 17,
+    "risk": 18,
     "score": 76
   },
   "volume": {
@@ -137,7 +142,7 @@
     "verdictType": "good"
   },
   "fear": {
-    "bigFace": "3只",
+    "bigFace": "4只",
     "bigFaceNote": "GQY视讯, 网达软件, 实达集团",
     "limitDown": "3只",
     "limitDownNote": "GQY视讯-20.0%, 网达软件-10.0%",
@@ -146,7 +151,7 @@
     "brokenNote": "20/(71+20)=22.0%",
     "success": "78.0%",
     "successNote": "封板质量尚可",
-    "yesterday": "未计算"
+    "yesterday": "良好"
   },
   "styleRadar": {
     "indicators": [
@@ -162,7 +167,7 @@
       98,
       56,
       90,
-      9,
+      36,
       84
     ],
     "palette": [
@@ -504,98 +509,98 @@
   "top10": [
     {
       "rank": 1,
-      "mc": "光迅科技",
-      "zf_str": "+10.00%",
+      "mc": "中际旭创",
+      "zf_str": "+5.11%",
       "pct_class": "red-text",
-      "cje_yi": "71亿",
+      "cje_yi": "336亿",
       "weight": 900,
-      "sector": "6G概念"
+      "sector": "谷歌概念"
     },
     {
       "rank": 2,
-      "mc": "云南锗业",
-      "zf_str": "+10.01%",
+      "mc": "新易盛",
+      "zf_str": "+9.58%",
       "pct_class": "red-text",
-      "cje_yi": "62亿",
+      "cje_yi": "239亿",
       "weight": 800,
-      "sector": "商业航天（航天航空）"
+      "sector": "预盈预增"
     },
     {
       "rank": 3,
-      "mc": "三安光电",
-      "zf_str": "+9.98%",
+      "mc": "胜宏科技",
+      "zf_str": "+7.55%",
       "pct_class": "red-text",
-      "cje_yi": "56亿",
+      "cje_yi": "216亿",
       "weight": 800,
-      "sector": "荣耀概念"
+      "sector": "百元股"
     },
     {
       "rank": 4,
-      "mc": "利通电子",
-      "zf_str": "+10.01%",
+      "mc": "东山精密",
+      "zf_str": "+8.39%",
       "pct_class": "red-text",
-      "cje_yi": "37亿",
+      "cje_yi": "190亿",
+      "weight": 700,
+      "sector": "龙虎榜热门"
+    },
+    {
+      "rank": 5,
+      "mc": "沪电股份",
+      "zf_str": "+3.45%",
+      "pct_class": "red-text",
+      "cje_yi": "90亿",
       "weight": 700,
       "sector": "预盈预增"
     },
     {
-      "rank": 5,
-      "mc": "剑桥科技",
-      "zf_str": "+10.00%",
-      "pct_class": "red-text",
-      "cje_yi": "34亿",
-      "weight": 700,
-      "sector": "百元股"
-    },
-    {
       "rank": 6,
-      "mc": "禾望电气",
-      "zf_str": "+9.99%",
-      "pct_class": "red-text",
-      "cje_yi": "26亿",
+      "mc": "协创数据",
+      "zf_str": "-0.66%",
+      "pct_class": "green-text",
+      "cje_yi": "82亿",
       "weight": 700,
-      "sector": "光伏玻璃"
+      "sector": "预盈预增"
     },
     {
       "rank": 7,
-      "mc": "圣阳股份",
-      "zf_str": "+10.00%",
+      "mc": "晶科科技",
+      "zf_str": "+3.75%",
       "pct_class": "red-text",
-      "cje_yi": "25亿",
+      "cje_yi": "77亿",
       "weight": 700,
-      "sector": "历史新高"
+      "sector": "算电协同"
     },
     {
       "rank": 8,
-      "mc": "斯迪克",
-      "zf_str": "+20.00%",
+      "mc": "天华新能",
+      "zf_str": "+2.46%",
       "pct_class": "red-text",
-      "cje_yi": "21亿",
+      "cje_yi": "72亿",
       "weight": 700,
-      "sector": "电子皮肤"
+      "sector": "预盈预增"
     },
     {
       "rank": 9,
-      "mc": "博云新材",
-      "zf_str": "+10.01%",
+      "mc": "光迅科技",
+      "zf_str": "+10.00%",
       "pct_class": "red-text",
-      "cje_yi": "20亿",
+      "cje_yi": "71亿",
       "weight": 700,
-      "sector": "盾构机"
+      "sector": "6G概念"
     },
     {
       "rank": 10,
-      "mc": "帝尔激光",
-      "zf_str": "+20.00%",
+      "mc": "永鼎股份",
+      "zf_str": "+4.64%",
       "pct_class": "red-text",
-      "cje_yi": "19亿",
+      "cje_yi": "69亿",
       "weight": 700,
-      "sector": "太空光伏"
+      "sector": "预盈预增"
     }
   ],
   "top10Summary": {
-    "top5_sum_yi": "260亿",
-    "top5_sectors": "6G概念, 商业航天（航天航空）, 荣耀概念, 预盈预增, 百元股"
+    "top5_sum_yi": "1071亿",
+    "top5_sectors": "谷歌概念, 预盈预增, 百元股, 龙虎榜热门, 预盈预增"
   },
   "actionGuide": [
     {
@@ -636,9 +641,9 @@
     }
   ],
   "moodStage": {
-    "title": "强修复",
+    "title": "高潮",
     "type": "good",
-    "detail": "封板与晋级偏强，短线生态健康，低位与核心接力都有机会。"
+    "detail": "赚钱效应强且空间打开，注意高潮次日分化与高位回撤。"
   },
   "moodCards": [
     {
@@ -826,26 +831,6 @@
         "riskClass": "green-text"
       },
       {
-        "name": "新材料",
-        "zt": 14,
-        "zb": 4,
-        "dt": 0,
-        "net": 11.2,
-        "risk": 2.8,
-        "netClass": "red-text",
-        "riskClass": "orange-text"
-      },
-      {
-        "name": "5G",
-        "zt": 14,
-        "zb": 4,
-        "dt": 0,
-        "net": 11.2,
-        "risk": 2.8,
-        "netClass": "red-text",
-        "riskClass": "orange-text"
-      },
-      {
         "name": "新能源车",
         "zt": 14,
         "zb": 4,
@@ -856,7 +841,27 @@
         "riskClass": "orange-text"
       },
       {
+        "name": "新材料",
+        "zt": 14,
+        "zb": 4,
+        "dt": 0,
+        "net": 11.2,
+        "risk": 2.8,
+        "netClass": "red-text",
+        "riskClass": "orange-text"
+      },
+      {
         "name": "太阳能（光伏）",
+        "zt": 14,
+        "zb": 4,
+        "dt": 0,
+        "net": 11.2,
+        "risk": 2.8,
+        "netClass": "red-text",
+        "riskClass": "orange-text"
+      },
+      {
+        "name": "5G",
         "zt": 14,
         "zb": 4,
         "dt": 0,
@@ -884,5 +889,29 @@
       "score": "40%",
       "note": "涨停主线与炸板主杀题材的重叠度（越高越提示主线在分歧/退潮）"
     }
+  },
+  "prev": {
+    "date": "2026-04-16",
+    "zt": 79,
+    "zb": 23,
+    "dt": 1,
+    "fb_rate": 77.45098039215686,
+    "zb_rate": 22.54901960784314,
+    "zt_early_ratio": 64.55696202531645
+  },
+  "delta": {
+    "date": "2026-04-16",
+    "zt": -8,
+    "zb": -3,
+    "dt": 2,
+    "fb_rate": 0.6,
+    "jj_rate": null,
+    "zb_rate": -0.6,
+    "zt_early_ratio": 1.6,
+    "loss": null,
+    "top3_theme_ratio": null,
+    "max_lb": null,
+    "heat": null,
+    "risk": null
   }
 }
