@@ -430,7 +430,7 @@
       }
       .ladder-left { position: sticky; left: 0; }
       .ladder-left-top { display:flex; align-items:center; gap: 8px; }
-      .ladder-left-meta { margin-top: 6px; font-size: 11px; color: var(--text-muted); font-weight: 800; line-height: 1.35; }
+      .ladder-left-meta { margin: 6px 0 0 12px; font-size: 11px; color: var(--text-muted); font-weight: 800; line-height: 1.35; }
       .ladder-left-kpi { margin-top: 6px; font-size: 11px; color: var(--text-secondary); font-weight: 900; }
       .ladder-left-kpi .muted { color: var(--text-muted); font-weight: 800; }
       .ladder-left-kpi .kpi-red { color: var(--danger); }
@@ -1301,7 +1301,7 @@
       </div>
 
       <!-- 近7日高度趋势 -->
-      <div class="card" data-page="sentiment" id="sec-height">
+      <div class="card" data-page="ladder" id="sec-height">
         <div class="card-title">近7日高度趋势</div>
         <div class="chart-container" style="height: 260px;">
           <div id="height-trend-echart" style="width: 100%; height: 100%;"></div>
@@ -1814,7 +1814,6 @@
           if (themeTrendChart) { themeTrendChart.dispose(); themeTrendChart = null; }
           // ladder 独立页，sentiment 不再渲染天梯（避免重复信息）
           renderVolumeTrend(marketData.volume);
-          renderHeightTrend(marketData.heightTrend);
           renderStyleRadar(marketData.styleRadar);
         } else if (page === 'themes') {
           if (volumeChart) { volumeChart.dispose(); volumeChart = null; }
@@ -1825,8 +1824,8 @@
           // 仅渲染天梯，其他图表实例释放（减少隐藏容器下的尺寸问题）
           if (themeTrendChart) { themeTrendChart.dispose(); themeTrendChart = null; }
           if (volumeChart) { volumeChart.dispose(); volumeChart = null; }
-          if (heightChart) { heightChart.dispose(); heightChart = null; }
           if (styleChart) { styleChart.dispose(); styleChart = null; }
+          renderHeightTrend(marketData.heightTrend);
           renderLadder(marketData.ladder);
         }
       };
