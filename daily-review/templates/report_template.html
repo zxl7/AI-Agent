@@ -875,6 +875,12 @@
           <div class="cycle-tag"><span class="cycle-dot"></span>短线复盘 · 情绪监控</div>
           <div class="hero-date">__REPORT_DATE_CN__收盘简报</div>
           <div class="hero-subtitle">数据来源：实时API | 自动生成报告</div>
+          <div class="hero-subtitle" v-if="marketData.meta">
+            数据更新时间：指数 {{ marketData.meta?.asOf?.indices || '-' }}
+            ｜全景 {{ marketData.meta?.asOf?.pools || '-' }}
+            ｜题材 {{ marketData.meta?.asOf?.themes || '-' }}
+            ｜生成 {{ marketData.meta?.generatedAt || '-' }}
+          </div>
           
         </div>
         <div class="index-row">
@@ -1745,6 +1751,7 @@
               <span style="margin-left:10px;">
                 ｜涨停池 <span class="orange-text" style="font-weight:900;">{{ marketData.ztgc?.length ?? 0 }}</span> 只
                 ｜题材映射 <span class="orange-text" style="font-weight:900;">{{ marketData.zt_code_themes ? Object.keys(marketData.zt_code_themes).length : 0 }}</span> 只
+                <span v-if="marketData.meta?.asOf?.pools">｜数据 {{ marketData.meta.asOf.pools }}</span>
               </span>
             </div>
           </div>
@@ -2946,6 +2953,40 @@
               themeLbNames.set(tn, arr);
             });
           });
+
+          // 题材“带头股”识别：避免互相当“小弟”
+          // 规则：同题材内按 板数(lbc) 优先，其次封单(zj) 其次首封时间更早
+          const themeLeader = new Map(); // theme -> {name,lbc,fund,t}
+          zt.forEach(s => {
+            const code = String(s.dm || s.code || '');
+            const name = String(s.mc || s.name || '');
+            if (!name || !code) return;
+            const lbc = toNum(s.lbc, 1);
+            if (lbc < 2) return;
+            const fundYi = toNum(s.zj, 0) / 1e8;
+            // 独立解析首封时间（避免依赖后面 const minutes/ fmtHhmm 的初始化顺序）
+            const fbt = String(s.fbt || '').trim();
+            let t = 0;
+            if (fbt.includes(':')) {
+              const [hh, mm] = fbt.split(':').map(x => Number(x));
+              if (Number.isFinite(hh) && Number.isFinite(mm)) t = hh * 60 + mm;
+            } else if (fbt.length >= 4) {
+              const hh = Number(fbt.slice(0, 2)), mm = Number(fbt.slice(2, 4));
+              if (Number.isFinite(hh) && Number.isFinite(mm)) t = hh * 60 + mm;
+            }
+            const ths = Array.isArray(codeThemes?.[code]) ? codeThemes[code] : [];
+            ths.forEach(tn0 => {
+              const tn = String(tn0 || '');
+              if (!tn) return;
+              const cur = themeLeader.get(tn);
+              if (!cur) return themeLeader.set(tn, { name, lbc, fundYi, t });
+              const better =
+                (lbc > cur.lbc) ||
+                (lbc === cur.lbc && fundYi > cur.fundYi) ||
+                (lbc === cur.lbc && fundYi === cur.fundYi && t > 0 && (cur.t <= 0 || t < cur.t));
+              if (better) themeLeader.set(tn, { name, lbc, fundYi, t });
+            });
+          });
           const fmtHhmm = (fbt) => {
             const s = String(fbt || '').trim();
             if (!s) return '';
@@ -3019,8 +3060,11 @@
 
             const hasTier = !!predTheme && tierThemeSet.has(String(predTheme));
             const lbList = predTheme ? (themeLbNames.get(String(predTheme)) || []) : [];
-            const juniors = lbList.filter(n => n !== name).slice(0, 2);
-            const hasJuniors = juniors.length > 0;
+            const leaderName = predTheme ? (themeLeader.get(String(predTheme))?.name || '') : '';
+            const isThemeLeader = !!leaderName && leaderName === name;
+            const followers = lbList.filter(n => n !== leaderName).slice(0, 2);
+            const followLeader = (!isThemeLeader && leaderName) ? leaderName : '';
+            const hasFollow = (isThemeLeader && followers.length > 0) || (!!followLeader);
 
             // 主线/龙头加权：尽量贴合“集中火力做领先股”
             const isMain = !!mainTheme && (
@@ -3032,7 +3076,10 @@
 
             // 梯队：2-4板偏利于接力；过高在高潮日需保守
             const boardScore = clamp(20 + (lbc - 1) * 22);
-            const highPenalty = (stageType === 'good' && lbc >= 5) ? 12 : 0;
+            // 高位惩罚（下调）：给高位核心“展示+打分”，而不是直接压没
+            const highPenalty = (stageType === 'good')
+              ? (lbc >= 7 ? 6 : (lbc >= 6 ? 4 : (lbc >= 5 ? 2 : 0)))
+              : 0;
 
             // 多开板惩罚（尤其高开板）
             const multiPenalty = open >= 3 ? 18 : (open === 2 ? 8 : 0);
@@ -3056,7 +3103,15 @@
               ...(isMain ? [tag('主线', 'ladder-chip-strong red-text')] : []),
               ...(leaderBonus >= 10 ? [tag('前龙头', 'ladder-chip-strong red-text')] : (leaderBonus > 0 ? [tag('核心梯队', 'ladder-chip-warn orange-text')] : [])),
               ...(hasTier ? [tag('有梯队', 'ladder-chip-warn orange-text')] : [tag('无梯队', 'ladder-chip-cool blue-text')]),
-              ...(hasJuniors ? [tag(`小弟${juniors.join('、')}`, 'ladder-chip-cool blue-text')] : [tag('缺小弟', 'ladder-chip-cool blue-text')]),
+              ...(hasFollow
+                ? [tag(
+                    isThemeLeader
+                      ? `跟风${followers.join('、') || '—'}`
+                      : `跟风${followLeader}`,
+                    'ladder-chip-cool blue-text'
+                  )]
+                : [tag('无跟风', 'ladder-chip-cool blue-text')]
+              ),
               tag(`${lbc}板`, lbc >= 6 ? 'ladder-chip-strong red-text' : (lbc >= 4 ? 'ladder-chip-warn orange-text' : 'ladder-chip-cool blue-text')),
               tag(`封单${fundYi ? fundYi.toFixed(2) : '-'}亿`, fundYi >= 3 ? 'ladder-chip-strong red-text' : (fundYi >= 1 ? 'ladder-chip-warn orange-text' : 'ladder-chip-cool blue-text')),
               open ? tag(`${open}次开板`, open >= 3 ? 'ladder-chip-warn orange-text' : 'ladder-chip-cool blue-text') : tag('未开', 'ladder-chip-cool blue-text'),
@@ -3077,6 +3132,7 @@
             else if (hyScore >= 60) reasonBits.push('行业内涨停集中');
             if (isMain) reasonBits.push('主线加成');
             if (leaderBonus >= 10) reasonBits.push('龙头梯队');
+            if (hasTier && hasFollow) reasonBits.push('梯队+跟风');
             if (lbc >= 2) reasonBits.push('梯队内有辨识度');
             if (open >= 8) reasonBits.push('强分歧(多开板)');
             else if (open >= 3) reasonBits.push('分歧偏大');
@@ -3144,7 +3200,7 @@
             })();
             const head = (reasonBits.length ? reasonBits.join(' · ') : '综合条件一般');
             const reason = `<span class="reason-bits">${head}</span><div class="exp-wrap">${observePoint}</div>`;
-            return { name, code, lbc, hy, fundYi, open, predTheme, hasTier, hasJuniors, cjeYi, score: Math.round(score), tags, reason };
+            return { name, code, lbc, hy, fundYi, open, predTheme, hasTier, cjeYi, score: Math.round(score), tags, reason };
           });
 
           // === 分组策略：数据宽松放出、评分严格排序（避免“没数据”） ===
@@ -3180,7 +3236,19 @@
 
           // 最终展示数量：各取 8，避免版面过长
           relay = relay.slice(0, 8);
-          watch = watch.slice(0, 8);
+
+          // 强制放出“高位核心/高度票”做情绪观察（即使分数偏低，也要给你看到并打分）
+          const ladderMust = (md?.ladder || [])
+            .filter(x => Number(x.badge || 0) >= 5)
+            .map(x => String(x.name || '').replace('👑', '').trim())
+            .filter(Boolean);
+          const mustSet = new Set(ladderMust);
+          const mustObjs = scored.filter(x => mustSet.has(x.name) && !relayNames.has(x.name));
+          const merged = [];
+          const seen = new Set();
+          mustObjs.forEach(x => { if (!seen.has(x.name)) { merged.push(x); seen.add(x.name); } });
+          watch.forEach(x => { if (!seen.has(x.name)) { merged.push(x); seen.add(x.name); } });
+          watch = merged.slice(0, 8);
 
           return { meta: { tierThemeCount, tierThemeTop }, relay, watch };
         };

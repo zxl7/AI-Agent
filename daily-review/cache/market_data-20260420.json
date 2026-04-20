@@ -1,4 +1,17 @@
 {
+  "meta": {
+    "generatedAt": "2026-04-20 22:04:21",
+    "asOf": {
+      "indices": "22:03:47",
+      "pools": "22:04:05",
+      "themes": "22:04:10"
+    },
+    "source": {
+      "indices": "hsindex/real/time",
+      "pools": "ztgc/zbgc/dtgc/qsgc",
+      "themes": "hszg/zg（题材归因，含本地缓存）"
+    }
+  },
   "date": "2026-04-20",
   "dateNote": "",
   "features": {
@@ -2945,7 +2958,7 @@
         "riskClass": "green-text"
       },
       {
-        "name": "太阳能（光伏）",
+        "name": "光伏玻璃",
         "zt": 14,
         "zb": 1,
         "dt": 0,
@@ -2955,7 +2968,7 @@
         "riskClass": "green-text"
       },
       {
-        "name": "光伏玻璃",
+        "name": "太阳能（光伏）",
         "zt": 14,
         "zb": 1,
         "dt": 0,
@@ -3005,7 +3018,7 @@
         "riskClass": "red-text"
       },
       {
-        "name": "风能",
+        "name": "军民融合",
         "zt": 11,
         "zb": 0,
         "dt": 0,

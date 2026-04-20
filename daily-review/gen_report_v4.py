@@ -393,6 +393,7 @@ if DATE_NOTE:
 # ══════════════════════════
 print("\n[1/12] 获取四大指数...")
 indices_data = []
+indices_fetch_at = datetime.datetime.now().strftime("%H:%M:%S")
 for code, name in [("000001.SH","上证指数"), ("399001.SZ","深证成指"),
                     ("399006.SZ","创业板指"), ("000688.SH","科创50")]:
     try:
@@ -404,7 +405,8 @@ for code, name in [("000001.SH","上证指数"), ("399001.SZ","深证成指"),
         indices_data.append({
             'name': name, 'code': code,
             'close': close, 'pct': chg_pct,
-            'vol': vol_a, 'up': chg_pct >= 0
+            'vol': vol_a, 'up': chg_pct >= 0,
+            't': rt.get("t", "")
         })
         print(f"   {name}: {close:.2f} ({chg_pct:+.2f}%)")
     except Exception as e:
@@ -447,6 +449,7 @@ zb_all = fetch_pool_data("zbgc", DATE, use_cache_first=False, cache=pool_cache)
 # 强势股池（qsgc）：用于“昨日涨停今表现/强势反馈/热力图”等模块
 # 说明：只增加 1 次接口调用（当日），并写入 pools_cache.json，便于后续调试复用缓存。
 qs_all = fetch_pool_data("qsgc", DATE, use_cache_first=False, cache=pool_cache)
+pools_fetch_at = datetime.datetime.now().strftime("%H:%M:%S")
 
 # 缓存裁剪 + 写回
 pool_cache["pools"]["ztgc"] = prune_cache_days(pool_cache["pools"]["ztgc"], keep_days)
@@ -880,6 +883,7 @@ write_json_file(HEIGHT_CACHE_PATH, height_cache)
 # ⑥ 题材聚合(每只涨停股查询)
 # ══════════════════════════
 print("\n[6/12] 聚合题材数据(逐票查询，耗时较长)...")
+themes_fetch_started_at = datetime.datetime.now().strftime("%H:%M:%S")
 theme_count = {}      # theme -> count
 theme_stocks = {}     # theme -> [names]
 zb_theme_count = {}   # 炸板题材
@@ -1006,6 +1010,7 @@ if dt_all:
 # 过滤掉噪音题材和"昨日涨停"
 real_themes = [item for item in theme_count.items() if item[0] != "昨日涨停"]
 real_themes = sorted(real_themes, key=lambda x: -x[1])
+themes_fetch_at = datetime.datetime.now().strftime("%H:%M:%S")
 print(f"   有效题材: {len(real_themes)} 个")
 for t, c in real_themes[:10]:
     print(f"   · {t}: {c}只 ({', '.join(theme_stocks.get(t, [])[:4])})")
@@ -4007,6 +4012,19 @@ try:
         }
 
     market_data = {
+        "meta": {
+            "generatedAt": now.strftime("%Y-%m-%d %H:%M:%S"),
+            "asOf": {
+                "indices": indices_fetch_at,
+                "pools": pools_fetch_at if "pools_fetch_at" in globals() else "",
+                "themes": themes_fetch_at if "themes_fetch_at" in globals() else "",
+            },
+            "source": {
+                "indices": "hsindex/real/time",
+                "pools": "ztgc/zbgc/dtgc/qsgc",
+                "themes": "hszg/zg（题材归因，含本地缓存）",
+            },
+        },
         "date": DATE,
         "dateNote": DATE_NOTE,
         # 开发/模块化复用：存放各模块可复用的“中间特征”，用于部分更新（只重算某个模块）
