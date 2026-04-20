@@ -2,18 +2,20 @@
 set -euo pipefail
 
 # 用途：
-# 1) 选择“已生成”的最新复盘 HTML
+# 1) 选择“已生成”的最新复盘 HTML（默认从 ./html/ 找最新）
 # 2) 切到 gh-pages 分支
 # 3) 直接覆盖 index.html（你要求“直接覆盖 index”）
 # 4) commit + push
-#
-# 默认从 ./html/ 中选择最新的 *tab-v1.html 作为发布文件
 #
 # 可选环境变量：
 #   REPORT_HTML     指定要发布的 HTML 文件路径（跳过自动查找）
 #   PAGES_BRANCH    Pages 分支（默认 gh-pages）
 #   PAGES_FILE      覆盖的文件名（默认 index.html）
 #   ALLOW_DIRTY     允许工作区有未提交修改（默认 0；建议保持干净）
+#
+# 关键修复点：
+# - 切换到 gh-pages 后，源文件（在 master 的 ./html/）会不存在
+# - 所以：切分支前先把报告复制到临时文件，再切分支覆盖
 
 PAGES_BRANCH="${PAGES_BRANCH:-gh-pages}"
 PAGES_FILE="${PAGES_FILE:-index.html}"
@@ -28,11 +30,9 @@ require_clean_git() {
 }
 
 latest_report_auto() {
-  # 取最新 tab-v1.html（你当前工程就是产出这个文件名）
   local f
   f="$(ls -t ./html/*tab-v1.html 2>/dev/null | head -n 1 || true)"
   if [ -z "$f" ]; then
-    # 兜底：取 html 目录最新 html
     f="$(ls -t ./html/*.html 2>/dev/null | head -n 1 || true)"
   fi
   if [ -z "$f" ]; then
@@ -41,6 +41,14 @@ latest_report_auto() {
     exit 1
   fi
   echo "$f"
+}
+
+abs_path() {
+  # mac/linux 通用的绝对路径
+  python3 - <<'PY' "$1"
+import os,sys
+print(os.path.abspath(sys.argv[1]))
+PY
 }
 
 main() {
@@ -74,10 +82,18 @@ main() {
   fi
   echo "   将发布：$report_html"
 
+  # 切分支前复制到临时文件，避免 gh-pages 分支下找不到源文件
+  local report_abs tmp
+  report_abs="$(abs_path "$report_html")"
+  tmp="$(mktemp -t deploy_pages.XXXXXX.html)"
+  cp -f "$report_abs" "$tmp"
+
   echo "==> [2/3] 切到 $PAGES_BRANCH 并覆盖 $PAGES_FILE"
   git switch "$PAGES_BRANCH"
+
   mkdir -p "$(dirname "$PAGES_FILE")" 2>/dev/null || true
-  cp -f "$report_html" "./$PAGES_FILE"
+  cp -f "$tmp" "./$PAGES_FILE"
+  rm -f "$tmp"
 
   git add "./$PAGES_FILE"
   git commit -m "deploy: $(date '+%F %T')" || echo "（无变化，无需提交）"
