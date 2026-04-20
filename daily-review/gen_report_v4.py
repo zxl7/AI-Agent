@@ -4028,6 +4028,28 @@ try:
             }
             for i in indices_data
         ],
+        # 涨停池明细（用于“涨停个股数据分析”前端算法；只保留必要字段，避免文件过大）
+        "ztgc": [
+            {
+                "dm": s.get("dm", ""),
+                "mc": s.get("mc", ""),
+                "lbc": int(s.get("lbc", 1) or 1),
+                "zf": float(s.get("zf", 0) or 0),
+                "zj": float(s.get("zj", 0) or 0),
+                "zbc": int(s.get("zbc", 0) or 0),
+                "hs": float(s.get("hs", 0) or 0),
+                "cje": float(s.get("cje", 0) or 0),
+                "fbt": s.get("fbt", ""),
+                "hy": s.get("hy", ""),
+            }
+            for s in (zt_all or [])
+        ],
+        # 个股->题材映射（key 使用涨停池原始 dm，便于前端直接匹配）
+        "zt_code_themes": {
+            str(s.get("dm", "")): fetch_stock_themes(normalize_stock_code(s.get("dm", "")))
+            for s in (zt_all or [])
+            if str(s.get("dm", "")).strip()
+        },
         "panorama": {"limitUp": zt_count, "broken": zb_count, "limitDown": dt_count, "ratio": f"{fb_rate:.1f}%"},
         "mood": {"heat": heat_score, "risk": risk_score, "score": sentiment_score},
         "volume": {

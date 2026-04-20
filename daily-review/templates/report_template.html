@@ -1742,6 +1742,10 @@
             <div style="margin-top:6px; font-size:12px; color: var(--text-muted); font-weight:750;">
               梯队板块（≥3只涨停）：<span class="blue-text" style="font-weight:900;">{{ marketData.ztAnalysis?.meta?.tierThemeCount ?? '-' }}</span>
               <span v-if="marketData.ztAnalysis?.meta?.tierThemeTop">｜TOP：{{ marketData.ztAnalysis?.meta?.tierThemeTop }}</span>
+              <span style="margin-left:10px;">
+                ｜涨停池 <span class="orange-text" style="font-weight:900;">{{ marketData.ztgc?.length ?? 0 }}</span> 只
+                ｜题材映射 <span class="orange-text" style="font-weight:900;">{{ marketData.zt_code_themes ? Object.keys(marketData.zt_code_themes).length : 0 }}</span> 只
+              </span>
             </div>
           </div>
           <div class="card-badge">封单 · 题材推测 · 量能 · 炸板 · 梯队</div>
@@ -1768,7 +1772,7 @@
             </div>
           </div>
           <div>
-            <div class="section-header">观察池（更偏“先看再动”）</div>
+            <div class="section-header">观察池（大容量/前龙头，看情绪反馈）</div>
             <div class="zt-list">
               <div class="zt-item" v-for="(row, i) in (marketData.ztAnalysis?.watch || [])" :key="'watch-'+i">
                 <div class="zt-top">
@@ -2918,11 +2922,30 @@
             .sort((a,b) => Number(b.zt ?? 0) - Number(a.zt ?? 0));
           const tierThemeCount = tierThemes.length;
           const tierThemeTop = tierThemes.slice(0, 3).map(r => `${r.name}${Number(r.zt ?? 0)}只`).join(' / ');
+          const tierThemeSet = new Set(tierThemes.map(r => String(r.name)));
 
           const toNum = (v, d=0) => {
             const n = Number(String(v ?? '').replace('%',''));
             return Number.isFinite(n) ? n : d;
           };
+
+          // 题材“小弟”统计：同一题材下，连板(>=2)名单（用于判断是否“有梯队有小弟”）
+          const themeLbNames = new Map(); // theme -> [names...]
+          zt.forEach(s => {
+            const code = String(s.dm || s.code || '');
+            const name = String(s.mc || s.name || '');
+            const lbc = toNum(s.lbc, 1);
+            if (!name) return;
+            if (lbc < 2) return;
+            const ths = Array.isArray(codeThemes?.[code]) ? codeThemes[code] : [];
+            ths.forEach(t => {
+              const tn = String(t);
+              if (!tn) return;
+              const arr = themeLbNames.get(tn) || [];
+              if (!arr.includes(name)) arr.push(name);
+              themeLbNames.set(tn, arr);
+            });
+          });
           const fmtHhmm = (fbt) => {
             const s = String(fbt || '').trim();
             if (!s) return '';
@@ -2989,9 +3012,15 @@
               .map(t => ({ name: String(t), net: toNum(themeStrength.get(String(t))?.net, 0), risk: toNum(themeStrength.get(String(t))?.risk, 0) }))
               .sort((a,b) => b.net - a.net);
             const topThemes = themed.slice(0, 2);
+            const predTheme = topThemes.length ? topThemes[0].name : '';
             const themeNet = topThemes.length ? topThemes[0].net : 0;
             const themeRisk = topThemes.length ? topThemes[0].risk : 0;
             const themeScore = topThemes.length ? clamp(themeNet * 8) : 0; // net 通常 0~15，放大到 0~100
+
+            const hasTier = !!predTheme && tierThemeSet.has(String(predTheme));
+            const lbList = predTheme ? (themeLbNames.get(String(predTheme)) || []) : [];
+            const juniors = lbList.filter(n => n !== name).slice(0, 2);
+            const hasJuniors = juniors.length > 0;
 
             // 主线/龙头加权：尽量贴合“集中火力做领先股”
             const isMain = !!mainTheme && (
@@ -3025,7 +3054,9 @@
 
             const tags = [
               ...(isMain ? [tag('主线', 'ladder-chip-strong red-text')] : []),
-              ...(leaderBonus >= 10 ? [tag('龙头梯队', 'ladder-chip-strong red-text')] : (leaderBonus > 0 ? [tag('核心梯队', 'ladder-chip-warn orange-text')] : [])),
+              ...(leaderBonus >= 10 ? [tag('前龙头', 'ladder-chip-strong red-text')] : (leaderBonus > 0 ? [tag('核心梯队', 'ladder-chip-warn orange-text')] : [])),
+              ...(hasTier ? [tag('有梯队', 'ladder-chip-warn orange-text')] : [tag('无梯队', 'ladder-chip-cool blue-text')]),
+              ...(hasJuniors ? [tag(`小弟${juniors.join('、')}`, 'ladder-chip-cool blue-text')] : [tag('缺小弟', 'ladder-chip-cool blue-text')]),
               tag(`${lbc}板`, lbc >= 6 ? 'ladder-chip-strong red-text' : (lbc >= 4 ? 'ladder-chip-warn orange-text' : 'ladder-chip-cool blue-text')),
               tag(`封单${fundYi ? fundYi.toFixed(2) : '-'}亿`, fundYi >= 3 ? 'ladder-chip-strong red-text' : (fundYi >= 1 ? 'ladder-chip-warn orange-text' : 'ladder-chip-cool blue-text')),
               open ? tag(`${open}次开板`, open >= 3 ? 'ladder-chip-warn orange-text' : 'ladder-chip-cool blue-text') : tag('未开', 'ladder-chip-cool blue-text'),
@@ -3113,18 +3144,43 @@
             })();
             const head = (reasonBits.length ? reasonBits.join(' · ') : '综合条件一般');
             const reason = `<span class="reason-bits">${head}</span><div class="exp-wrap">${observePoint}</div>`;
-            return { name, code, lbc, hy, fundYi, open, score: Math.round(score), tags, reason };
+            return { name, code, lbc, hy, fundYi, open, predTheme, hasTier, hasJuniors, cjeYi, score: Math.round(score), tags, reason };
           });
 
-          const relay = scored
-            .filter(r => r.lbc >= 2 && r.open <= 2)   // 接力池：尽量排除强分歧/多开板
+          // === 分组策略：数据宽松放出、评分严格排序（避免“没数据”） ===
+          // 接力：宽松入池（只做基本约束），用分数把高风险自然压下去
+          // - 主要看 2-5 板（1板不做接力池）
+          // - 开板太夸张（>=8）直接排除（这类属于纯情绪票，放观察池）
+          let relay = scored
+            .filter(r => r.lbc >= 2 && r.lbc <= 5 && r.open < 8)
             .sort((a, b) => b.score - a.score)
-            .slice(0, 8);
+            .slice(0, 10);
+          const relayNames = new Set(relay.map(x => x.name));
 
-          const watch = scored
-            .filter(r => r.lbc <= 2 || r.open >= 2)   // 观察池：低位/或有分歧的都先观察
-            .sort((a, b) => b.score - a.score)
-            .slice(0, 8);
+          // 观察：大容量/前龙头/强分歧（用来观察情绪反馈），不与接力重复
+          const capArr = scored.map(r => Number(r.cjeYi || 0)).filter(v => v > 0).sort((a,b)=>a-b);
+          const capP80 = capArr.length ? capArr[Math.floor(capArr.length * 0.8)] : 0;
+          let watchPool = scored
+            .filter(r => !relayNames.has(r.name))
+            .filter(r =>
+              (r.cjeYi && r.cjeYi >= Math.max(20, capP80)) ||  // 大容量（成交额较大）
+              r.lbc >= 5 ||                                   // 高位/前龙头观察
+              r.open >= 3 ||                                  // 强分歧看反馈
+              r.hasTier === false                              // 无梯队：看看会不会走出新线/新方向
+            )
+            .sort((a, b) => (b.cjeYi - a.cjeYi) || (b.lbc - a.lbc) || (b.score - a.score));
+          let watch = watchPool.slice(0, 10);
+          // 兜底：若观察条件为空，就用“剩余里容量/分歧/高位”优先补齐
+          if (!watch.length) {
+            watchPool = scored
+              .filter(r => !relayNames.has(r.name))
+              .sort((a, b) => (b.cjeYi - a.cjeYi) || (b.open - a.open) || (b.lbc - a.lbc) || (b.score - a.score));
+            watch = watchPool.slice(0, 10);
+          }
+
+          // 最终展示数量：各取 8，避免版面过长
+          relay = relay.slice(0, 8);
+          watch = watch.slice(0, 8);
 
           return { meta: { tierThemeCount, tierThemeTop }, relay, watch };
         };
