@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>AI-Agent · 复盘站</title>
+  <style>
+    :root{
+      --bg:#0b1220; --card:#0f1b34; --border:rgba(148,163,184,.22);
+      --text:#e5e7eb; --muted:#94a3b8; --red:#ef4444; --green:#22c55e;
+    }
+    body{margin:0;background:radial-gradient(1200px 800px at 20% -10%, rgba(239,68,68,.20), transparent 55%),
+         radial-gradient(900px 700px at 90% 10%, rgba(34,197,94,.18), transparent 55%),
+         var(--bg); color:var(--text); font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;}
+    .wrap{max-width:980px;margin:44px auto;padding:0 18px;}
+    h1{margin:0 0 6px;font-size:28px;letter-spacing:.5px}
+    .sub{color:var(--muted);font-size:14px;margin-bottom:18px}
+    .grid{display:grid;grid-template-columns:1fr;gap:14px}
+    @media (min-width:860px){.grid{grid-template-columns:1.2fr .8fr}}
+    .card{background:linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.01));
+          border:1px solid var(--border); border-radius:14px; padding:16px;}
+    a{color:inherit;text-decoration:none}
+    a:hover{text-decoration:underline}
+    .btns{display:flex;flex-wrap:wrap;gap:10px;margin-top:10px}
+    .btn{display:inline-flex;align-items:center;gap:8px;padding:10px 12px;border-radius:12px;
+         border:1px solid var(--border); background:rgba(15,27,52,.65)}
+    .tag{display:inline-block;font-size:12px;color:var(--muted);border:1px solid var(--border);
+         border-radius:999px;padding:3px 9px;margin-left:8px}
+    .muted{color:var(--muted)}
+    code{background:rgba(148,163,184,.12);border:1px solid var(--border);padding:2px 6px;border-radius:8px}
+    .dot{width:8px;height:8px;border-radius:999px;display:inline-block}
+    .dot.red{background:var(--red)} .dot.green{background:var(--green)}
+    ul{margin:10px 0 0 18px;color:var(--muted)}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>短线复盘 · 静态站</h1>
+    <div class="sub">GitHub Pages 部署入口（你后续可以用脚本自动覆盖更新）。</div>
+
+    <div class="grid">
+      <div class="card">
+        <div>
+          <span class="dot red"></span>
+          <strong style="margin-left:6px;">最新复盘</strong>
+          <span class="tag">入口</span>
+        </div>
+        <div class="muted" style="margin-top:8px;">
+          默认跳转文件：<code>latest.html</code>（你每次发布时覆盖它即可）
+        </div>
+        <div class="btns">
+          <a class="btn" href="./latest.html">打开 latest.html</a>
+        </div>
+      </div>
+
+      <div class="card">
+        <div>
+          <span class="dot green"></span>
+          <strong style="margin-left:6px;">历史文件</strong>
+          <span class="tag">可选</span>
+        </div>
+        <div class="muted" style="margin-top:8px;">
+          建议你把日报都放在 <code>./html/</code> 下，并额外生成一个列表页（例如 <code>archive.html</code>）。
+        </div>
+        <ul>
+          <li><a href="./archive.html">archive.html（如已生成）</a></li>
+          <li><a href="./html/">html/（GitHub Pages 默认不列目录，建议用列表页替代）</a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
