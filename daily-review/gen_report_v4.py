@@ -396,30 +396,11 @@ indices_data = []
 for code, name in [("000001.SH","上证指数"), ("399001.SZ","深证成指"),
                     ("399006.SZ","创业板指"), ("000688.SH","科创50")]:
     try:
-        # 指数快照合并数据源：复用 index_kline_cache（最近5根），避免重复请求
-        paths = cache_paths()
-        paths["dir"].mkdir(parents=True, exist_ok=True)
-        idx_cache = read_json_file(paths["index_klines"])
-        codes_map = idx_cache.get("codes", {}) if isinstance(idx_cache, dict) else {}
-        entry = codes_map.get(code, {}) if isinstance(codes_map, dict) else {}
-        kl = entry.get("items", []) if isinstance(entry, dict) else []
-
-        # 缓存不满足则请求一次并写回（仅保留5根）
-        cached_dates = [it.get("t", "")[:10] for it in kl if isinstance(it, dict) and isinstance(it.get("t", ""), str)]
-        if not (entry.get("as_of") == DATE and len(kl) >= 2 and any(d == DATE for d in cached_dates)):
-            kl = api_get(f"{BASE}/hsindex/latest/{code}/d/{TOKEN}?lt=5")
-            if isinstance(kl, list):
-                if not isinstance(codes_map, dict):
-                    codes_map = {}
-                codes_map[code] = {"as_of": DATE, "items": kl[-5:]}
-                write_json_file(paths["index_klines"], {"version": 1, "codes": codes_map})
-
-        k = kl[-1] if isinstance(kl, list) and len(kl) > 0 else {}
-        prev = kl[-2] if isinstance(kl, list) and len(kl) > 1 else {}
-        close = k.get('c', 0)
-        prev_close = prev.get('c', k.get('pc', 0))
-        chg_pct = (close - prev_close) / prev_close * 100 if prev_close else 0
-        vol_a = k.get('a', 0)  # 成交额
+        # 实时盯盘：指数用 real/time（盘中持续更新）；历史K线/交易日序列仍用 latest/history
+        rt = api_get(f"{BASE}/hsindex/real/time/{code}/{TOKEN}")
+        close = rt.get("p", 0)          # 点位
+        chg_pct = rt.get("pc", 0)       # 涨跌幅（%）
+        vol_a = rt.get("cje", 0)        # 成交额（元）
         indices_data.append({
             'name': name, 'code': code,
             'close': close, 'pct': chg_pct,
@@ -444,6 +425,11 @@ pool_cache = load_pools_cache()
 # 先用“成交量/成交额 日K接口”确定最近交易日列表（用于缓存裁剪与预热）
 trade_days_7 = get_trading_days_from_volume_k(CACHE_DAYS) or [DATE]
 keep_days = trade_days_7[-CACHE_DAYS:]
+# 关键：无论 trade_days 如何返回，都必须包含本次请求日期 DATE
+# 否则会出现“当天已拉取 ztgc/dtgc/zbgc，但随后的裁剪又把 DATE 删掉”的情况，
+# 导致渲染时 ztgc 注入为空（页面看起来像没更新/数据不全）。
+if DATE not in keep_days:
+    keep_days = keep_days + [DATE]
 
 # 预热 7 日缓存：涨停/跌停/炸板（首次会拉取，后续大部分走本地）
 for d in keep_days:
@@ -506,9 +492,12 @@ def fetch_index_klines(code, n=5):
         items = entry.get("items", []) if isinstance(entry, dict) else []
         as_of = entry.get("as_of", "")
 
-        # 如果缓存包含请求日期（DATE）并且条数够用，直接复用
+        # 实时盯盘：当天的数据可能盘中持续变化或被接口修正，因此当天强制刷新；
+        # 历史日仍可复用缓存。
         cached_dates = [it.get("t", "")[:10] for it in items if isinstance(it, dict) and isinstance(it.get("t", ""), str)]
-        if as_of == DATE and len(items) >= n and any(d == DATE for d in cached_dates):
+        has_today = any(d == DATE for d in cached_dates)
+        force_refresh_today = (as_of == DATE and has_today)  # 当天强制刷新
+        if (not force_refresh_today) and as_of == DATE and len(items) >= n and has_today:
             d = items[-n:]
         else:
             d = api_get(f"{BASE}/hsindex/latest/{code}/d/{TOKEN}?lt={max(n, 5)}")
@@ -535,14 +524,20 @@ sh_d = fetch_index_klines("000001.SH", 5)
 sz_d = fetch_index_klines("399001.SZ", 5)
 
 # 交易日由“成交量/成交额 日K接口”统一提供（用于昨日判定/晋级等）
-all_dates = get_trading_days_from_volume_k(7)
-recent5_dates = all_dates[-5:]
+all_dates = get_trading_days_from_volume_k(7) or [DATE]
+# 实时盯盘：接口可能只返回“已收盘交易日”，但我们需要把 DATE 作为“当前点”纳入
+if DATE not in all_dates:
+    all_dates = all_dates + [DATE]
+recent5_dates = sorted(set(all_dates))[-5:]
 vol_history = []
 prev_v = None
 for d in recent5_dates:
     sh_v = sh_d.get(d, 0)
     sz_v = sz_d.get(d, 0)
     total = (sh_v + sz_v) / 1e8
+    # 若日K未包含“当日”(盘中/未收盘常见)，用实时两市合计成交额兜底
+    if d == DATE and (total <= 0) and (today_total_vol > 0):
+        total = today_total_vol
     chg = (total - prev_v) / prev_v * 100 if prev_v else 0
     vol_history.append({'date': d[5:].replace('-', ''), 'vol': total, 'chg': chg})
     prev_v = total
@@ -693,6 +688,12 @@ for code, info in yest_lb_stocks.items():
 
 jj_rate = len(jinwei_list) / len(yest_lb_stocks) * 100 if yest_lb_stocks else 0
 
+# 最高断板（用于“高位断板影响连板梯队”提示）
+top_duanban = max(duanban_list, key=lambda x: int(x.get("lbc", 0) or 0), default=None) if duanban_list else None
+top_duanban_lb = int(top_duanban.get("lbc", 0) or 0) if isinstance(top_duanban, dict) else 0
+top_duanban_name = (top_duanban.get("mc", "") if isinstance(top_duanban, dict) else "") or ""
+top_duanban_is_high = top_duanban_lb >= 6  # 经验阈值：6板及以上断板，往往会影响次高板与梯队情绪
+
 # 首板晋级率: 昨日首板(lbc=1)中今日晋级到2板+
 yest_1b_codes = set(s['dm'] for s in yest_zt if s.get('lbc', 1) == 1)
 jinwei_from_1b = [c for c in today_lb_codes if c in yest_1b_codes]
@@ -769,7 +770,7 @@ if ladder_rows:
     ladder_rows[0]['name'] = f"👑 {ladder_rows[0]['name']}"
 
 print(f"   天梯: 最高{max_lb}板, 共{len(ladder_rows)}只连板")
-print(f"   昨日{len(yest_lb_stocks)}只连板→存活{len(jinwei_list)}只({jj_rate:.0f}%)")
+print(f"   昨日{len(yest_lb_stocks)}只连板→存活{len(jinwei_list)}只({jj_rate:.1f}%)")
 duanban_preview = ', '.join([f"{s['mc']}({s['lbc']}板)" for s in duanban_list[:8]])
 print(f"   断板: {duanban_preview}")
 
@@ -792,7 +793,10 @@ high_level_note = f"5板及以上 {five_plus_count}只 / 占比 {high_level_rati
 # ⑤ 近7日高度趋势
 # ══════════════════════════
 print("\n[5/12] 获取近7日高度趋势...")
-his_dates = get_trading_days_from_volume_k(7)
+his_dates = get_trading_days_from_volume_k(7) or [DATE]
+# 实时盯盘：把 DATE 加入高度趋势“当前点”
+if DATE not in his_dates:
+    his_dates = his_dates + [DATE]
 height_trend = {'dates': [], 'main': [], 'sub': [], 'gem': [], 'labels_main': [], 'labels_sub': [], 'labels_gem': []}
 
 def calc_height_trend_row(day: str, day_data: list) -> dict:
@@ -1225,7 +1229,7 @@ if zt_count >= 70 and fb_rate >= 75 and jj_rate >= 40:
     up_cnt = sum(1 for i in indices_data if i.get("pct", 0) >= 0)
     effect_verdict_detail = (
         f"四大指数 {up_cnt}红{4-up_cnt}绿{'（创业板最强）' if any(i['name']=='创业板指' and i['pct']>2 for i in indices_data) else ''}，"
-        f"封板率{fb_rate:.0f}%创近期高点，晋级率{jj_rate:.0f}%。当前是出手时机，但注意高潮次日分化风险。"
+        f"封板率{fb_rate:.1f}%创近期高点，晋级率{jj_rate:.1f}%。当前是出手时机，但注意高潮次日分化风险。"
     )
 elif zt_count >= 50 and fb_rate >= 65:
     effect_verdict_type = "warn"
@@ -1237,7 +1241,7 @@ else:
     effect_verdict_type = "fire"
     effect_verdict_title = "📋 综合判断：情绪冰点期，亏钱效应明显。"
     effect_verdict_detail = (
-        f"涨停数不足{zt_count}只，封板率仅{fb_rate:.0f}%，建议空仓观望或极轻仓试错。"
+        f"涨停数不足{zt_count}只，封板率仅{fb_rate:.1f}%，建议空仓观望或极轻仓试错。"
     )
 
 market_tone = "bull" if effect_verdict_type == "good" else ("mixed" if effect_verdict_type == "warn" else "bear")
@@ -1429,6 +1433,11 @@ def get_theme_daily_count_map(trade_date, cache_days_keep):
     return day_counts
 
 theme_trend_days = get_trading_days_from_volume_k(5) or [DATE]
+# 实时盯盘：把 DATE 纳入近5日（否则盘中会停留在上一个交易日）
+if DATE not in theme_trend_days:
+    theme_trend_days = theme_trend_days + [DATE]
+# 去重并只保留最后5个
+theme_trend_days = sorted(set(theme_trend_days))[-5:]
 focus_theme_names = [item[0] for item in real_themes[:3]]
 theme_trend = {'dates': [d[5:] for d in theme_trend_days], 'series': []}
 
@@ -1463,6 +1472,7 @@ for idx, (t_name, t_cnt) in enumerate(real_themes[:5]):
     sector_top5.append({
         'rank': idx + 1,
         'name': t_name,
+        'count': int(t_cnt),
         'detail': stocks_str,
         'eval': eval_word,
         'eval_color': ['red-text', 'success', 'primary', 'warning', 'text-muted'][min(idx, 4)]
@@ -1608,7 +1618,7 @@ sentiment_phase = (
 )
 sentiment_note = (
     f"热度 {heat_score} / 风险 {risk_score}；"
-    f"封板率 {fb_rate:.1f}% 、晋级率 {jj_rate:.0f}% 、炸板率 {zb_rate:.1f}% 、跌停 {dt_count} 只。"
+    f"封板率 {fb_rate:.1f}% 、晋级率 {jj_rate:.1f}% 、炸板率 {zb_rate:.1f}% 、跌停 {dt_count} 只。"
 )
 
 # 开发/模块化复用：情绪模块输入（用于 partial 重算 mood/moodStage/moodCards）
@@ -1648,6 +1658,10 @@ mood_inputs = {
     "smallcap_cnt": smallcap_cnt,
     "yest_lb_count": len(yest_lb_stocks),
     "duanban_count": len(duanban_list),
+    # 高位断板提示（用于明日指南：观察断板龙头对次高板/梯队的反馈影响）
+    "top_duanban_name": top_duanban_name,
+    "top_duanban_lb": top_duanban_lb,
+    "top_duanban_is_high": 1 if top_duanban_is_high else 0,
     # 与“赚钱效应综合判断”对齐（用于修正情绪阶段割裂感）
     "effect_verdict_type": effect_verdict_type,
     # 强势股池（qsgc）派生：昨日涨停今表现（用于热力图“赚钱效应”）
@@ -1959,7 +1973,7 @@ risk_grid_html = f"""
             <div class="fear-note">{high_level_note}</div>
           </div>
           <div class="fear-card">
-            <div class="fear-val blue-text">{jj_rate:.0f}%</div>
+            <div class="fear-val blue-text">{jj_rate:.1f}%</div>
             <div class="fear-label">连板晋级率</div>
             <div class="fear-note">昨日连板 {len(yest_lb_stocks)} → 今存活 {len(jinwei_list)}</div>
           </div>
@@ -2093,7 +2107,7 @@ capital_grid_html = render_metric_cards([
 
 relay_grid_html = render_metric_cards([
     {
-        'value': f"{jj_rate:.0f}%",
+        'value': f"{jj_rate:.1f}%",
         'label': '连板承接',
         'note': f'昨日连板 {len(yest_lb_stocks)} 只，今日晋级 {len(jinwei_list)} 只',
         'value_class': 'blue-text',
@@ -4048,6 +4062,14 @@ try:
             "successNote": f"封板质量{'极高' if fb_rate>=80 else ('尚可' if fb_rate>=70 else '偏低')}",
             "yesterday": yesterday_perf,
         },
+        # 风格/轮动（用于页面“风格偏好/主线支线轮动线”动态渲染，避免写死）
+        "rotation": {
+            "style": rotation_style,
+            "note": rotation_note,
+            "highLevelRatio": round(high_level_ratio, 1),
+        },
+        # 主线/支线/轮动线分层（来自当日题材统计）
+        "themeLayers": theme_layers,
         "styleRadar": {
             "indicators": ["连板接力", "低位试错", "20cm弹性", "题材集中", "资金抱团", "高位博弈"],
             "values": [relay_strength, low_trial_strength, elastic_strength, theme_focus_strength, capital_focus_strength, high_game_strength],
@@ -4108,7 +4130,7 @@ print("指数: " + " ".join([f'{i["name"]}{i["close"]:.2f}({i["pct"]:+.2f}%)' fo
 print(f"全景: 涨停{zt_count} 炸板{zb_count} 跌停{dt_count} 封板{fb_rate:.1f}%")
 print(f"量能: {today_total_vol:.0f}亿 ({vol_chg_pct:+.2f}%)")
 print(f"赚钱效应: {effect_verdict_title}")
-print(f"天梯: 最高{max_lb}板, {len(ladder_rows)}只连板, 晋级率{jj_rate:.0f}%")
+print(f"天梯: 最高{max_lb}板, {len(ladder_rows)}只连板, 晋级率{jj_rate:.1f}%")
 print(f"题材TOP3: {', '.join([f'{t[0]}({t[1]}只)' for t in real_themes[:3]])}")
 print(f"恐惧: 大面{bf_count}只, 亏钱{fear_risk}")
 print(f"成交额TOP1: {top10_with_theme[0]['mc']} {top10_with_theme[0]['cje']/1e8:.0f}亿")

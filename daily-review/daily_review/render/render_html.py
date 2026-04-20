@@ -41,6 +41,9 @@ def render_html_template(
     # 2) 注入日期类占位符
     tpl = tpl.replace("__REPORT_DATE__", report_date)
     tpl = tpl.replace("__DATE_NOTE__", date_note or "")
+    m = re.match(r"^(\d{4})-(\d{2})-(\d{2})$", report_date)
+    report_date_cn = f"{m.group(1)}年{m.group(2)}月{m.group(3)}日" if m else report_date
+    tpl = tpl.replace("__REPORT_DATE_CN__", report_date_cn)
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(tpl, encoding="utf-8")
@@ -156,6 +159,12 @@ def build_action_guide_v2(market_data: Dict[str, Any]) -> Dict[str, Any]:
     mi = ((market_data.get("features") or {}).get("mood_inputs") or {})
     delta = market_data.get("delta") or {}
 
+    # 高位断板（断板最高板）——用于同步到“明日指南”
+    top_duanban_name = str(mi.get("top_duanban_name") or "")
+    top_duanban_lb = int(to_num(mi.get("top_duanban_lb"), 0) or 0)
+    top_duanban_is_high = int(to_num(mi.get("top_duanban_is_high"), 0) or 0) == 1
+    second_lb = int(to_num(mi.get("second_lb"), 0) or 0)
+
     stage = (market_data.get("moodStage") or {}).get("title") or "-"
     stage_type = (market_data.get("moodStage") or {}).get("type") or "warn"
     theme = pick_theme()
@@ -198,7 +207,7 @@ def build_action_guide_v2(market_data: Dict[str, Any]) -> Dict[str, Any]:
             return None
         cls = "ladder-chip-strong red-text" if n > 0 else ("ladder-chip-cool blue-text" if n < 0 else "")
         sign = "+" if n > 0 else ""
-        # pp 用 1 位小数更像“百分点”
+        # pp（百分点）保留 1 位小数
         if unit == "pp":
             text = f"Δ{sign}{n:.1f}{unit}"
         else:
@@ -257,7 +266,7 @@ def build_action_guide_v2(market_data: Dict[str, Any]) -> Dict[str, Any]:
 
     meta_title = f"🧩 盘面基调：{regime}｜主线：{theme.get('name','主线')}｜模式：{mode}（默认进攻）｜建议：{stance}"
     meta_detail = (
-        f"涨停{zt_cnt}，封板{fb:.1f}%（早封{early:.0f}%），晋级{jj:.0f}%；"
+        f"涨停{zt_cnt}，封板{fb:.1f}%（早封{early:.1f}%），晋级{jj:.1f}%；"
         f"炸板{zb:.1f}%、扩散{int(loss)}；量能{vol_chg:+.2f}%；"
         f"多开板≥3占比{zbc_ge3_ratio:.1f}%（均开板{avg_zbc:.2f}）。"
     )
@@ -282,7 +291,7 @@ def build_action_guide_v2(market_data: Dict[str, Any]) -> Dict[str, Any]:
             "title": f"开盘① 定主线：{main_name}",
             "desc": bar(
                 f"净强{theme_net:.1f} · 风险{theme_risk:.1f}",
-                f"拥挤(重叠){overlap_score:.0f}%",
+                f"拥挤(重叠){overlap_score:.1f}%",
                 f"保留底线：净强≥{max(theme_net-1.0,0):.1f}",
             ),
             "tags": [
@@ -293,8 +302,8 @@ def build_action_guide_v2(market_data: Dict[str, Any]) -> Dict[str, Any]:
             "dot": "dot-safe",
             "title": "开盘② 定节奏：承接 vs 分歧",
             "desc": bar(
-                f"承接：封板{fb:.1f}% / 晋级{jj:.0f}% / 早封{early:.0f}%",
-                f"分歧：炸板{zb:.1f}% / ≥3开板{zbc_ge3_ratio:.0f}% / 均开板{avg_zbc:.2f}",
+                f"承接：封板{fb:.1f}% / 晋级{jj:.1f}% / 早封{early:.1f}%",
+                f"分歧：炸板{zb:.1f}% / ≥3开板{zbc_ge3_ratio:.1f}% / 均开板{avg_zbc:.2f}",
             ),
             "tags": [
                 *(x for x in [dtag("fb_rate", "pp"), dtag("jj_rate", "pp"), dtag("zb_rate", "pp"), dtag("loss")] if x),
@@ -322,13 +331,23 @@ def build_action_guide_v2(market_data: Dict[str, Any]) -> Dict[str, Any]:
             "desc": bar(
                 f"龙头{leader_name}({leader_b}板)",
                 f"主线{main_name}（净强{theme_net:.1f}/风险{theme_risk:.1f}）",
-                f"拥挤(重叠){overlap_score:.0f}%",
+                f"拥挤(重叠){overlap_score:.1f}%",
             ),
             "tags": [
-                tag(f"≥3开板{zbc_ge3_ratio:.0f}%", "ladder-chip-warn orange-text" if zbc_ge3_ratio >= 18 else "ladder-chip-cool blue-text"),
+                tag(f"≥3开板{zbc_ge3_ratio:.1f}%", "ladder-chip-warn orange-text" if zbc_ge3_ratio >= 18 else "ladder-chip-cool blue-text"),
             ],
         },
     ]
+
+    # 若出现“高位断板”，把它作为明日盯盘重点：观察断板龙头的反馈是否压制次高板/梯队
+    if top_duanban_is_high and top_duanban_name and top_duanban_lb >= 6:
+        retreat[1]["title"] = "盯盘红灯② 高位断板反馈"
+        retreat[1]["desc"] = bar(
+            f"断板最高：{top_duanban_name}({top_duanban_lb}板)",
+            f"次高板：{second_lb}板（易受反馈影响）" if second_lb else "次高板：—",
+            "看点：反抽无力/继续走弱 → 次高板更难晋级；强修复回封 → 梯队回暖",
+        )
+        retreat[1]["tags"] = [tag("先看反馈", "ladder-chip-warn orange-text")]
 
     return {
         "meta": {"title": meta_title, "detail": meta_detail, "type": verdict_type},

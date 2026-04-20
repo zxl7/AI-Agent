@@ -39,6 +39,8 @@ def calc_stage(*, heat_score: float, risk_score: float, inputs: Dict[str, Any]) 
     fb_rate = float(inputs.get("fb_rate", 0) or 0)
     zb_rate = float(inputs.get("zb_rate", 0) or 0)
     dt_count = int(inputs.get("dt_count", 0) or 0)
+    jj_rate = float(inputs.get("jj_rate", 0) or 0)
+    bf_count = int(inputs.get("bf_count", 0) or 0)
     rate_2to3 = float(inputs.get("rate_2to3", 0) or 0)
     rate_3to4 = float(inputs.get("rate_3to4", 0) or 0)
     height_gap = int(inputs.get("height_gap", 0) or 0)
@@ -53,14 +55,21 @@ def calc_stage(*, heat_score: float, risk_score: float, inputs: Dict[str, Any]) 
     risk_hits = 0
     risk_hits += 1 if dt_count >= 10 else 0
     risk_hits += 1 if broken_lb_rate >= 35 else 0
+    # 断板率极高属于“结构性风险”，提高权重（这类场景容易被误判成“弱修复”）
+    risk_hits += 1 if broken_lb_rate >= 55 else 0
     risk_hits += 1 if zb_high_ratio >= 20 else 0
     risk_hits += 1 if zb_rate >= 28 else 0
     risk_hits += 1 if height_gap >= 4 else 0
     risk_hits += 1 if risk_score >= 60 else 0
+    # 晋级差（承接弱）与“大面扩散”属于盘中最敏感的风险信号
+    risk_hits += 1 if jj_rate <= 35 else 0
+    risk_hits += 1 if bf_count >= 10 else 0
 
     # 强势/一致信号
     strong_hits = 0
     strong_hits += 1 if fb_rate >= 78 else 0
+    # 晋级率本身也应算作强势信号（比 2→3 更通用）
+    strong_hits += 1 if jj_rate >= 45 else 0
     strong_hits += 1 if rate_2to3 >= 55 else 0
     strong_hits += 1 if rate_3to4 >= 35 else 0
     strong_hits += 1 if zt_early_ratio >= 55 else 0
@@ -83,9 +92,13 @@ def calc_stage(*, heat_score: float, risk_score: float, inputs: Dict[str, Any]) 
         if heat_score >= 85 and (risk_score >= 45 or height_gap >= 3 or zb_rate >= 22):
             return {"title": "高潮", "type": "good", "detail": "一致性强但易分化，注意高潮次日回撤与高位炸板风险。"}
         return {"title": "强修复", "type": "good", "detail": "封板与晋级偏强，短线生态健康，低位与核心接力都有机会。"}
+    # 中间态：分歧/弱修复
+    # 规则：当“封板/早封”很强，但“晋级/断板/大面”偏差时，本质是结构性分歧，不应落到“弱修复”
     if risk_hits >= 2 and strong_hits >= 2:
-        return {"title": "分歧", "type": "warn", "detail": "强弱并存，轮动加快，控制仓位，优先做确定性更高的方向。"}
-    return {"title": "弱修复", "type": "warn", "detail": "有修复但承接一般，适合轻仓试错，重点观察2进3/3进4能否走强。"}
+        return {"title": "分歧", "type": "warn", "detail": "封板不差但结构承接偏弱（晋级/断板/大面其一走坏），按分歧处理：降低仓位，做回封与低位确定性。"}
+    if strong_hits >= 3 and (broken_lb_rate >= 45 or jj_rate <= 35):
+        return {"title": "分歧", "type": "warn", "detail": "一致性偏强但晋级/断板不跟随，属于“强分歧”：只做确认，不做情绪硬接力。"}
+    return {"title": "弱修复", "type": "warn", "detail": "有修复但承接一般（晋级偏弱），适合轻仓试错，重点观察晋级率与断板率是否改善。"}
 
 
 def build_cards(inputs: Dict[str, Any]) -> List[Dict[str, Any]]:

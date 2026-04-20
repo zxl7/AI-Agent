@@ -63,6 +63,15 @@
       "label_main": "汇源通信",
       "label_sub": "中安科",
       "label_gem": "行云科技"
+    },
+    "2026-04-17": {
+      "day": "2026-04-17",
+      "main": 7,
+      "sub": 5,
+      "gem": 2,
+      "label_main": "圣阳股份",
+      "label_sub": "博云新材",
+      "label_gem": "宝丽迪"
     }
   }
 }
