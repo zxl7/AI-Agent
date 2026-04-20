@@ -1,22 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# 用途：
-# 1) 选择“已生成”的最新复盘 HTML（默认从 ./html/ 找最新）
-# 2) 切到 gh-pages 分支
-# 3) 直接覆盖 index.html（你要求“直接覆盖 index”）
-# 4) commit + push
-#
-# 可选环境变量：
-#   REPORT_HTML     指定要发布的 HTML 文件路径（跳过自动查找）
-#   PAGES_BRANCH    Pages 分支（默认 gh-pages）
-#   PAGES_FILE      覆盖的文件名（默认 index.html）
-#   ALLOW_DIRTY     允许工作区有未提交修改（默认 0；建议保持干净）
-#
-# 关键修复点：
-# - 切换到 gh-pages 后，源文件（在 master 的 ./html/）会不存在
-# - 所以：切分支前先把报告复制到临时文件，再切分支覆盖
-
 PAGES_BRANCH="${PAGES_BRANCH:-gh-pages}"
 PAGES_FILE="${PAGES_FILE:-index.html}"
 ALLOW_DIRTY="${ALLOW_DIRTY:-0}"
@@ -44,7 +28,6 @@ latest_report_auto() {
 }
 
 abs_path() {
-  # mac/linux 通用的绝对路径
   python3 - <<'PY' "$1"
 import os,sys
 print(os.path.abspath(sys.argv[1]))
@@ -53,14 +36,19 @@ PY
 
 main() {
   if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-    echo "❌ 请在 Git 仓库根目录执行此脚本。"
+    echo "❌ 请在 Git 仓库内执行此脚本。"
     exit 1
   fi
+
+  # 强制回到仓库根目录（关键修复点）
+  local repo_root
+  repo_root="$(git rev-parse --show-toplevel)"
+  cd "$repo_root"
 
   local current_branch
   current_branch="$(git branch --show-current)"
   if [ -z "$current_branch" ]; then
-    echo "❌ 当前不在任何分支（detached HEAD），请先切回 master/main。"
+    echo "❌ 当前不在任何分支（detached HEAD）。"
     exit 1
   fi
 
@@ -82,7 +70,7 @@ main() {
   fi
   echo "   将发布：$report_html"
 
-  # 切分支前复制到临时文件，避免 gh-pages 分支下找不到源文件
+  # 切分支前复制到临时文件，避免源文件随分支切换消失
   local report_abs tmp
   report_abs="$(abs_path "$report_html")"
   tmp="$(mktemp -t deploy_pages.XXXXXX.html)"
@@ -90,17 +78,22 @@ main() {
 
   echo "==> [2/3] 切到 $PAGES_BRANCH 并覆盖 $PAGES_FILE"
   git switch "$PAGES_BRANCH"
+  cd "$repo_root"
 
+  # 确保目标目录存在（支持 PAGES_FILE=some/dir/index.html）
   mkdir -p "$(dirname "$PAGES_FILE")" 2>/dev/null || true
-  cp -f "$tmp" "./$PAGES_FILE"
+
+  # 用 install 更稳（没有文件也能创建）
+  install -m 644 "$tmp" "$PAGES_FILE"
   rm -f "$tmp"
 
-  git add "./$PAGES_FILE"
+  git add "$PAGES_FILE"
   git commit -m "deploy: $(date '+%F %T')" || echo "（无变化，无需提交）"
   git push
 
   echo "==> [3/3] 切回 $current_branch"
   git switch "$current_branch"
+  cd "$repo_root"
 
   echo "✅ 发版完成：已覆盖 $PAGES_BRANCH/$PAGES_FILE"
 }
