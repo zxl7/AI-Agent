@@ -72,6 +72,15 @@
       "label_main": "圣阳股份",
       "label_sub": "博云新材",
       "label_gem": "宝丽迪"
+    },
+    "2026-04-20": {
+      "day": "2026-04-20",
+      "main": 6,
+      "sub": 3,
+      "gem": 1,
+      "label_main": "博云新材",
+      "label_sub": "株冶集团",
+      "label_gem": "蜀道装备"
     }
   }
 }
